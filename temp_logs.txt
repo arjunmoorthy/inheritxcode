@@ -1,0 +1,106 @@
+﻿docker :     response = await self.dispatch_func(request, call_next)
+At C:\Users\navee\AppData\Local\Temp\ps-script-dbc5e244-3ea3-415b-b192-bb3a4a0ccab4.ps1:96 char:1
++ docker logs oncolife-patient-api --tail 100 2>&1 | Out-File "temp_log ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (    response = ...est, call_next):String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/core/middleware/correlation_id.py", line 77, in dispatch
+    response = await call_next(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/venv/lib/python3.11/site-packages/starlette/middleware/base.py", line 168, in call_next
+    raise app_exc from app_exc.__cause__ or app_exc.__context__
+  File "/opt/venv/lib/python3.11/site-packages/starlette/middleware/base.py", line 144, in coro
+    await self.app(scope, receive_or_disconnect, send_no_error)
+  File "/opt/venv/lib/python3.11/site-packages/starlette/middleware/base.py", line 191, in __call__
+    with recv_stream, send_stream, collapse_excgroups():
+  File "/usr/local/lib/python3.11/contextlib.py", line 158, in __exit__
+    self.gen.throw(typ, value, traceback)
+  File "/opt/venv/lib/python3.11/site-packages/starlette/_utils.py", line 85, in collapse_excgroups
+    raise exc
+  File "/opt/venv/lib/python3.11/site-packages/starlette/middleware/base.py", line 193, in __call__
+    response = await self.dispatch_func(request, call_next)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/core/middleware/request_logging.py", line 92, in dispatch
+    response: Response = await call_next(request)
+                         ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/venv/lib/python3.11/site-packages/starlette/middleware/base.py", line 168, in call_next
+    raise app_exc from app_exc.__cause__ or app_exc.__context__
+  File "/opt/venv/lib/python3.11/site-packages/starlette/middleware/base.py", line 144, in coro
+    await self.app(scope, receive_or_disconnect, send_no_error)
+  File "/opt/venv/lib/python3.11/site-packages/starlette/middleware/base.py", line 191, in __call__
+    with recv_stream, send_stream, collapse_excgroups():
+  File "/usr/local/lib/python3.11/contextlib.py", line 158, in __exit__
+    self.gen.throw(typ, value, traceback)
+  File "/opt/venv/lib/python3.11/site-packages/starlette/_utils.py", line 85, in collapse_excgroups
+    raise exc
+  File "/opt/venv/lib/python3.11/site-packages/starlette/middleware/base.py", line 193, in __call__
+    response = await self.dispatch_func(request, call_next)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/venv/lib/python3.11/site-packages/slowapi/middleware.py", line 136, in dispatch
+    response = await call_next(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/venv/lib/python3.11/site-packages/starlette/middleware/base.py", line 168, in call_next
+    raise app_exc from app_exc.__cause__ or app_exc.__context__
+  File "/opt/venv/lib/python3.11/site-packages/starlette/middleware/base.py", line 144, in coro
+    await self.app(scope, receive_or_disconnect, send_no_error)
+  File "/opt/venv/lib/python3.11/site-packages/starlette/middleware/cors.py", line 85, in __call__
+    await self.app(scope, receive, send)
+  File "/opt/venv/lib/python3.11/site-packages/starlette/middleware/exceptions.py", line 63, in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+  File "/opt/venv/lib/python3.11/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "/opt/venv/lib/python3.11/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "/opt/venv/lib/python3.11/site-packages/fastapi/middleware/asyncexitstack.py", line 18, in __call__
+    await self.app(scope, receive, send)
+  File "/opt/venv/lib/python3.11/site-packages/starlette/routing.py", line 716, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "/opt/venv/lib/python3.11/site-packages/starlette/routing.py", line 736, in app
+    await route.handle(scope, receive, send)
+  File "/opt/venv/lib/python3.11/site-packages/starlette/routing.py", line 290, in handle
+    await self.app(scope, receive, send)
+  File "/opt/venv/lib/python3.11/site-packages/fastapi/routing.py", line 115, in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+  File "/opt/venv/lib/python3.11/site-packages/starlette/_exception_handler.py", line 59, in wrapped_app
+    response = await handler(conn, exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/core/middleware/error_handler.py", line 56, in app_exception_handler
+    logger.warning(
+  File "/usr/local/lib/python3.11/logging/__init__.py", line 1501, in warning
+    self._log(WARNING, msg, args, **kwargs)
+  File "/usr/local/lib/python3.11/logging/__init__.py", line 1632, in _log
+    record = self.makeRecord(self.name, level, fn, lno, msg, args,
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/logging/__init__.py", line 1606, in makeRecord
+    raise KeyError("Attempt to overwrite %r in LogRecord" % key)
+KeyError: "Attempt to overwrite 'message' in LogRecord"
+2026-01-15 15:09:33 | [32mINFO    [0m | core.middleware.request_logging [bae3b5e1] | Request started: GET /api/v1/profile/
+2026-01-15 15:09:33 | [33mWARNING [0m | core.middleware.error_handler [bae3b5e1] | Request validation failed
+2026-01-15 15:09:33 | [33mWARNING [0m | core.middleware.request_logging [bae3b5e1] | Request completed: GET /api/v1/profile/ -> 400
+2026-01-15 15:22:19 | [32mINFO    [0m | core.middleware.request_logging [116f9f91] | Request started: POST /api/v1/questions
+2026-01-15 15:22:19 | [36mDEBUG   [0m | api.deps [116f9f91] | LOCAL_DEV_MODE: Using test user UUID
+2026-01-15 15:22:19 | [32mINFO    [0m | api.v1.endpoints.questions [116f9f91] | Creating question for patient 11111111-1111-1111-1111-111111111111
+2026-01-15 15:22:38,256 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-01-15 15:22:38 | [32mINFO    [0m | sqlalchemy.engine.Engine [116f9f91] | BEGIN (implicit)
+2026-01-15 15:22:38,821 INFO sqlalchemy.engine.Engine INSERT INTO patient_questions (id, patient_uuid, question_text, share_with_physician, is_answered, category, is_deleted) VALUES (%(id)s::UUID, %(patient_uuid)s::UUID, %(question_text)s, %(share_with_physician)s, %(is_answered)s, %(category)s, %(is_deleted)s) RETURNING patient_questions.created_at, patient_questions.updated_at
+2026-01-15 15:22:38 | [32mINFO    [0m | sqlalchemy.engine.Engine [116f9f91] | INSERT INTO patient_questions (id, patient_uuid, question_text, share_with_physician, is_answered, category, is_deleted) VALUES (%(id)s::UUID, %(patient_uuid)s::UUID, %(question_text)s, %(share_with_physician)s, %(is_answered)s, %(category)s, %(is_deleted)s) RETURNING patient_questions.created_at, patient_questions.updated_at
+2026-01-15 15:22:38,829 INFO sqlalchemy.engine.Engine [generated in 0.02324s] {'id': UUID('7f55c308-bcb9-40c0-8b7b-2fb514df9cf6'), 'patient_uuid': UUID('11111111-1111-1111-1111-111111111111'), 'question_text': 'Test question', 'share_with_physician': False, 'is_answered': False, 'category': 'other', 'is_deleted': False}
+2026-01-15 15:22:38 | [32mINFO    [0m | sqlalchemy.engine.Engine [116f9f91] | [generated in 0.02324s] {'id': UUID('7f55c308-bcb9-40c0-8b7b-2fb514df9cf6'), 'patient_uuid': UUID('11111111-1111-1111-1111-111111111111'), 'question_text': 'Test question', 'share_with_physician': False, 'is_answered': False, 'category': 'other', 'is_deleted': False}
+2026-01-15 15:22:39,548 INFO sqlalchemy.engine.Engine COMMIT
+2026-01-15 15:22:39 | [32mINFO    [0m | sqlalchemy.engine.Engine [116f9f91] | COMMIT
+2026-01-15 15:22:40,567 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-01-15 15:22:40 | [32mINFO    [0m | sqlalchemy.engine.Engine [116f9f91] | BEGIN (implicit)
+2026-01-15 15:22:40,683 INFO sqlalchemy.engine.Engine SELECT patient_questions.id, patient_questions.patient_uuid, patient_questions.question_text, patient_questions.share_with_physician, patient_questions.is_answered, patient_questions.category, patient_questions.is_deleted, patient_questions.created_at, patient_questions.updated_at 
+FROM patient_questions 
+WHERE patient_questions.id = %(pk_1)s::UUID
+2026-01-15 15:22:40 | [32mINFO    [0m | sqlalchemy.engine.Engine [116f9f91] | SELECT patient_questions.id, patient_questions.patient_uuid, patient_questions.question_text, patient_questions.share_with_physician, patient_questions.is_answered, patient_questions.category, patient_questions.is_deleted, patient_questions.created_at, patient_questions.updated_at 
+FROM patient_questions 
+WHERE patient_questions.id = %(pk_1)s::UUID
+2026-01-15 15:22:40,684 INFO sqlalchemy.engine.Engine [generated in 0.00252s] {'pk_1': UUID('7f55c308-bcb9-40c0-8b7b-2fb514df9cf6')}
+2026-01-15 15:22:40 | [32mINFO    [0m | sqlalchemy.engine.Engine [116f9f91] | [generated in 0.00252s] {'pk_1': UUID('7f55c308-bcb9-40c0-8b7b-2fb514df9cf6')}
+2026-01-15 15:22:40 | [32mINFO    [0m | api.v1.endpoints.questions [116f9f91] | Created question 7f55c308-bcb9-40c0-8b7b-2fb514df9cf6 for patient 11111111-1111-1111-1111-111111111111
+2026-01-15 15:22:41 | [32mINFO    [0m | core.middleware.request_logging [116f9f91] | Request completed: POST /api/v1/questions -> 201
+2026-01-15 15:22:41,017 INFO sqlalchemy.engine.Engine COMMIT
+2026-01-15 15:22:41 | [32mINFO    [0m | sqlalchemy.engine.Engine [116f9f91] | COMMIT

@@ -1,0 +1,109 @@
+﻿{
+    "executionRoleArn":  "arn:aws:iam::296062592436:role/ecsTaskExecutionRole",
+    "networkMode":  "awsvpc",
+    "cpu":  "256",
+    "requiresCompatibilities":  [
+                                    "FARGATE"
+                                ],
+    "containerDefinitions":  [
+                                 {
+                                     "name":  "patient-api",
+                                     "image":  "296062592436.dkr.ecr.us-east-1.amazonaws.com/oncolife-patient-api:latest",
+                                     "cpu":  0,
+                                     "portMappings":  [
+                                                          {
+                                                              "containerPort":  8000,
+                                                              "hostPort":  8000,
+                                                              "protocol":  "tcp"
+                                                          }
+                                                      ],
+                                     "essential":  true,
+                                     "environment":  [
+                                                         {
+                                                             "name":  "PATIENT_DB_PASSWORD",
+                                                             "value":  "OncoLife2026Prod!"
+                                                         },
+                                                         {
+                                                             "name":  "DOCTOR_DB_NAME",
+                                                             "value":  "oncolife_doctor"
+                                                         },
+                                                         {
+                                                             "name":  "AWS_REGION",
+                                                             "value":  "us-east-1"
+                                                         },
+                                                         {
+                                                             "name":  "DOCTOR_DB_HOST",
+                                                             "value":  "oncolife-db.cziyoqoiu475.us-east-1.rds.amazonaws.com"
+                                                         },
+                                                         {
+                                                             "name":  "PATIENT_DB_NAME",
+                                                             "value":  "oncolife_patient"
+                                                         },
+                                                         {
+                                                             "name":  "ENVIRONMENT",
+                                                             "value":  "development"
+                                                         },
+                                                         {
+                                                             "name":  "LOCAL_DEV_MODE",
+                                                             "value":  "true"
+                                                         },
+                                                         {
+                                                             "name":  "PATIENT_DB_USER",
+                                                             "value":  "oncolife_admin"
+                                                         },
+                                                         {
+                                                             "name":  "DOCTOR_DB_PORT",
+                                                             "value":  "5432"
+                                                         },
+                                                         {
+                                                             "name":  "DOCTOR_DB_PASSWORD",
+                                                             "value":  "OncoLife2026Prod!"
+                                                         },
+                                                         {
+                                                             "name":  "CORS_ORIGINS",
+                                                             "value":  "https://d1np153spw37t4.cloudfront.net,https://doreebziauwxa.cloudfront.net,http://oncolife-patient-web-296062592436.s3-website-us-east-1.amazonaws.com"
+                                                         },
+                                                         {
+                                                             "name":  "PATIENT_DB_PORT",
+                                                             "value":  "5432"
+                                                         },
+                                                         {
+                                                             "name":  "PATIENT_DB_HOST",
+                                                             "value":  "oncolife-db.cziyoqoiu475.us-east-1.rds.amazonaws.com"
+                                                         },
+                                                         {
+                                                             "name":  "DOCTOR_DB_USER",
+                                                             "value":  "oncolife_admin"
+                                                         },
+                                                         {
+                                                             "name":  "LOG_LEVEL",
+                                                             "value":  "INFO"
+                                                         },
+                                                         {
+                                                             "value":  "oncolife-education-296062592436",
+                                                             "name":  "S3_EDUCATION_BUCKET"
+                                                         }
+                                                     ],
+                                     "mountPoints":  [
+
+                                                     ],
+                                     "volumesFrom":  [
+
+                                                     ],
+                                     "logConfiguration":  {
+                                                              "logDriver":  "awslogs",
+                                                              "options":  {
+                                                                              "awslogs-group":  "/ecs/oncolife-patient-api",
+                                                                              "awslogs-region":  "us-east-1",
+                                                                              "awslogs-stream-prefix":  "ecs"
+                                                                          }
+                                                          },
+                                     "systemControls":  [
+
+                                                        ]
+                                 }
+                             ],
+    "family":  "oncolife-patient-api",
+    "taskRoleArn":  "arn:aws:iam::296062592436:role/oncolifeTaskRole",
+    "memory":  "512"
+}

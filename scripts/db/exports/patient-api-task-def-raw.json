@@ -1,0 +1,140 @@
+{
+    "taskDefinition": {
+        "taskDefinitionArn": "arn:aws:ecs:us-east-1:296062592436:task-definition/oncolife-patient-api:12",
+        "containerDefinitions": [
+            {
+                "name": "patient-api",
+                "image": "296062592436.dkr.ecr.us-east-1.amazonaws.com/oncolife-patient-api:latest",
+                "cpu": 0,
+                "portMappings": [
+                    {
+                        "containerPort": 8000,
+                        "hostPort": 8000,
+                        "protocol": "tcp"
+                    }
+                ],
+                "essential": true,
+                "environment": [
+                    {
+                        "name": "PATIENT_DB_PASSWORD",
+                        "value": "OncoLife2026Prod!"
+                    },
+                    {
+                        "name": "DOCTOR_DB_NAME",
+                        "value": "oncolife_doctor"
+                    },
+                    {
+                        "name": "AWS_REGION",
+                        "value": "us-east-1"
+                    },
+                    {
+                        "name": "DOCTOR_DB_HOST",
+                        "value": "oncolife-db.cziyoqoiu475.us-east-1.rds.amazonaws.com"
+                    },
+                    {
+                        "name": "PATIENT_DB_NAME",
+                        "value": "oncolife_patient"
+                    },
+                    {
+                        "name": "ENVIRONMENT",
+                        "value": "development"
+                    },
+                    {
+                        "name": "LOCAL_DEV_MODE",
+                        "value": "true"
+                    },
+                    {
+                        "name": "PATIENT_DB_USER",
+                        "value": "oncolife_admin"
+                    },
+                    {
+                        "name": "DOCTOR_DB_PORT",
+                        "value": "5432"
+                    },
+                    {
+                        "name": "DOCTOR_DB_PASSWORD",
+                        "value": "OncoLife2026Prod!"
+                    },
+                    {
+                        "name": "CORS_ORIGINS",
+                        "value": "https://d1np153spw37t4.cloudfront.net,https://doreebziauwxa.cloudfront.net,http://oncolife-patient-web-296062592436.s3-website-us-east-1.amazonaws.com"
+                    },
+                    {
+                        "name": "PATIENT_DB_PORT",
+                        "value": "5432"
+                    },
+                    {
+                        "name": "PATIENT_DB_HOST",
+                        "value": "oncolife-db.cziyoqoiu475.us-east-1.rds.amazonaws.com"
+                    },
+                    {
+                        "name": "DOCTOR_DB_USER",
+                        "value": "oncolife_admin"
+                    },
+                    {
+                        "name": "LOG_LEVEL",
+                        "value": "INFO"
+                    }
+                ],
+                "mountPoints": [],
+                "volumesFrom": [],
+                "logConfiguration": {
+                    "logDriver": "awslogs",
+                    "options": {
+                        "awslogs-group": "/ecs/oncolife-patient-api",
+                        "awslogs-region": "us-east-1",
+                        "awslogs-stream-prefix": "ecs"
+                    }
+                },
+                "systemControls": []
+            }
+        ],
+        "family": "oncolife-patient-api",
+        "taskRoleArn": "arn:aws:iam::296062592436:role/oncolifeTaskRole",
+        "executionRoleArn": "arn:aws:iam::296062592436:role/ecsTaskExecutionRole",
+        "networkMode": "awsvpc",
+        "revision": 12,
+        "volumes": [],
+        "status": "ACTIVE",
+        "requiresAttributes": [
+            {
+                "name": "com.amazonaws.ecs.capability.logging-driver.awslogs"
+            },
+            {
+                "name": "ecs.capability.execution-role-awslogs"
+            },
+            {
+                "name": "com.amazonaws.ecs.capability.ecr-auth"
+            },
+            {
+                "name": "com.amazonaws.ecs.capability.docker-remote-api.1.19"
+            },
+            {
+                "name": "com.amazonaws.ecs.capability.task-iam-role"
+            },
+            {
+                "name": "ecs.capability.execution-role-ecr-pull"
+            },
+            {
+                "name": "com.amazonaws.ecs.capability.docker-remote-api.1.18"
+            },
+            {
+                "name": "ecs.capability.task-eni"
+            }
+        ],
+        "placementConstraints": [],
+        "compatibilities": [
+            "EC2",
+            "MANAGED_INSTANCES",
+            "FARGATE"
+        ],
+        "requiresCompatibilities": [
+            "FARGATE"
+        ],
+        "cpu": "256",
+        "memory": "512",
+        "registeredAt": "2026-01-20T19:36:47.589000+05:30",
+        "registeredBy": "arn:aws:iam::296062592436:user/oncolife_admin"
+    },
+    "tags": []
+}
