@@ -493,7 +493,7 @@ async def delete_user(
 
 
 @router.post(
-    "/sso/provision",
+    "/signup/staff",
     response_model=SSOProvisionResponse,
     summary="Provision user (DB only)",
 )
