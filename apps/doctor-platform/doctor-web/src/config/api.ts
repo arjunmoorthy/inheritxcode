@@ -16,7 +16,7 @@ export const API_CONFIG = {
   // Base URLs
   BASE_URL: `${API_BASE}${API_VERSION}`,
   API_VERSION,
-  
+
   // Endpoint definitions - all versioned
   ENDPOINTS: {
     // Authentication
@@ -25,23 +25,27 @@ export const API_CONFIG = {
       SIGNUP: '/auth/signup',
       LOGOUT: '/auth/logout',
       COMPLETE_NEW_PASSWORD: '/auth/complete-new-password',
+      GOOGLE_LOGIN: '/auth/google',
+      FORGOT_PASSWORD: '/auth/forgot-password',
+      VERIFY_RESET_TOKEN: '/auth/verify-reset-token',
+      RESET_PASSWORD: '/auth/reset-password',
       DELETE_USER: '/auth/delete-user',
     },
-    
+
     // Staff Management
     STAFF: {
       LIST: '/staff',
       PROFILE: '/staff/profile',
       BY_UUID: (uuid: string) => `/staff/${uuid}`,
     },
-    
+
     // Clinic Management
     CLINICS: {
       LIST: '/clinics',
       CREATE: '/clinics',
       BY_UUID: (uuid: string) => `/clinics/${uuid}`,
     },
-    
+
     // Patient Access (read-only)
     PATIENTS: {
       LIST: '/patients',
@@ -51,7 +55,7 @@ export const API_CONFIG = {
       DIARY: (uuid: string) => `/patients/${uuid}/diary`,
       STATS: (uuid: string) => `/patients/${uuid}/stats`,
     },
-    
+
     // Dashboard & Analytics
     DASHBOARD: {
       LANDING: '/dashboard',
@@ -61,7 +65,7 @@ export const API_CONFIG = {
       REPORTS_WEEKLY: '/dashboard/reports/weekly',
       REPORTS_GENERATE: '/dashboard/reports/generate',
     },
-    
+
     // Health Check
     HEALTH: '/health',
   },

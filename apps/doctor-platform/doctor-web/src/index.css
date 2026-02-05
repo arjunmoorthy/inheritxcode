@@ -1,0 +1,241 @@
+/**
+ * OncoLife Doctor Portal - Tailwind CSS Entry Point
+ * Enhanced with smooth transitions and focus states
+ * Matches the original styled-components behavior
+ */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom base styles */
+@layer base {
+    * {
+        box-sizing: border-box;
+    }
+
+    body {
+        font-family: 'DM Sans', sans-serif;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+    }
+
+    h1,
+    h2,
+    h3,
+    h4,
+    h5,
+    h6 {
+        font-family: 'Fraunces', Georgia, serif;
+    }
+
+    /* Smooth scrolling */
+    html {
+        scroll-behavior: smooth;
+    }
+
+    /* Remove default focus outline and use custom */
+    *:focus {
+        outline: none;
+    }
+
+    /* Explicitly remove focus outline from inputs (parent handles focus styling) */
+    input:focus,
+    input:focus-visible,
+    select:focus,
+    select:focus-visible,
+    textarea:focus,
+    textarea:focus-visible {
+        outline: none !important;
+        box-shadow: none !important;
+    }
+
+    /* Better focus visible for accessibility (except inputs) */
+    button:focus-visible,
+    a:focus-visible {
+        outline: 2px solid #2563EB;
+        outline-offset: 2px;
+    }
+}
+
+/* Custom component styles */
+@layer components {
+
+    /* Enhanced Input Wrapper with smooth transitions */
+    .input-wrapper {
+        @apply flex items-center bg-slate-50 rounded-lg px-3.5 py-1 border border-slate-200;
+        @apply transition-all duration-200 ease-in-out;
+    }
+
+    .input-wrapper:focus-within {
+        @apply border-[#2563EB] bg-white;
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.08);
+    }
+
+    .input-wrapper.error {
+        @apply border-red-500 bg-red-50/30;
+    }
+
+    .input-wrapper.error:focus-within {
+        @apply border-red-500;
+        box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.08);
+    }
+
+    /* Enhanced Input Field */
+    .input-field {
+        @apply flex-1 border-none outline-none bg-transparent text-[15px] py-3;
+        @apply text-slate-900 placeholder:text-slate-500 placeholder:opacity-60;
+        @apply transition-colors duration-150;
+    }
+
+    /* Enhanced Button with smooth hover/active states */
+    .btn-primary {
+        @apply w-full px-6 py-3.5 text-[15px] font-semibold text-white;
+        @apply bg-[#1E3A5F] border-none rounded-lg cursor-pointer;
+        @apply transition-all duration-200 ease-in-out;
+        @apply shadow-sm hover:shadow-md;
+    }
+
+    .btn-primary:hover {
+        @apply bg-[#2E5077];
+        transform: translateY(-1px);
+    }
+
+    .btn-primary:active {
+        @apply bg-[#0F2942];
+        transform: translateY(0);
+    }
+
+    .btn-primary:disabled {
+        @apply opacity-70 cursor-not-allowed;
+        transform: none;
+    }
+
+    /* Enhanced Link with smooth underline */
+    .link-primary {
+        @apply text-[#2563EB] no-underline font-medium;
+        @apply transition-all duration-150;
+        position: relative;
+    }
+
+    .link-primary::after {
+        content: '';
+        position: absolute;
+        width: 0;
+        height: 1px;
+        bottom: -2px;
+        left: 0;
+        background-color: #2563EB;
+        transition: width 0.2s ease-in-out;
+    }
+
+    .link-primary:hover::after {
+        width: 100%;
+    }
+
+    /* Card with subtle shadow */
+    .card-elevated {
+        @apply bg-white rounded-2xl shadow-sm border border-slate-200;
+        @apply transition-shadow duration-200;
+    }
+
+    .card-elevated:hover {
+        @apply shadow-md;
+    }
+}
+
+/* Custom utility classes */
+@layer utilities {
+    .text-balance {
+        text-wrap: balance;
+    }
+
+    /* Smooth transitions */
+    .transition-smooth {
+        transition: all 0.2s ease-in-out;
+    }
+
+    /* Focus ring utilities */
+    .focus-ring-primary {
+        @apply focus:ring-2 focus:ring-[#2563EB] focus:ring-offset-2;
+    }
+
+    .focus-ring-error {
+        @apply focus:ring-2 focus:ring-red-500 focus:ring-offset-2;
+    }
+
+    /* Gradient backgrounds */
+    .gradient-primary {
+        background: linear-gradient(135deg, #1E3A5F 0%, #0F2942 100%);
+    }
+
+    .gradient-secondary {
+        background: linear-gradient(135deg, rgba(30, 58, 95, 0.05) 0%, rgba(37, 99, 235, 0.05) 100%);
+    }
+
+    /* Backdrop blur effects */
+    .backdrop-glass {
+        backdrop-filter: blur(10px);
+        background: rgba(255, 255, 255, 0.1);
+    }
+
+    /* Smooth hover lift */
+    .hover-lift {
+        @apply transition-transform duration-200;
+    }
+
+    .hover-lift:hover {
+        transform: translateY(-2px);
+    }
+
+    /* Pulse animation for loading states */
+    @keyframes pulse-soft {
+
+        0%,
+        100% {
+            opacity: 1;
+        }
+
+        50% {
+            opacity: 0.7;
+        }
+    }
+
+    .animate-pulse-soft {
+        animation: pulse-soft 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+
+    /* Fade in animation */
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .animate-fade-in {
+        animation: fadeIn 0.3s ease-out;
+    }
+
+    /* Slide in from right */
+    @keyframes slideInRight {
+        from {
+            opacity: 0;
+            transform: translateX(20px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateX(0);
+        }
+    }
+
+    .animate-slide-in-right {
+        animation: slideInRight 0.3s ease-out;
+    }
+}

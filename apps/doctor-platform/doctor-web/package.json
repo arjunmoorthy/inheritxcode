@@ -13,10 +13,11 @@
   "dependencies": {
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
+    "@hookform/resolvers": "^5.2.2",
     "@mui/material": "^7.2.0",
     "@mui/x-date-pickers": "^8.10.0",
-    "@oncolife/ui-components": "file:../../../packages/ui-components",
     "@oncolife/shared-utils": "file:../../../packages/shared-utils",
+    "@oncolife/ui-components": "file:../../../packages/ui-components",
     "@tanstack/react-query": "^5.83.0",
     "axios": "^1.7.7",
     "dayjs": "^1.11.13",
@@ -24,8 +25,11 @@
     "react": "^19.1.0",
     "react-bootstrap": "^2.10.10",
     "react-dom": "^19.1.0",
+    "react-hook-form": "^7.71.1",
     "react-router-dom": "^7.6.3",
-    "styled-components": "^6.1.19"
+    "react-select": "^5.10.2",
+    "styled-components": "^6.1.19",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@eslint/js": "^9.30.1",
@@ -33,10 +37,13 @@
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",
     "@vitejs/plugin-react": "^4.6.0",
+    "autoprefixer": "^10.4.24",
     "eslint": "^9.30.1",
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.20",
     "globals": "^16.3.0",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^3.4.19",
     "typescript": "~5.8.3",
     "typescript-eslint": "^8.35.1",
     "vite": "^7.0.4"

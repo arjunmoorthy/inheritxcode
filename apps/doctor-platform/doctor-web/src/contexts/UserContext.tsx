@@ -7,6 +7,12 @@ export interface ProfileData {
   first_name: string;
   last_name: string;
   email: string;
+  phone?: string;
+  role?: string;
+  clinic_name?: string;
+  clinic_department?: string;
+  clinic_address?: string;
+  clinic_fax?: string;
 }
 
 interface UserContextType {
@@ -36,7 +42,13 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
     first_name: 'Test',
     last_name: 'Doctor',
     email: 'test.doctor@oncolife.local',
-    id: '22222222-2222-2222-2222-222222222222'
+    id: '22222222-2222-2222-2222-222222222222',
+    role: 'Oncology Patient Navigator',
+    phone: '(555) 234-5678',
+    clinic_name: 'Metro Cancer Treatment Center',
+    clinic_department: 'Patient Navigation Services',
+    clinic_address: '1234 Medical Plaza, Suite 500, Chicago, IL 60601',
+    clinic_fax: '(555) 234-5679',
   };
   const isLoading = false;
   const error = null;
