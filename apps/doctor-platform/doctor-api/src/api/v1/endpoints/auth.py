@@ -20,7 +20,10 @@ from pydantic import BaseModel, EmailStr
 from sqlalchemy import UUID
 from sqlalchemy.orm import Session
 from typing import Optional
-
+from uuid import uuid4, UUID
+import boto3
+from botocore.exceptions import ClientError
+from db.doctor_models import Staff
 
 from api.deps import get_doctor_db_session, get_patient_db_session, get_current_user, TokenData
 from services import AuthService
@@ -117,13 +120,21 @@ class SSOProvisionRequest(BaseModel):
     first_name: Optional[str] = None
     last_name: Optional[str] = None
     role: Optional[str] = "staff"
-    # clinic_uuid: Optional[UUID] = None   # ✅ Python UUID
+
+    # New fields for normal signup (password + confirm password)
+    password: Optional[str] = None
+    confirm_password: Optional[str] = None
+    clinic_uuid: Optional[UUID] = None   # ✅ Python UUID
 
 
 class SSOProvisionResponse(BaseModel):
-    """Response for SSO provisioning endpoint."""
     message: str
     email: Optional[EmailStr] = None
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    role: Optional[str] = None
+    clinic_uuid: Optional[UUID] = None
+
     staff_uuid: Optional[str] = None
     created: bool = True
 
@@ -411,31 +422,73 @@ async def delete_user(
 #     )
 
 
+# Cognito setup
+# COGNITO_USER_POOL_ID = "eu-north-1_8leC5jZQf"
+# COGNITO_CLIENT_ID = "8is50naib64tgtmtd6kusq8fl"
+# AWS_REGION = "us-east-1"
+
+# cognito_client = boto3.client("cognito-idp", region_name=AWS_REGION)
+
+
+# def create_cognito_user(email: str, first_name: str, last_name: str, password: str = None):
+#     """Create user in Cognito. For SSO, password can be None."""
+#     try:
+#         user_attrs = [
+#             {"Name": "email", "Value": email},
+#             {"Name": "email_verified", "Value": "True"},
+#             {"Name": "given_name", "Value": first_name},
+#             {"Name": "family_name", "Value": last_name},
+#         ]
+#         print("Creating Cognito user with attrs:", user_attrs, 'wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww')
+
+#         params = {
+#             "UserPoolId": COGNITO_USER_POOL_ID,
+#             "Username": email,
+#             "UserAttributes": user_attrs,
+#             "MessageAction": "SUPPRESS",  # Don't send default email
+#         }
+#         print("Cognito create user params:", params, 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx')
+
+#         if password:
+#             params["TemporaryPassword"] = password
+
+#         response = cognito_client.admin_create_user(**params)
+#         print("Cognito create user response:", response, 'yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy')
+#         return response
+
+#     except ClientError as e:
+#         raise HTTPException(status_code=400, detail=f"Cognito error: {e.response['Error']['Message']}")
+
+
+
 
 @router.post(
     "/sso/provision",
     response_model=SSOProvisionResponse,
-    summary="Provision federated SSO user",
+    summary="Provision user (DB only)",
 )
 async def provision_sso_user(
     request: SSOProvisionRequest,
-    current_user: TokenData = Depends(get_current_user),
     db: Session = Depends(get_doctor_db_session),
 ):
-    from uuid import uuid4
-    from db.doctor_models import Staff
-
-    # 1️⃣ Email must come from REQUEST (signup flow)
     if not request.email:
         raise HTTPException(status_code=400, detail="Email is required")
 
-    # 2️⃣ Check if staff already exists (idempotent)
-    staff = (
-        db.query(Staff)
-        .filter(Staff.email == request.email)
-        .first()
-    )
+    # Password validation (optional)
+    if request.password or request.confirm_password:
+        if not request.password or not request.confirm_password:
+            raise HTTPException(
+                status_code=400,
+                detail="Password and confirm password are required",
+            )
+        if request.password != request.confirm_password:
+            raise HTTPException(
+                status_code=400,
+                detail="Passwords do not match",
+            )
 
+    # Check existing staff
+    staff = db.query(Staff).filter(Staff.email == request.email).first()
     if staff:
         return SSOProvisionResponse(
             message="User already provisioned",
@@ -444,15 +497,13 @@ async def provision_sso_user(
             created=False,
         )
 
-    # 3️⃣ Create staff entry
+    # Create staff (clinic_uuid accepted but not persisted yet)
     staff = Staff(
         uuid=uuid4(),
-        cognito_sub=current_user.sub,  # already created in Cognito
         email=request.email,
         first_name=request.first_name,
         last_name=request.last_name,
         role=request.role or "staff",
-        # clinic_id=request.clinic_id,  # optional
         is_active=True,
     )
 
@@ -462,7 +513,11 @@ async def provision_sso_user(
 
     return SSOProvisionResponse(
         message="User provisioned successfully",
-        email=staff.email,
-        # staff_uuid=str(staff.uuid),
+        email=request.email,
+        first_name=request.first_name,
+        last_name=request.last_name,
+        role=request.role,
+        clinic_uuid=request.clinic_uuid,
+        staff_uuid=str(staff.uuid),
         created=True,
     )
