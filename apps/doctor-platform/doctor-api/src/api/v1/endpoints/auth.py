@@ -36,6 +36,9 @@ from core.exceptions import (
 )
 from core.logging import get_logger
 from core.middleware.rate_limiting import limiter, AUTH_RATE_LIMIT, PASSWORD_RESET_LIMIT
+from google.oauth2 import id_token
+from google.auth.transport import requests
+
 
 logger = get_logger(__name__)
 
@@ -124,7 +127,7 @@ class SSOProvisionRequest(BaseModel):
     # New fields for normal signup (password + confirm password)
     password: Optional[str] = None
     confirm_password: Optional[str] = None
-    clinic_uuid: Optional[UUID] = None   # ✅ Python UUID
+    clinic_uuid: Optional[str] = None   # ✅ Python UUID
     clinic_name: Optional[str] = None
     department: Optional[str] = None
     clinic_address: Optional[str] = None
@@ -136,7 +139,8 @@ class SSOProvisionResponse(BaseModel):
     first_name: Optional[str] = None
     last_name: Optional[str] = None
     role: Optional[str] = None
-    clinic_uuid: Optional[UUID] = None
+    clinic_uuid: Optional[str] = None 
+    
 
     clinic_name: Optional[str] = None
     department: Optional[str] = None
@@ -168,6 +172,15 @@ class ProfileCompletionResponse(BaseModel):
     clinic_address: Optional[str] = None
     department: Optional[str] = None
 
+
+class GoogleSignupRequest(BaseModel):
+    id_token: str
+
+class GoogleSignupResponse(BaseModel):
+    message: str
+    email: EmailStr
+    staff_id: int
+    created: bool
 
 # =============================================================================
 # Endpoints
@@ -621,4 +634,78 @@ def complete_profile(
         clinic_name=clinic.clinic_name if clinic else None,
         clinic_address=clinic.address if clinic else None,
         department=request.department,
+    )
+
+
+ALLOWED_CLIENT_IDS = [
+    "407408718192.apps.googleusercontent.com",
+    # "165026362997-vj3hj108oho22jodhhlp2ab8fi9tja9c.apps.googleusercontent.com",
+    # "728521781849-nrcnpe2ac409tsv5d4lghi76tq9btee6.apps.googleusercontent.com"
+]
+
+def verify_google_token(token: str):
+    try:
+        idinfo = id_token.verify_oauth2_token(
+            token,
+            requests.Request(),
+            ALLOWED_CLIENT_IDS,   # ✅ audience
+        )
+        return idinfo
+    except Exception as e:
+        raise HTTPException(
+            status_code=401,
+            detail=f"Invalid Google token: {str(e)}"
+        )
+    
+
+@router.post(
+    "/auth/google/signup",
+    response_model=GoogleSignupResponse,
+    summary="Google social signup",
+)
+def google_signup(
+    request: GoogleSignupRequest,
+    db: Session = Depends(get_doctor_db_session),
+):
+    google_user = verify_google_token(request.id_token)
+
+    email = google_user.get("email")
+    first_name = google_user.get("given_name")
+    last_name = google_user.get("family_name")
+    sub = google_user.get("sub")  # Google unique ID
+
+    if not email:
+        raise HTTPException(status_code=400, detail="Email not found from Google")
+
+    # Check if user already exists
+    staff = db.query(Staff).filter(Staff.email == email).first()
+    if staff:
+        return GoogleSignupResponse(
+            message="User already exists",
+            email=staff.email,
+            staff_id=staff.id,
+            staff_uuid=staff.uuid,
+            created=False,
+        )
+
+    # Create staff
+    staff = Staff(
+        email=email,
+        first_name=first_name,
+        last_name=last_name,
+        role="staff",
+        cognito_sub=sub,  # reuse column for google sub for now
+        is_active=True,
+    )
+
+    db.add(staff)
+    db.commit()
+    db.refresh(staff)
+
+    return GoogleSignupResponse(
+        message="User signed up successfully via Google",
+        email=staff.email,
+        staff_id=staff.id,
+        staff_uuid=staff.uuid,
+        created=True,
     )
