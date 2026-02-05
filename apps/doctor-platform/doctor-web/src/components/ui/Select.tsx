@@ -6,6 +6,7 @@
 import React from 'react';
 import ReactSelect from 'react-select';
 import type { Props as ReactSelectProps, StylesConfig } from 'react-select';
+import { useThemeMode } from '@oncolife/ui-components';
 
 export interface SelectOption {
     value: string | number;
@@ -35,15 +36,22 @@ export const Select = React.forwardRef<any, SelectProps>(({
     id,
     ...props
 }, ref) => {
+    const { isDark } = useThemeMode();
     const selectId = id || `select-${Math.random().toString(36).substr(2, 9)}`;
     const widthClass = fullWidth ? 'w-full' : '';
 
-    // Custom styles to match Tailwind design
+    // Custom styles to match Tailwind design with dark mode support
     const customStyles: StylesConfig<SelectOption> = {
         control: (base, state) => ({
             ...base,
-            backgroundColor: error ? 'rgba(254, 242, 242, 0.3)' : '#F8FAFC',
-            borderColor: error ? '#EF4444' : state.isFocused ? '#2563EB' : '#E2E8F0',
+            backgroundColor: error 
+                ? (isDark ? 'rgba(127, 29, 29, 0.2)' : 'rgba(254, 242, 242, 0.3)')
+                : (isDark ? '#2A2725' : '#F8FAFC'),
+            borderColor: error 
+                ? '#EF4444' 
+                : state.isFocused 
+                    ? '#2563EB' 
+                    : (isDark ? '#3A3835' : '#E2E8F0'),
             borderRadius: '0.5rem',
             borderWidth: '1px',
             minHeight: '52px',
@@ -53,8 +61,12 @@ export const Select = React.forwardRef<any, SelectProps>(({
             transition: 'all 0.2s',
             cursor: 'pointer',
             '&:hover': {
-                borderColor: state.isFocused ? '#2563EB' : '#CBD5E1',
-                backgroundColor: state.isFocused ? '#FFFFFF' : '#F8FAFC',
+                borderColor: state.isFocused 
+                    ? '#2563EB' 
+                    : (isDark ? '#4A4845' : '#CBD5E1'),
+                backgroundColor: state.isFocused 
+                    ? (isDark ? '#3A3835' : '#FFFFFF')
+                    : (isDark ? '#2A2725' : '#F8FAFC'),
             },
         }),
         valueContainer: (base) => ({
@@ -66,7 +78,7 @@ export const Select = React.forwardRef<any, SelectProps>(({
             ...base,
             margin: '0',
             padding: '0',
-            color: '#0F172A',
+            color: isDark ? '#FFFFFF' : '#0F172A',
         }),
         placeholder: (base) => ({
             ...base,
@@ -76,14 +88,17 @@ export const Select = React.forwardRef<any, SelectProps>(({
         }),
         singleValue: (base) => ({
             ...base,
-            color: '#0F172A',
+            color: isDark ? '#FFFFFF' : '#0F172A',
             fontSize: '15px',
         }),
         menu: (base) => ({
             ...base,
             borderRadius: '0.5rem',
-            boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
-            border: '1px solid #E2E8F0',
+            boxShadow: isDark 
+                ? '0 20px 50px rgba(0, 0, 0, 0.3)' 
+                : '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
+            border: `1px solid ${isDark ? '#3A3835' : '#E2E8F0'}`,
+            backgroundColor: isDark ? '#2A2725' : '#FFFFFF',
             marginTop: '4px',
             overflow: 'hidden',
         }),
@@ -97,16 +112,20 @@ export const Select = React.forwardRef<any, SelectProps>(({
             backgroundColor: state.isSelected
                 ? '#2563EB'
                 : state.isFocused
-                    ? '#EFF6FF'
+                    ? (isDark ? '#3A3835' : '#EFF6FF')
                     : 'transparent',
-            color: state.isSelected ? '#FFFFFF' : '#0F172A',
+            color: state.isSelected 
+                ? '#FFFFFF' 
+                : (isDark ? '#E2E8F0' : '#0F172A'),
             cursor: state.isDisabled ? 'not-allowed' : 'pointer',
             padding: '10px 12px',
             borderRadius: '0.375rem',
             fontSize: '15px',
             transition: 'all 0.15s',
             '&:active': {
-                backgroundColor: state.isSelected ? '#1D4ED8' : '#DBEAFE',
+                backgroundColor: state.isSelected 
+                    ? '#1D4ED8' 
+                    : (isDark ? '#4A4845' : '#DBEAFE'),
             },
         }),
         indicatorSeparator: () => ({
@@ -114,17 +133,17 @@ export const Select = React.forwardRef<any, SelectProps>(({
         }),
         dropdownIndicator: (base, state) => ({
             ...base,
-            color: '#64748B',
+            color: isDark ? '#94A3B8' : '#64748B',
             padding: '0',
             transition: 'transform 0.2s',
             transform: state.selectProps.menuIsOpen ? 'rotate(180deg)' : 'rotate(0deg)',
             '&:hover': {
-                color: '#0F172A',
+                color: isDark ? '#E2E8F0' : '#0F172A',
             },
         }),
         clearIndicator: (base) => ({
             ...base,
-            color: '#64748B',
+            color: isDark ? '#94A3B8' : '#64748B',
             padding: '0',
             marginRight: '8px',
             '&:hover': {
@@ -138,7 +157,9 @@ export const Select = React.forwardRef<any, SelectProps>(({
             {label && (
                 <label
                     htmlFor={selectId}
-                    className="block text-[13px] font-semibold text-slate-900 mb-1.5 uppercase tracking-wide"
+                    className={`block text-[13px] font-semibold mb-1.5 uppercase tracking-wide transition-colors ${
+                        isDark ? 'text-slate-300' : 'text-slate-900'
+                    }`}
                 >
                     {label}
                 </label>
@@ -157,13 +178,17 @@ export const Select = React.forwardRef<any, SelectProps>(({
             />
 
             {error && (
-                <span className="block text-red-600 text-xs mt-1 font-medium">
+                <span className={`block text-xs mt-1 font-medium transition-colors ${
+                    isDark ? 'text-red-400' : 'text-red-600'
+                }`}>
                     {error}
                 </span>
             )}
 
             {helperText && !error && (
-                <span className="block text-slate-500 text-xs mt-1">
+                <span className={`block text-xs mt-1 transition-colors ${
+                    isDark ? 'text-slate-400' : 'text-slate-500'
+                }`}>
                     {helperText}
                 </span>
             )}

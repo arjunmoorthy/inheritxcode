@@ -22,10 +22,12 @@ export const API_CONFIG = {
     // Authentication
     AUTH: {
       LOGIN: '/auth/login',
-      SIGNUP: '/auth/signup',
+      SIGNUP: '/auth/signup/staff',
       LOGOUT: '/auth/logout',
       COMPLETE_NEW_PASSWORD: '/auth/complete-new-password',
       GOOGLE_LOGIN: '/auth/google',
+      GOOGLE_SSO_SIGNUP: '/auth/auth/google/signup',
+      PROFILE_COMPLETE: '/auth/profile/complete',
       FORGOT_PASSWORD: '/auth/forgot-password',
       VERIFY_RESET_TOKEN: '/auth/verify-reset-token',
       RESET_PASSWORD: '/auth/reset-password',

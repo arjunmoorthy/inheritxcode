@@ -56,6 +56,26 @@
         outline: 2px solid #2563EB;
         outline-offset: 2px;
     }
+
+    /* Handle Browser Autofill Styles - Fixes the "blue background" issue */
+    input:-webkit-autofill,
+    input:-webkit-autofill:hover,
+    input:-webkit-autofill:focus,
+    input:-webkit-autofill:active {
+        -webkit-box-shadow: 0 0 0 30px white inset !important;
+        -webkit-text-fill-color: #0f172a !important;
+        /* matches text-slate-900 */
+        transition: background-color 5000s ease-in-out 0s;
+    }
+
+    /* Force dark mode autofill if the html/body has .dark class */
+    .dark input:-webkit-autofill,
+    .dark input:-webkit-autofill:hover,
+    .dark input:-webkit-autofill:focus,
+    .dark input:-webkit-autofill:active {
+        -webkit-box-shadow: 0 0 0 30px #2A2725 inset !important;
+        -webkit-text-fill-color: white !important;
+    }
 }
 
 /* Custom component styles */

@@ -30,7 +30,12 @@ interface SignupData {
   first_name: string;
   last_name: string;
   role: string;
+  password?: string;
+  confirm_password?: string;
   clinic_uuid: string;
+  clinic_name?: string;
+  department?: string;
+  clinic_address?: string;
 }
 
 export interface CompleteNewPasswordResponse {
@@ -155,10 +160,80 @@ export const useSignup = () => {
   });
 };
 
-export const googleLogin = () => {
-  // Redirect to google auth endpoint
-  window.location.href = `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.AUTH.GOOGLE_LOGIN}`;
+// --- Social Signup & Profile Completion (Provided API Specs) ---
+
+export interface GoogleSSOSignupData {
+  id_token: string;
+}
+
+export interface GoogleSSOSignupResponse {
+  message: string;
+  email: string;
+  staff_id: number;
+  staff_uuid: string; // Added staff_uuid
+  created: boolean;
+}
+
+const googleSSOSignup = async (data: GoogleSSOSignupData): Promise<GoogleSSOSignupResponse> => {
+  const response = await apiClient.post<GoogleSSOSignupResponse>(API_CONFIG.ENDPOINTS.AUTH.GOOGLE_SSO_SIGNUP, data);
+  return response.data;
 };
+
+export const useGoogleSSOSignup = () => {
+  return useMutation({
+    mutationFn: googleSSOSignup,
+  });
+};
+
+interface CompleteProfileData {
+  staff_id: number;
+  role: string;
+  clinic_uuid: string;
+  clinic_name: string;
+  clinic_address: string;
+  department: string;
+}
+
+interface CompleteProfileResponse {
+  message: string;
+  staff_id: number;
+  staff_uuid: string;
+  role: string;
+  clinic_uuid: string;
+  clinic_name: string;
+  clinic_address: string;
+  department: string;
+}
+
+const completeProfile = async (data: CompleteProfileData): Promise<CompleteProfileResponse> => {
+  const response = await apiClient.post<CompleteProfileResponse>(API_CONFIG.ENDPOINTS.AUTH.PROFILE_COMPLETE, data);
+  return response.data;
+};
+
+export const useCompleteProfile = () => {
+  return useMutation({
+    mutationFn: completeProfile,
+  });
+};
+
+export interface StaffProfile {
+  staff_id: number;
+  staff_uuid: string;
+  email: string;
+  first_name: string;
+  last_name: string;
+  role: string;
+  department?: string;
+  clinic_name?: string;
+  clinic_address?: string;
+  clinic_uuid?: string;
+}
+
+export const fetchStaffProfile = async (): Promise<StaffProfile> => {
+  const response = await apiClient.get<StaffProfile>(API_CONFIG.ENDPOINTS.STAFF.PROFILE);
+  return response.data;
+};
+
 
 interface LogoutResponse {
   success: boolean;

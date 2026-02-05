@@ -1,14 +1,10 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import type { ReactNode } from 'react';
-import { useLogin, useCompleteNewPassword } from '../services/login';
-import type { CompleteNewPasswordResponse, LoginResponse } from '../services/login';
+import { useLogin, useCompleteNewPassword, fetchStaffProfile } from '../services/login';
+import type { CompleteNewPasswordResponse, LoginResponse, StaffProfile } from '../services/login';
 import { SESSION_START_KEY } from '@oncolife/ui-components';
 
-interface User {
-  email: string;
-  name?: string;
-  role?: string;
-}
+interface User extends StaffProfile { }
 
 interface AuthContextType {
   user: User | null;
@@ -49,8 +45,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const initializeAuth = async () => {
       const storedToken = localStorage.getItem('authToken');
       if (storedToken) {
-        // TODO: Verify token with backend
         setToken(storedToken);
+        try {
+          const profile = await fetchStaffProfile();
+          setUser(profile);
+        } catch (error) {
+          console.error('Failed to fetch user profile:', error);
+          // Optional: handle token expiration here
+        }
       }
       setIsLoading(false);
     };
@@ -61,10 +63,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const authenticateLogin = async (email: string, password: string) => {
     try {
       const result = await loginMutation.mutateAsync({ email, password });
-      
+
       if (result.success) {
-        setUser({email: email});
         sessionStorage.setItem(SESSION_START_KEY, Date.now().toString());
+
+        // Fetch full profile after successful login
+        const profile = await fetchStaffProfile();
+        setUser(profile);
+
         if (result.data?.requiresPasswordChange) {
           setIsPasswordChangeRequired(true);
         }

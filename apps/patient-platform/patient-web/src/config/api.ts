@@ -21,18 +21,18 @@ export const API_CONFIG = {
   BASE_URL: `${API_BASE}${API_VERSION}`,
   WS_BASE: WS_BASE,
   API_VERSION,
-  
+
   // Endpoint definitions - all versioned
   ENDPOINTS: {
     // Authentication
     AUTH: {
       LOGIN: '/auth/login',
-      SIGNUP: '/auth/signup',
+      SIGNUP: '/auth/signup/staff',
       COMPLETE_NEW_PASSWORD: '/auth/complete-new-password',
       LOGOUT: '/auth/logout',
       DELETE: '/auth/delete-patient',
     },
-    
+
     // Patient Profile
     PROFILE: {
       GET: '/profile',
@@ -40,7 +40,7 @@ export const API_CONFIG = {
       CONFIG: '/profile/config',
       CONSENT: '/profile/consent',
     },
-    
+
     // Symptom Checker Chat
     CHAT: {
       SESSION_TODAY: '/chat/session/today',
@@ -51,14 +51,14 @@ export const API_CONFIG = {
       DELETE: (uuid: string) => `/chat/${uuid}`,
       WS: (uuid: string) => `/chat/ws/${uuid}`,
     },
-    
+
     // Chemotherapy
     CHEMO: {
       LOG: '/chemo/log',
       HISTORY: '/chemo/history',
       BY_MONTH: (year: number, month: number) => `/chemo/${year}/${month}`,
     },
-    
+
     // Diary Entries
     DIARY: {
       LIST: '/diary',
@@ -67,16 +67,16 @@ export const API_CONFIG = {
       UPDATE: (uuid: string) => `/diary/${uuid}`,
       DELETE: (uuid: string) => `/diary/${uuid}/delete`,
     },
-    
+
     // Conversation Summaries
     SUMMARIES: {
       BY_MONTH: (year: number, month: number) => `/summaries/${year}/${month}`,
       DETAIL: (uuid: string) => `/summaries/detail/${uuid}`,
     },
-    
+
     // Patient Onboarding
     ONBOARDING: '/onboarding',
-    
+
     // Questions to Ask Doctor
     QUESTIONS: {
       LIST: '/questions',
@@ -85,7 +85,7 @@ export const API_CONFIG = {
       DELETE: (id: string) => `/questions/${id}`,
       SHARE: (id: string) => `/questions/${id}/share`,
     },
-    
+
     // Education Resources
     EDUCATION: {
       TAB: '/education/tab',
@@ -99,10 +99,10 @@ export const API_CONFIG = {
       SESSION: '/education/session',
       SESSION_DETAIL: (id: string) => `/education/session/${id}`,
     },
-    
+
     // Notes/Diary
     NOTES: '/diary',
-    
+
     // Health Check
     HEALTH: '/health',
   },

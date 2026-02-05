@@ -1,7 +1,7 @@
 /**
  * OncoLife - Reset Password Page
  * Password reset with token verification
- * Using reusable UI components
+ * Enhanced with premium dark/light mode UI
  */
 
 import React, { useState, useEffect } from 'react';
@@ -9,9 +9,9 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { AlertCircle, Activity, CheckCircle, Loader } from 'lucide-react';
+import { AlertCircle, Activity, CheckCircle } from 'lucide-react';
 import { useVerifyResetToken, useResetPassword } from '../../services/login';
-import { Button, Input } from '@/components/ui';
+import { Input } from '@/components/ui';
 
 import { useThemeMode } from '@oncolife/ui-components';
 
@@ -95,128 +95,166 @@ const ResetPasswordPage: React.FC = () => {
     };
 
     return (
-        <div className={`min-h-screen flex flex-col md:flex-row transition-colors duration-300 ${isDark ? 'bg-[#1A1917]' : 'bg-gradient-to-br from-primary/5 to-secondary/5'
-            }`}>
+        <div className={`min-h-screen md:h-screen flex flex-col md:flex-row transition-colors duration-500 overflow-x-hidden ${isDark ? 'bg-[#1A1917]' : 'bg-[#F8FAFC]'}`}>
             {/* Left Brand Panel */}
-            <div className="flex-1 flex flex-col justify-center items-center px-12 py-12 md:py-0 bg-gradient-to-br from-primary to-primary-dark text-white relative overflow-hidden min-h-[180px] md:min-h-0">
-                {/* Background decorative elements */}
-                <div className="absolute -top-[30%] -right-[20%] w-[60%] h-[60%] bg-secondary/25 rounded-full blur-3xl pointer-events-none" />
-                <div className="absolute -bottom-[20%] -left-[20%] w-[60%] h-[60%] bg-accent/15 rounded-full blur-3xl pointer-events-none" />
+            <div className="flex-1 flex flex-col justify-center items-center px-12 py-12 md:py-0 bg-[#1E3A5F] relative overflow-hidden min-h-[200px] md:min-h-0 md:h-full">
+                {/* Visual Elements */}
+                <div className="absolute top-0 right-0 w-full h-full opacity-20 pointer-events-none">
+                    <div className="absolute top-[-10%] right-[-10%] w-[50%] h-[50%] bg-blue-400 rounded-full blur-[120px]" />
+                    <div className="absolute bottom-[-10%] left-[-10%] w-[50%] h-[50%] bg-teal-500 rounded-full blur-[120px]" />
+                </div>
 
-                <div className="relative z-10 text-center max-w-md">
-                    {/* Logo */}
-                    <div className="w-18 h-18 md:w-[72px] md:h-[72px] rounded-2xl bg-white/10 backdrop-blur-md flex items-center justify-center mx-auto mb-5 md:mb-3 border border-white/20">
-                        <Activity size={32} className="text-white" />
+                {/* Mesh pattern overlay */}
+                <div className="absolute inset-0 opacity-[0.03] pointer-events-none"
+                    style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2v-4h4v-2h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2v-4h4v-2H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")` }}
+                />
+
+                <div className="relative z-10 text-center max-w-lg animate-fade-in px-4">
+                    <div className="w-16 h-16 md:w-20 md:h-20 rounded-2xl bg-white/10 backdrop-blur-xl flex items-center justify-center mx-auto mb-6 border border-white/20 shadow-2xl">
+                        <Activity size={32} className="text-white animate-pulse-soft" />
                     </div>
 
-                    <h1 className="text-2xl md:text-4xl font-bold mb-2 tracking-tight font-serif">
+                    <h1 className="text-2xl md:text-4xl font-bold mb-3 tracking-tight font-serif text-white">
                         OncoLife
                     </h1>
 
-                    <p className="text-base md:text-lg opacity-85 mb-6 md:mb-0 font-medium">
-                        Physician Portal
-                    </p>
+                    <div className="inline-flex items-center px-3 py-1 rounded-full bg-white/10 backdrop-blur-md border border-white/10 mb-6 font-sans">
+                        <span className="text-[10px] md:text-xs font-medium text-blue-100 uppercase tracking-widest">
+                            Physician Portal
+                        </span>
+                    </div>
 
-                    <p className="text-sm opacity-70 leading-relaxed hidden md:block">
-                        Secure password reset for your account.<br />
-                        Maintain access to your clinical dashboard.
+                    <p className="text-sm md:text-base text-blue-50/70 leading-relaxed max-w-xs mx-auto hidden md:block font-light">
+                        Advanced clinical monitoring & symptom management for oncology care teams.
                     </p>
                 </div>
             </div>
 
-            {/* Right Login Panel */}
-            <div className={`flex-1 flex flex-col justify-center items-center px-5 py-8 md:px-6 md:py-12 transition-colors duration-300 ${isDark ? 'bg-[#1A1917]' : 'bg-background'
-                }`}>
-                <div className={`w-full max-w-md card-elevated animate-fade-in px-9 py-9 md:px-5 md:py-6 transition-colors duration-300 ${isDark ? 'bg-[#2A2725] border border-[#3A3835]' : 'bg-white'
-                    }`}>
-                    {/* Title */}
-                    <h2 className={`text-2xl md:text-xl font-bold mb-2 text-center font-serif transition-colors duration-300 ${isDark ? 'text-white' : 'text-slate-900'
-                        }`}>
-                        Reset Your Password
-                    </h2>
+            {/* Right Form Panel */}
+            <div className={`flex-[1.2] flex flex-col md:h-full transition-colors duration-500 overflow-y-auto ${isDark ? 'bg-[#1A1917]' : 'bg-[#F8FAFC]'}`}>
+                <div className="flex-1 flex flex-col justify-center items-center px-5 py-10 md:px-12 md:py-8 lg:py-12">
+                    <div className={`w-full max-w-md animate-fade-in transition-all duration-300 ${isDark
+                        ? 'bg-[#2A2725] border border-[#3A3835] shadow-[0_20px_50px_rgba(0,0,0,0.3)]'
+                        : 'bg-white border border-slate-200 shadow-[0_10px_40px_rgba(0,0,0,0.04)]'
+                        } rounded-3xl overflow-hidden`}>
 
-                    <p className={`text-sm mb-7 text-center leading-relaxed transition-colors duration-300 ${isDark ? 'text-slate-400' : 'text-slate-600'
-                        }`}>
-                        Enter your new password below
-                    </p>
-
-                    {/* Verifying State */}
-                    {isVerifying ? (
-                        <div className="flex flex-col items-center justify-center py-12 text-center">
-                            <Loader size={32} className="text-secondary animate-spin mb-4" />
-                            <p className={isDark ? 'text-slate-400' : 'text-slate-600'}>Verifying reset token...</p>
-                        </div>
-                    ) : !tokenValid ? (
-                        /* Error State */
-                        <>
-                            <div className={`bg-red-50 border border-red-200 text-red-600 px-3.5 py-2.5 rounded-lg text-[13px] mb-4 flex items-center gap-2 animate-fade-in ${isDark ? 'bg-red-900/20 border-red-800/40 text-red-400' : ''
-                                }`}>
-                                <AlertCircle size={16} />
-                                {error}
-                            </div>
-
-                            <Button variant="primary" fullWidth onClick={() => navigate('/login')}>
-                                Return to Sign In
-                            </Button>
-                        </>
-                    ) : isSuccess ? (
-                        /* Success State */
-                        <>
-                            <div className={`bg-emerald-50 border border-emerald-200 text-emerald-600 px-4 py-4 rounded-lg text-sm mb-6 flex flex-col items-center text-center gap-3 animate-fade-in ${isDark ? 'bg-emerald-900/20 border-emerald-800/40 text-emerald-400' : ''
-                                }`}>
-                                <CheckCircle size={32} className={isDark ? 'text-emerald-400' : 'text-emerald-600'} />
-                                <p>
-                                    Your password has been reset successfully. You can now use your new password to sign in.
+                        <div className="p-8 md:p-10">
+                            {/* Title Header */}
+                            <div className="text-center mb-8">
+                                <h2 className={`text-xl md:text-2xl font-bold mb-2 font-serif transition-colors duration-300 ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                                    Reset Password
+                                </h2>
+                                <p className={`text-[13px] md:text-sm transition-colors duration-300 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                                    Secure your account with a new password
                                 </p>
                             </div>
 
-                            <Button variant="primary" fullWidth onClick={() => navigate('/login')}>
-                                Proceed to Sign In
-                            </Button>
-                        </>
-                    ) : (
-                        /* Reset Password Form */
-                        <form onSubmit={handleSubmit(onResetSubmit)}>
-                            {/* Error Message */}
-                            {error && (
-                                <div className={`bg-red-50 border border-red-200 text-red-600 px-3.5 py-2.5 rounded-lg text-[13px] mb-4 flex items-center gap-2 animate-fade-in ${isDark ? 'bg-red-900/20 border-red-800/40 text-red-400' : ''
-                                    }`}>
-                                    <AlertCircle size={16} />
-                                    {error}
+                            {/* Verifying State */}
+                            {isVerifying ? (
+                                <div className="flex flex-col items-center justify-center py-12 text-center">
+                                    <div className="w-12 h-12 border-4 border-secondary/20 border-t-secondary rounded-full animate-spin mb-4" />
+                                    <p className={`font-bold text-sm tracking-wide ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                                        Verifying Reset Token...
+                                    </p>
                                 </div>
+                            ) : !tokenValid ? (
+                                <div className="text-center py-8 animate-fade-in">
+                                    <div className={`inline-flex items-center justify-center w-20 h-20 rounded-full mb-6 ${isDark ? 'bg-red-900/20 text-red-400' : 'bg-red-50 text-red-600'}`}>
+                                        <AlertCircle size={48} />
+                                    </div>
+                                    <h3 className={`text-xl font-bold mb-3 ${isDark ? 'text-white' : 'text-slate-900'}`}>Invalid Link</h3>
+                                    <p className={`text-sm mb-8 leading-relaxed ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                                        This password reset link is invalid or has expired. Please request a new one.
+                                    </p>
+                                    <button
+                                        onClick={() => navigate('/login')}
+                                        className="w-full bg-[#1E3A5F] text-white rounded-xl font-bold text-[15px] py-3.5 px-6 flex items-center justify-center gap-2 transition-all duration-300 hover:bg-[#1a4a7f] hover:shadow-xl shadow-lg"
+                                    >
+                                        Return to Sign In
+                                    </button>
+                                </div>
+                            ) : isSuccess ? (
+                                <div className="text-center py-8 animate-fade-in">
+                                    <div className={`inline-flex items-center justify-center w-20 h-20 rounded-full mb-6 ${isDark ? 'bg-emerald-900/20 text-emerald-400' : 'bg-emerald-50 text-emerald-600'}`}>
+                                        <CheckCircle size={48} />
+                                    </div>
+                                    <h3 className={`text-xl font-bold mb-3 ${isDark ? 'text-white' : 'text-slate-900'}`}>Password Reset!</h3>
+                                    <p className={`text-sm mb-8 leading-relaxed ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                                        Your password has been successfully updated. You can now sign in with your new credentials.
+                                    </p>
+                                    <button
+                                        onClick={() => navigate('/login')}
+                                        className="w-full bg-[#1E3A5F] text-white rounded-xl font-bold text-[15px] py-3.5 px-6 flex items-center justify-center gap-2 transition-all duration-300 hover:bg-[#1a4a7f] hover:shadow-xl shadow-lg"
+                                    >
+                                        Sign In Now
+                                    </button>
+                                </div>
+                            ) : (
+                                <form onSubmit={handleSubmit(onResetSubmit)} className="space-y-5">
+                                    {/* Error Message */}
+                                    {error && (
+                                        <div className={`mb-6 bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-xl text-sm flex items-center gap-3 animate-fade-in ${isDark ? 'bg-red-900/20 border-red-800/40 text-red-400' : ''}`}>
+                                            <AlertCircle size={18} className="shrink-0" />
+                                            <p>{error}</p>
+                                        </div>
+                                    )}
+
+                                    <Input
+                                        label="New Password"
+                                        type="password"
+                                        placeholder="••••••••"
+                                        error={errors.password?.message}
+                                        autoComplete="new-password"
+                                        {...register('password')}
+                                    />
+
+                                    <Input
+                                        label="Confirm Password"
+                                        type="password"
+                                        placeholder="••••••••"
+                                        error={errors.confirmPassword?.message}
+                                        autoComplete="new-password"
+                                        {...register('confirmPassword')}
+                                    />
+
+                                    <div className="pt-2">
+                                        <button
+                                            type="submit"
+                                            disabled={isSubmitting}
+                                            className={`group relative w-full overflow-hidden rounded-xl font-bold text-[15px] transition-all duration-300 ${
+                                                isSubmitting
+                                                    ? 'opacity-60 cursor-not-allowed'
+                                                    : 'hover:scale-[1.02] active:scale-[0.98]'
+                                            } bg-[#1E3A5F] text-white shadow-lg hover:shadow-xl hover:bg-[#1a4a7f] py-3.5 px-6 flex items-center justify-center gap-2`}
+                                        >
+                                            {isSubmitting ? (
+                                                <>
+                                                    <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                                    </svg>
+                                                    <span>Updating Password...</span>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <CheckCircle size={18} className="shrink-0" />
+                                                    <span>Reset Password</span>
+                                                </>
+                                            )}
+                                        </button>
+                                    </div>
+                                </form>
                             )}
+                        </div>
+                    </div>
 
-                            {/* New Password Field */}
-                            <Input
-                                label="New Password"
-                                type="password"
-                                placeholder="Enter new password"
-                                error={errors.password?.message}
-                                autoComplete="new-password"
-                                {...register('password')}
-                            />
-
-                            {/* Confirm Password Field */}
-                            <Input
-                                label="Confirm Password"
-                                type="password"
-                                placeholder="Confirm new password"
-                                error={errors.confirmPassword?.message}
-                                autoComplete="new-password"
-                                {...register('confirmPassword')}
-                            />
-
-                            {/* Submit Button */}
-                            <Button
-                                type="submit"
-                                variant="primary"
-                                fullWidth
-                                loading={isSubmitting}
-                            >
-                                {isSubmitting ? 'Updating...' : 'Reset Password'}
-                            </Button>
-                        </form>
-                    )}
+                    <div className={`mt-8 flex items-center gap-2 text-[11px] font-bold uppercase tracking-widest transition-colors ${isDark ? 'text-slate-600' : 'text-slate-400'}`}>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                            <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                        </svg>
+                        Secure Access
+                    </div>
                 </div>
             </div>
         </div>
