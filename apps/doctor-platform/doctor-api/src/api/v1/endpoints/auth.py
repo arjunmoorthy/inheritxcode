@@ -23,7 +23,7 @@ from typing import Optional
 from uuid import uuid4, UUID
 import boto3
 from botocore.exceptions import ClientError
-from db.doctor_models import Staff
+from db.doctor_models import Staff, Clinic
 
 from api.deps import get_doctor_db_session, get_patient_db_session, get_current_user, TokenData
 from services import AuthService
@@ -125,6 +125,9 @@ class SSOProvisionRequest(BaseModel):
     password: Optional[str] = None
     confirm_password: Optional[str] = None
     clinic_uuid: Optional[UUID] = None   # ✅ Python UUID
+    clinic_name: Optional[str] = None
+    department: Optional[str] = None
+    clinic_address: Optional[str] = None
 
 
 class SSOProvisionResponse(BaseModel):
@@ -134,6 +137,10 @@ class SSOProvisionResponse(BaseModel):
     last_name: Optional[str] = None
     role: Optional[str] = None
     clinic_uuid: Optional[UUID] = None
+
+    clinic_name: Optional[str] = None
+    department: Optional[str] = None
+    clinic_address: Optional[str] = None
 
     staff_uuid: Optional[str] = None
     created: bool = True
@@ -496,8 +503,21 @@ async def provision_sso_user(
             staff_uuid=str(staff.uuid),
             created=False,
         )
+    
+    clinic = None
 
-    # Create staff (clinic_uuid accepted but not persisted yet)
+    if request.clinic_name:
+        clinic = Clinic(
+            uuid=uuid4(),
+            name=request.clinic_name,
+            address=request.clinic_address,
+            is_active=True,
+        )
+        db.add(clinic)
+        db.commit()
+        db.refresh(clinic)
+
+    # Create staff (only staff fields are persisted)
     staff = Staff(
         uuid=uuid4(),
         email=request.email,
@@ -518,6 +538,9 @@ async def provision_sso_user(
         last_name=request.last_name,
         role=request.role,
         clinic_uuid=request.clinic_uuid,
+        clinic_name=request.clinic_name,
+        department=request.department,
+        clinic_address=request.clinic_address,
         staff_uuid=str(staff.uuid),
         created=True,
     )

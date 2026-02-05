@@ -59,3 +59,18 @@ class Staff(DoctorBase):
     physician_id = Column(Integer, ForeignKey("staff.id"), nullable=True)
 
     is_active = Column(Boolean, default=True, nullable=False)
+
+class Clinic(DoctorBase):
+    __tablename__ = "clinics"
+
+    id = Column(Integer, primary_key=True)
+    uuid = Column(UUID(as_uuid=True), default=uuid.uuid4, unique=True, nullable=False)
+
+    name = Column(String(255), nullable=False)
+    address = Column(String(500), nullable=True)
+    city = Column(String(100), nullable=True)
+    state = Column(String(50), nullable=True)
+    zip_code = Column(String(20), nullable=True)
+    phone = Column(String(20), nullable=True)
+
+    is_active = Column(Boolean, default=True, nullable=False)
