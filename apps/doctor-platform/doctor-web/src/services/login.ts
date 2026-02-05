@@ -12,11 +12,32 @@ interface CompleteNewPasswordData {
   newPassword: string;
 }
 
+interface ForgotPasswordData {
+  email: string;
+}
+
+interface VerifyResetTokenData {
+  token: string;
+}
+
+interface ResetPasswordData {
+  token: string;
+  new_password: string;
+}
+
+interface SignupData {
+  email: string;
+  first_name: string;
+  last_name: string;
+  role: string;
+  clinic_uuid: string;
+}
+
 export interface CompleteNewPasswordResponse {
   success: boolean;
   message: string;
   data?: {
-  tokens?: {
+    tokens?: {
       access_token: string;
       refresh_token: string;
       id_token: string;
@@ -88,6 +109,55 @@ export const useCompleteNewPassword = () => {
       console.error('New password reset error:', error);
     },
   });
+};
+
+const forgotPassword = async (data: ForgotPasswordData) => {
+  const response = await apiClient.post(API_CONFIG.ENDPOINTS.AUTH.FORGOT_PASSWORD, data);
+  return response.data;
+};
+
+export const useForgotPassword = () => {
+  return useMutation({
+    mutationFn: forgotPassword,
+  });
+};
+
+const verifyResetToken = async (data: VerifyResetTokenData) => {
+  const response = await apiClient.post(API_CONFIG.ENDPOINTS.AUTH.VERIFY_RESET_TOKEN, data);
+  return response.data;
+};
+
+export const useVerifyResetToken = () => {
+  return useMutation({
+    mutationFn: verifyResetToken,
+  });
+};
+
+const resetPassword = async (data: ResetPasswordData) => {
+  const response = await apiClient.post(API_CONFIG.ENDPOINTS.AUTH.RESET_PASSWORD, data);
+  return response.data;
+};
+
+export const useResetPassword = () => {
+  return useMutation({
+    mutationFn: resetPassword,
+  });
+};
+
+const signupUser = async (data: SignupData) => {
+  const response = await apiClient.post(API_CONFIG.ENDPOINTS.AUTH.SIGNUP, data);
+  return response.data;
+};
+
+export const useSignup = () => {
+  return useMutation({
+    mutationFn: signupUser,
+  });
+};
+
+export const googleLogin = () => {
+  // Redirect to google auth endpoint
+  window.location.href = `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.AUTH.GOOGLE_LOGIN}`;
 };
 
 interface LogoutResponse {

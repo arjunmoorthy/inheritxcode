@@ -1,70 +1,70 @@
-/**
- * =============================================================================
- * Doctor Portal - Main Application
- * =============================================================================
- * 
- * Module:      App.tsx
- * Description: Main React application entry point for the Doctor Portal.
- *              Configures routing, authentication, and global providers.
- * 
- * Created:     2025-12-20
- * Modified:    2026-01-16
- * Author:      Naveen Babu S A
- * Version:     2.1.0
- * 
- * Routes:
- *   /login              - Login page
- *   /dashboard          - Main dashboard with patient ranking
- *   /patients           - Patient list management
- *   /patients/:uuid     - Patient detail with timeline
- *   /staff              - Staff management
- *   /reports            - Weekly reports
- * 
- * Copyright:
- *   (c) 2026 OncoLife Health Technologies. All rights reserved.
- * =============================================================================
- */
-
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { GlobalStyles, SessionTimeoutManager } from '@oncolife/ui-components';
 import { AuthProvider } from './contexts/AuthContext';
 import { UserProvider } from './contexts/UserContext';
-import { UserTypeProvider } from './contexts/UserTypeContext';
-
-// Doctor-specific pages
-import LoginPage from './pages/LoginPage';
-import Layout from './components/Layout';
+import LoginPage from './pages/LoginPage/LoginPage';
+import SignUpPage from './pages/SignUpPage/SignUpPage';
+import ResetPasswordPage from './pages/ResetPasswordPage/ResetPasswordPage';
 import DashboardPage from './pages/Dashboard/DashboardPage';
 import PatientsPage from './pages/Patients/PatientsPage';
-import StaffPage from './pages/Staff/StaffPage';
-import PatientDetailPage from './pages/PatientDetail';
-import ReportsPage from './pages/Reports';
+import ProfilePage from './pages/Profile/ProfilePage';
+import { useAuth } from './contexts/AuthContext';
+import Layout from './components/Layout';
 
-function App() {
-  return (
-    <UserTypeProvider userType="doctor">
-      <AuthProvider>
-        <UserProvider>
-          <GlobalStyles />
-          <BrowserRouter>
-            <SessionTimeoutManager />
-            <Routes>
-              <Route path="/login" element={<LoginPage />} />
-              <Route element={<Layout />}>
-                <Route path="/dashboard" element={<DashboardPage />} />
-                <Route path="/patients" element={<PatientsPage />} />
-                <Route path="/patients/:uuid" element={<PatientDetailPage />} />
-                <Route path="/reports" element={<ReportsPage />} />
-                <Route path="/staff" element={<StaffPage />} />
-              </Route>
-              <Route path="/" element={<Navigate to="/dashboard" />} />
-            </Routes>
-          </BrowserRouter>
-        </UserProvider>
-      </AuthProvider>
-    </UserTypeProvider>
-  );
+// Protected Route Component
+interface ProtectedRouteProps {
+    children: React.ReactNode;
 }
+
+const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
+    const { isAuthenticated, isLoading } = useAuth();
+
+    // if (isLoading) {
+    //     return <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>Loading...</div>;
+    // }
+
+    // if (!isAuthenticated) {
+    //     return <Navigate to="/login" replace />;
+    // }
+
+    return <>{children}</>;
+};
+
+const App: React.FC = () => {
+    return (
+        <AuthProvider>
+            <UserProvider>
+                <BrowserRouter>
+                    <Routes>
+                        {/* Public Routes */}
+                        <Route path="/login" element={<LoginPage />} />
+                        <Route path="/signup" element={<SignUpPage />} />
+                        <Route path="/reset-password" element={<ResetPasswordPage />} />
+
+                        {/* Protected Routes with Layout */}
+                        <Route
+                            path="/"
+                            element={
+                                <ProtectedRoute>
+                                    <Layout />
+                                </ProtectedRoute>
+                            }
+                        >
+                            <Route index element={<Navigate to="/dashboard" replace />} />
+                            <Route path="dashboard" element={<DashboardPage />} />
+                            <Route path="patients" element={<PatientsPage />} />
+                            <Route path="profile" element={<ProfilePage />} />
+                            <Route path="reports" element={<div style={{ padding: '20px' }}>Reports Page (Under Construction)</div>} />
+                            <Route path="staff" element={<div style={{ padding: '20px' }}>Staff Page (Under Construction)</div>} />
+                        </Route>
+
+                        {/* Catch all */}
+                        <Route path="*" element={<Navigate to="/login" replace />} />
+                    </Routes>
+                </BrowserRouter>
+            </UserProvider>
+        </AuthProvider>
+    );
+};
 
 export default App;

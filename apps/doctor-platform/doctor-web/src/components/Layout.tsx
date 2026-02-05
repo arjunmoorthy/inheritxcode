@@ -8,7 +8,7 @@
  * - Page transition animations
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useTheme, useMediaQuery } from '@mui/material';
 import Box from '@mui/material/Box';
@@ -24,7 +24,7 @@ import ListItemButton from '@mui/material/ListItemButton';
 import ListItemIcon from '@mui/material/ListItemIcon';
 import ListItemText from '@mui/material/ListItemText';
 import Divider from '@mui/material/Divider';
-import { 
+import {
   LayoutDashboard,
   Users,
   UserCog,
@@ -37,6 +37,7 @@ import {
   FileText
 } from 'lucide-react';
 import { useUser } from '../contexts/UserContext';
+import { useAuth } from '../contexts/AuthContext';
 import { DarkModeToggle, useThemeMode } from '@oncolife/ui-components';
 
 // Sidebar width
@@ -55,9 +56,27 @@ const Layout: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { profile } = useUser();
+  const { isAuthenticated, isLoading } = useAuth();
   const { isDark } = useThemeMode();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
+
+  // Check authentication
+  // useEffect(() => {
+  //   if (!isLoading && !isAuthenticated) {
+  //     navigate('/login', { replace: true });
+  //   }
+  // }, [isAuthenticated, isLoading, navigate]);
+
+  // Show nothing while checking auth
+  // if (isLoading) {
+  //   return null;
+  // }
+
+  // // Don't render if not authenticated
+  // if (!isAuthenticated) {
+  //   return null;
+  // }
 
   // Sidebar colors based on dark mode
   const sidebarBg = isDark ? theme.palette.background.paper : theme.palette.primary.main;
@@ -100,19 +119,19 @@ const Layout: React.FC = () => {
 
   // Sidebar Content
   const SidebarContent = () => (
-    <Box sx={{ 
-      display: 'flex', 
-      flexDirection: 'column', 
+    <Box sx={{
+      display: 'flex',
+      flexDirection: 'column',
       height: '100%',
       bgcolor: sidebarBg,
       color: sidebarText,
       transition: 'background-color 0.3s ease, color 0.3s ease',
     }}>
       {/* Logo Header */}
-      <Box sx={{ 
-        p: 2.5, 
-        display: 'flex', 
-        alignItems: 'center', 
+      <Box sx={{
+        p: 2.5,
+        display: 'flex',
+        alignItems: 'center',
         gap: 1.5,
         borderBottom: `1px solid ${sidebarDivider}`,
       }}>
@@ -132,17 +151,17 @@ const Layout: React.FC = () => {
           <Activity size={24} />
         </Box>
         <Box sx={{ flex: 1 }}>
-          <Typography 
-            variant="h6" 
+          <Typography
+            variant="h6"
             fontWeight={700}
             sx={{ lineHeight: 1.2, color: sidebarText }}
           >
             OncoLife
           </Typography>
-          <Typography 
+          <Typography
             variant="caption"
-            sx={{ 
-              display: 'block', 
+            sx={{
+              display: 'block',
               lineHeight: 1.2,
               color: sidebarTextMuted,
             }}
@@ -151,7 +170,7 @@ const Layout: React.FC = () => {
           </Typography>
         </Box>
         {isMobile && (
-          <IconButton 
+          <IconButton
             onClick={() => setMobileDrawerOpen(false)}
             sx={{ color: sidebarText }}
           >
@@ -160,16 +179,24 @@ const Layout: React.FC = () => {
         )}
       </Box>
 
-      {/* User Profile Section */}
-      <Box sx={{ 
-        p: 2, 
-        display: 'flex', 
-        alignItems: 'center', 
-        gap: 1.5,
-        borderBottom: `1px solid ${sidebarDivider}`,
-      }}>
-        <Avatar 
-          sx={{ 
+      {/* User Profile Section - Clickable */}
+      <Box
+        onClick={() => handleNavigation('/profile')}
+        sx={{
+          p: 2,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 1.5,
+          borderBottom: `1px solid ${sidebarDivider}`,
+          cursor: 'pointer',
+          transition: 'background-color 0.2s ease',
+          '&:hover': {
+            bgcolor: sidebarHover,
+          },
+        }}
+      >
+        <Avatar
+          sx={{
             bgcolor: theme.palette.secondary.main,
             width: 44,
             height: 44,
@@ -179,16 +206,16 @@ const Layout: React.FC = () => {
           {getInitials()}
         </Avatar>
         <Box sx={{ flex: 1, minWidth: 0 }}>
-          <Typography 
-            variant="body2" 
+          <Typography
+            variant="body2"
             sx={{ color: sidebarTextMuted }}
           >
             Welcome
           </Typography>
-          <Typography 
-            variant="body1" 
+          <Typography
+            variant="body1"
             fontWeight={600}
-            sx={{ 
+            sx={{
               overflow: 'hidden',
               textOverflow: 'ellipsis',
               whiteSpace: 'nowrap',
@@ -202,11 +229,11 @@ const Layout: React.FC = () => {
 
       {/* Navigation Links */}
       <Box sx={{ flex: 1, py: 2, overflow: 'auto' }}>
-        <Typography 
+        <Typography
           variant="overline"
-          sx={{ 
-            px: 2, 
-            mb: 1, 
+          sx={{
+            px: 2,
+            mb: 1,
             display: 'block',
             color: sidebarTextMuted,
             fontSize: '0.7rem',
@@ -221,8 +248,8 @@ const Layout: React.FC = () => {
             const Icon = item.icon;
             const isActive = currentNav === item.id;
             return (
-              <ListItem 
-                key={item.id} 
+              <ListItem
+                key={item.id}
                 disablePadding
                 sx={{
                   animation: 'slideInLeft 0.3s ease-out forwards',
@@ -243,21 +270,21 @@ const Layout: React.FC = () => {
                     color: sidebarText,
                     transition: 'all 0.2s ease',
                     '&:hover': {
-                      bgcolor: isActive 
+                      bgcolor: isActive
                         ? (isDark ? `${theme.palette.primary.main}30` : 'rgba(255,255,255,0.2)')
                         : sidebarHover,
                     },
                   }}
                 >
-                  <ListItemIcon sx={{ 
+                  <ListItemIcon sx={{
                     minWidth: 40,
-                    color: isActive 
-                      ? (isDark ? theme.palette.primary.main : 'white') 
+                    color: isActive
+                      ? (isDark ? theme.palette.primary.main : 'white')
                       : sidebarTextMuted,
                   }}>
                     <Icon size={22} />
                   </ListItemIcon>
-                  <ListItemText 
+                  <ListItemText
                     primary={item.label}
                     primaryTypographyProps={{
                       fontWeight: isActive ? 600 : 500,
@@ -275,9 +302,9 @@ const Layout: React.FC = () => {
       <Box sx={{ borderTop: `1px solid ${sidebarDivider}` }}>
         <Box sx={{ p: 1.5 }}>
           {/* Dark Mode Toggle */}
-          <Box sx={{ 
-            display: 'flex', 
-            alignItems: 'center', 
+          <Box sx={{
+            display: 'flex',
+            alignItems: 'center',
             justifyContent: 'space-between',
             px: 1.5,
             py: 1,
@@ -288,7 +315,7 @@ const Layout: React.FC = () => {
             </Typography>
             <DarkModeToggle variant="pill" />
           </Box>
-          
+
           {/* Logout */}
           <ListItemButton
             onClick={handleLogout}
@@ -363,10 +390,10 @@ const Layout: React.FC = () => {
       >
         {/* Mobile Header */}
         {isMobile && (
-          <AppBar 
-            position="sticky" 
+          <AppBar
+            position="sticky"
             elevation={0}
-            sx={{ 
+            sx={{
               bgcolor: isDark ? 'background.paper' : theme.palette.primary.main,
               borderBottom: isDark ? `1px solid ${theme.palette.divider}` : 'none',
               transition: 'all 0.3s ease',
@@ -382,9 +409,9 @@ const Layout: React.FC = () => {
               </IconButton>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                 <Activity size={24} color={isDark ? theme.palette.primary.main : 'white'} />
-                <Typography 
-                  variant="h6" 
-                  fontWeight={700} 
+                <Typography
+                  variant="h6"
+                  fontWeight={700}
                   sx={{ color: isDark ? 'text.primary' : 'white' }}
                 >
                   OncoLife
@@ -392,9 +419,9 @@ const Layout: React.FC = () => {
               </Box>
               <Box sx={{ flexGrow: 1 }} />
               <DarkModeToggle variant="icon" size="small" />
-              <Avatar 
-                sx={{ 
-                  width: 36, 
+              <Avatar
+                sx={{
+                  width: 36,
                   height: 36,
                   bgcolor: theme.palette.secondary.main,
                   fontSize: '0.875rem',
@@ -409,9 +436,9 @@ const Layout: React.FC = () => {
         )}
 
         {/* Page Content with animation */}
-        <Box 
-          sx={{ 
-            flex: 1, 
+        <Box
+          sx={{
+            flex: 1,
             overflow: 'auto',
             animation: 'fadeIn 0.3s ease-out',
             '@keyframes fadeIn': {
