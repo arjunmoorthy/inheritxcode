@@ -145,6 +145,29 @@ class SSOProvisionResponse(BaseModel):
     staff_uuid: Optional[str] = None
     created: bool = True
 
+class ProfileCompletionRequest(BaseModel):
+    staff_id: int  # ✅ staff table primary key (user id)
+
+    role: Optional[str] = None
+
+    clinic_uuid: Optional[UUID] = None
+    clinic_name: Optional[str] = None
+    clinic_address: Optional[str] = None
+
+    department: Optional[str] = None
+
+class ProfileCompletionResponse(BaseModel):
+    message: str
+    staff_id: int
+    staff_uuid: UUID
+
+    role: Optional[str] = None
+
+    clinic_uuid: Optional[UUID] = None
+    clinic_name: Optional[str] = None
+    clinic_address: Optional[str] = None
+    department: Optional[str] = None
+
 
 # =============================================================================
 # Endpoints
@@ -543,4 +566,59 @@ async def provision_sso_user(
         clinic_address=request.clinic_address,
         staff_uuid=str(staff.uuid),
         created=True,
+    )
+
+@router.post(
+    "/profile/complete",
+    response_model=ProfileCompletionResponse,
+    summary="Complete profile after social signup (basic flow)",
+)
+def complete_profile(
+    request: ProfileCompletionRequest,
+    db: Session = Depends(get_doctor_db_session),
+):
+    # 1️⃣ Fetch staff using ID
+    staff = db.query(Staff).filter(Staff.id == request.staff_id).first()
+    if not staff:
+        raise HTTPException(status_code=404, detail="Staff not found")
+
+    # 2️⃣ Update role
+    if request.role:
+        staff.role = request.role
+        db.commit()
+
+    # 3️⃣ Resolve / create clinic (optional)
+    clinic = None
+
+    if request.clinic_uuid:
+        clinic = db.query(Clinic).filter(Clinic.uuid == request.clinic_uuid).first()
+        if not clinic:
+            raise HTTPException(status_code=404, detail="Clinic not found")
+
+    elif request.clinic_name:
+        clinic = (
+            db.query(Clinic)
+            .filter(Clinic.clinic_name == request.clinic_name)
+            .first()
+        )
+
+        if not clinic:
+            clinic = Clinic(
+                uuid=uuid4(),
+                clinic_name=request.clinic_name,
+                address=request.clinic_address,
+            )
+            db.add(clinic)
+            db.commit()
+            db.refresh(clinic)
+
+    return ProfileCompletionResponse(
+        message="Profile completed successfully",
+        staff_id=staff.id,
+        staff_uuid=staff.uuid,
+        role=staff.role,
+        clinic_uuid=clinic.uuid if clinic else None,
+        clinic_name=clinic.clinic_name if clinic else None,
+        clinic_address=clinic.address if clinic else None,
+        department=request.department,
     )
