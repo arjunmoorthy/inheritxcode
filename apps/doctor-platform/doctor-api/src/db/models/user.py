@@ -116,6 +116,18 @@ class User(DoctorBase, TimestampMixin):
         comment="External provider's user ID (Google sub, Cognito sub)"
     )
     
+    # Personal information
+    first_name = Column(
+        String(100),
+        nullable=True,
+        comment="User's first name"
+    )
+    last_name = Column(
+        String(100),
+        nullable=True,
+        comment="User's last name"
+    )
+    
     # Account status
     is_active = Column(
         Boolean,
@@ -170,6 +182,13 @@ class User(DoctorBase, TimestampMixin):
         """Check if user has a password set."""
         return self.password_hash is not None
     
+    @property
+    def full_name(self) -> Optional[str]:
+        """Get the user's full name."""
+        if self.first_name and self.last_name:
+            return f"{self.first_name} {self.last_name}"
+        return self.first_name or self.last_name
+    
     def update_last_login(self) -> None:
         """Update the last login timestamp."""
         self.last_login_at = datetime.utcnow()
@@ -187,6 +206,9 @@ class User(DoctorBase, TimestampMixin):
             "id": self.id,
             "uuid": str(self.uuid),
             "email": self.email,
+            "first_name": self.first_name,
+            "last_name": self.last_name,
+            "full_name": self.full_name,
             "auth_provider": self.auth_provider,
             "is_active": self.is_active,
             "is_verified": self.is_verified,

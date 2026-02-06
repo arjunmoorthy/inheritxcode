@@ -575,25 +575,25 @@ async def manual_staff_signup(
         )
     
     try:
-        # 1. Create User record (authentication)
+        # 1. Create User record (authentication + name)
         user = User(
             uuid=uuid4(),
             email=request.email,
             password_hash=hash_password(request.password) if request.password else None,
             auth_provider='local',
+            first_name=request.first_name,
+            last_name=request.last_name,
             is_active=True,
             is_verified=False,
         )
         db.add(user)
         db.flush()  # Get user.id without committing
         
-        # 2. Create Staff record (profile)
+        # 2. Create Staff record (profile - names are in User table)
         staff = Staff(
             uuid=uuid4(),
             user_id=user.id,
             email=request.email,
-            first_name=request.first_name,
-            last_name=request.last_name,
             role=request.role or "staff",
             department=request.department,
             is_profile_completed=False,
@@ -850,26 +850,26 @@ def google_signup(
             )
     
     try:
-        # 1. Create User record (authentication - no password for SSO)
+        # 1. Create User record (authentication + name - no password for SSO)
         user = User(
             uuid=uuid4(),
             email=email,
             password_hash=None,  # No password for SSO users
             auth_provider='google',
             provider_user_id=google_sub,
+            first_name=first_name,
+            last_name=last_name,
             is_active=True,
             is_verified=True,  # Google email is already verified
         )
         db.add(user)
         db.flush()
         
-        # 2. Create Staff record (profile)
+        # 2. Create Staff record (profile - names are in User table)
         staff = Staff(
             uuid=uuid4(),
             user_id=user.id,
             email=email,
-            first_name=first_name,
-            last_name=last_name,
             role="staff",
             is_profile_completed=False,
             is_active=True,

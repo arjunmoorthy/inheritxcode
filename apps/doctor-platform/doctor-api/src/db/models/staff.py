@@ -18,15 +18,18 @@ Staff Roles:
 Usage:
     from db.models import Staff, User
     
-    # Create user first
-    user = User(email="doctor@clinic.com", password_hash="...")
+    # Create user first (with name fields)
+    user = User(
+        email="doctor@clinic.com", 
+        password_hash="...",
+        first_name="Jane",
+        last_name="Smith"
+    )
     
     # Then create staff profile
     staff = Staff(
         user=user,
         email="doctor@clinic.com",
-        first_name="Jane",
-        last_name="Smith",
         role="physician",
         npi_number="1234567890"
     )
@@ -54,14 +57,15 @@ class Staff(DoctorBase, TimestampMixin):
         uuid: Unique identifier for external use
         user_id: Foreign key to users table
         email: Email address (denormalized from users)
-        first_name: Staff member's first name
-        last_name: Staff member's last name
         role: Role type (physician, nurse, staff, admin)
         npi_number: National Provider Identifier (physicians only)
         department: Department within clinic
         phone: Contact phone number
         is_profile_completed: Whether profile setup is complete
         is_active: Whether the profile is active
+        
+    Note: first_name and last_name are stored in the User table and 
+          accessed via the user relationship.
     """
     
     __tablename__ = 'staff'
@@ -103,18 +107,6 @@ class Staff(DoctorBase, TimestampMixin):
         nullable=False,
         index=True,
         comment="Email address (denormalized from users)"
-    )
-    
-    # Personal information
-    first_name = Column(
-        String(100),
-        nullable=True,
-        comment="Staff member's first name"
-    )
-    last_name = Column(
-        String(100),
-        nullable=True,
-        comment="Staff member's last name"
     )
     
     # Role and credentials
@@ -187,10 +179,21 @@ class Staff(DoctorBase, TimestampMixin):
         )
     
     @property
+    def first_name(self) -> Optional[str]:
+        """Get first name from associated user."""
+        return self.user.first_name if self.user else None
+    
+    @property
+    def last_name(self) -> Optional[str]:
+        """Get last name from associated user."""
+        return self.user.last_name if self.user else None
+    
+    @property
     def full_name(self) -> str:
-        """Get the full name of the staff member."""
-        parts = [self.first_name, self.last_name]
-        return " ".join(p for p in parts if p) or "Unknown"
+        """Get the full name of the staff member from associated user."""
+        if self.user:
+            return self.user.full_name or "Unknown"
+        return "Unknown"
     
     @property
     def is_physician(self) -> bool:

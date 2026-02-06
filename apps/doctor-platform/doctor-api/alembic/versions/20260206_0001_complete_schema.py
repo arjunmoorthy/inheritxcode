@@ -58,6 +58,10 @@ def upgrade() -> None:
             # Values: 'local', 'google', 'cognito'
         sa.Column('provider_user_id', sa.String(255), nullable=True),  # Google sub, Cognito sub, etc.
         
+        # Personal information
+        sa.Column('first_name', sa.String(100), nullable=True),
+        sa.Column('last_name', sa.String(100), nullable=True),
+        
         # Account status
         sa.Column('is_active', sa.Boolean(), nullable=False, server_default=sa.text('true')),
         sa.Column('is_verified', sa.Boolean(), nullable=False, server_default=sa.text('false')),
@@ -132,10 +136,6 @@ def upgrade() -> None:
         
         # Contact info (denormalized from users for convenience)
         sa.Column('email', sa.String(255), nullable=False),
-        
-        # Personal information
-        sa.Column('first_name', sa.String(100), nullable=True),
-        sa.Column('last_name', sa.String(100), nullable=True),
         
         # Role and credentials
         sa.Column('role', sa.String(50), nullable=False, server_default='staff'),
