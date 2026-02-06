@@ -25,15 +25,16 @@ if os.path.exists(docker_src_path) and docker_src_path not in sys.path:
     sys.path.insert(0, docker_src_path)
 
 # Import all models to ensure they're registered with Base.metadata
+# Note: We import from db.models (clean model definitions) NOT db.patient_models (legacy)
 from db.base import Base
-from db.patient_models import *  # noqa
+from db.models.user import *  # noqa
 from db.models.patient import *  # noqa
 from db.models.conversation import *  # noqa
-from db.models.education import *  # noqa
 from db.models.medical import *  # noqa
-from db.models.questions import *  # noqa
 from db.models.referral import *  # noqa
-from db.models.user import *  # noqa
+from db.models.onboarding_schema import *  # noqa
+from db.models.education import *  # noqa
+from db.models.questions import *  # noqa
 
 # this is the Alembic Config object
 config = context.config

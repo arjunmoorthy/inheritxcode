@@ -25,13 +25,13 @@ from sqlalchemy import (
     func,
 )
 from sqlalchemy.dialects.postgresql import UUID, JSONB
-from sqlalchemy.orm import relationship, declarative_base
+from sqlalchemy.orm import relationship
 import uuid
 import enum
 
-# Use declarative_base for this model to avoid auto tablename generation
-# These tables have specific naming requirements
-Base = declarative_base()
+# Use the shared Base from db.base to ensure all models share the same metadata
+# This is critical for Alembic migrations to work correctly
+from db.base import Base
 
 
 # =============================================================================
