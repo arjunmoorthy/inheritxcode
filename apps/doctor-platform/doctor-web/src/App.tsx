@@ -12,6 +12,7 @@ import PatientsPage from './pages/Patients/PatientsPage';
 import ProfilePage from './pages/Profile/ProfilePage';
 import { useAuth } from './contexts/AuthContext';
 import Layout from './components/Layout';
+import PatientDetailPage from './pages/PatientDetail';
 
 // Protected Route Component
 interface ProtectedRouteProps {
@@ -57,6 +58,7 @@ const App: React.FC = () => {
                             <Route index element={<Navigate to="/dashboard" replace />} />
                             <Route path="dashboard" element={<DashboardPage />} />
                             <Route path="patients" element={<PatientsPage />} />
+                            <Route path="patients/:uuid" element={<PatientDetailPage />} />
                             <Route path="profile" element={<ProfilePage />} />
                             <Route path="reports" element={<div style={{ padding: '20px' }}>Reports Page (Under Construction)</div>} />
                             <Route path="staff" element={<div style={{ padding: '20px' }}>Staff Page (Under Construction)</div>} />

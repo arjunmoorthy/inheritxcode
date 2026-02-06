@@ -8,7 +8,7 @@
  * - Page transition animations
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useTheme, useMediaQuery } from '@mui/material';
 import Box from '@mui/material/Box';
@@ -23,7 +23,7 @@ import ListItem from '@mui/material/ListItem';
 import ListItemButton from '@mui/material/ListItemButton';
 import ListItemIcon from '@mui/material/ListItemIcon';
 import ListItemText from '@mui/material/ListItemText';
-import Divider from '@mui/material/Divider';
+import Tooltip from '@mui/material/Tooltip';
 import {
   LayoutDashboard,
   Users,
@@ -34,14 +34,17 @@ import {
   Activity,
   Moon,
   Sun,
-  FileText
+  FileText,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import { useUser } from '../contexts/UserContext';
-import { useAuth } from '../contexts/AuthContext';
+// import { useAuth } from '../contexts/AuthContext';
 import { DarkModeToggle, useThemeMode } from '@oncolife/ui-components';
 
 // Sidebar width
 const DRAWER_WIDTH = 260;
+const DRAWER_WIDTH_COLLAPSED = 72;
 
 // Navigation items
 const navItems = [
@@ -56,10 +59,11 @@ const Layout: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { profile } = useUser();
-  const { isAuthenticated, isLoading } = useAuth();
+  // const { isAuthenticated, isLoading } = useAuth();
   const { isDark } = useThemeMode();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   // Check authentication
   // useEffect(() => {
@@ -118,7 +122,7 @@ const Layout: React.FC = () => {
   };
 
   // Sidebar Content
-  const SidebarContent = () => (
+  const SidebarContent = ({ collapsed = false }: { collapsed?: boolean }) => (
     <Box sx={{
       display: 'flex',
       flexDirection: 'column',
@@ -129,16 +133,17 @@ const Layout: React.FC = () => {
     }}>
       {/* Logo Header */}
       <Box sx={{
-        p: 2.5,
+        p: collapsed ? 2 : 2.5,
         display: 'flex',
         alignItems: 'center',
         gap: 1.5,
         borderBottom: `1px solid ${sidebarDivider}`,
+        justifyContent: collapsed ? 'center' : 'flex-start',
       }}>
         <Box
           sx={{
-            width: 40,
-            height: 40,
+            width: collapsed ? 36 : 40,
+            height: collapsed ? 36 : 40,
             borderRadius: 2,
             bgcolor: isDark ? theme.palette.primary.main : 'rgba(255,255,255,0.15)',
             display: 'flex',
@@ -146,30 +151,33 @@ const Layout: React.FC = () => {
             justifyContent: 'center',
             color: isDark ? 'white' : 'white',
             boxShadow: isDark ? `0 4px 12px ${theme.palette.primary.main}40` : 'none',
+            flexShrink: 0,
           }}
         >
-          <Activity size={24} />
+          <Activity size={collapsed ? 20 : 24} />
         </Box>
-        <Box sx={{ flex: 1 }}>
-          <Typography
-            variant="h6"
-            fontWeight={700}
-            sx={{ lineHeight: 1.2, color: sidebarText }}
-          >
-            OncoLife
-          </Typography>
-          <Typography
-            variant="caption"
-            sx={{
-              display: 'block',
-              lineHeight: 1.2,
-              color: sidebarTextMuted,
-            }}
-          >
-            Physician Portal
-          </Typography>
-        </Box>
-        {isMobile && (
+        {!collapsed && (
+          <Box sx={{ flex: 1, minWidth: 0 }}>
+            <Typography
+              variant="h6"
+              fontWeight={700}
+              sx={{ lineHeight: 1.2, color: sidebarText }}
+            >
+              OncoLife
+            </Typography>
+            <Typography
+              variant="caption"
+              sx={{
+                display: 'block',
+                lineHeight: 1.2,
+                color: sidebarTextMuted,
+              }}
+            >
+              Physician Portal
+            </Typography>
+          </Box>
+        )}
+        {isMobile && !collapsed && (
           <IconButton
             onClick={() => setMobileDrawerOpen(false)}
             sx={{ color: sidebarText }}
@@ -180,69 +188,77 @@ const Layout: React.FC = () => {
       </Box>
 
       {/* User Profile Section - Clickable */}
-      <Box
-        onClick={() => handleNavigation('/profile')}
-        sx={{
-          p: 2,
-          display: 'flex',
-          alignItems: 'center',
-          gap: 1.5,
-          borderBottom: `1px solid ${sidebarDivider}`,
-          cursor: 'pointer',
-          transition: 'background-color 0.2s ease',
-          '&:hover': {
-            bgcolor: sidebarHover,
-          },
-        }}
-      >
-        <Avatar
+      <Tooltip title={collapsed ? getUserName() : ''} placement="right" arrow>
+        <Box
+          onClick={() => handleNavigation('/profile')}
           sx={{
-            bgcolor: theme.palette.secondary.main,
-            width: 44,
-            height: 44,
-            fontWeight: 600,
+            p: collapsed ? 1.5 : 2,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1.5,
+            borderBottom: `1px solid ${sidebarDivider}`,
+            cursor: 'pointer',
+            transition: 'background-color 0.2s ease',
+            justifyContent: collapsed ? 'center' : 'flex-start',
+            '&:hover': {
+              bgcolor: sidebarHover,
+            },
           }}
         >
-          {getInitials()}
-        </Avatar>
-        <Box sx={{ flex: 1, minWidth: 0 }}>
-          <Typography
-            variant="body2"
-            sx={{ color: sidebarTextMuted }}
-          >
-            Welcome
-          </Typography>
-          <Typography
-            variant="body1"
-            fontWeight={600}
+          <Avatar
             sx={{
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
-              color: sidebarText,
+              bgcolor: theme.palette.secondary.main,
+              width: collapsed ? 36 : 44,
+              height: collapsed ? 36 : 44,
+              fontWeight: 600,
+              flexShrink: 0,
             }}
           >
-            {getUserName()}
-          </Typography>
+            {getInitials()}
+          </Avatar>
+          {!collapsed && (
+            <Box sx={{ flex: 1, minWidth: 0 }}>
+              <Typography
+                variant="body2"
+                sx={{ color: sidebarTextMuted }}
+              >
+                Welcome
+              </Typography>
+              <Typography
+                variant="body1"
+                fontWeight={600}
+                sx={{
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                  color: sidebarText,
+                }}
+              >
+                {getUserName()}
+              </Typography>
+            </Box>
+          )}
         </Box>
-      </Box>
+      </Tooltip>
 
       {/* Navigation Links */}
       <Box sx={{ flex: 1, py: 2, overflow: 'auto' }}>
-        <Typography
-          variant="overline"
-          sx={{
-            px: 2,
-            mb: 1,
-            display: 'block',
-            color: sidebarTextMuted,
-            fontSize: '0.7rem',
-            letterSpacing: '0.1em',
-            opacity: 0.7,
-          }}
-        >
-          Navigation
-        </Typography>
+        {!collapsed && (
+          <Typography
+            variant="overline"
+            sx={{
+              px: 2,
+              mb: 1,
+              display: 'block',
+              color: sidebarTextMuted,
+              fontSize: '0.7rem',
+              letterSpacing: '0.1em',
+              opacity: 0.7,
+            }}
+          >
+            Navigation
+          </Typography>
+        )}
         <List disablePadding>
           {navItems.map((item, index) => {
             const Icon = item.icon;
@@ -252,46 +268,53 @@ const Layout: React.FC = () => {
                 key={item.id}
                 disablePadding
                 sx={{
-                  animation: 'slideInLeft 0.3s ease-out forwards',
-                  animationDelay: `${index * 50}ms`,
-                  opacity: 0,
+                  animation: collapsed ? 'none' : 'slideInLeft 0.3s ease-out forwards',
+                  animationDelay: collapsed ? '0ms' : `${index * 50}ms`,
+                  opacity: collapsed ? 1 : 0,
                   '@keyframes slideInLeft': {
                     '0%': { opacity: 0, transform: 'translateX(-20px)' },
                     '100%': { opacity: 1, transform: 'translateX(0)' },
                   },
                 }}
               >
-                <ListItemButton
-                  onClick={() => handleNavigation(item.path)}
-                  sx={{
-                    mx: 1,
-                    borderRadius: 2,
-                    bgcolor: isActive ? sidebarActive : 'transparent',
-                    color: sidebarText,
-                    transition: 'all 0.2s ease',
-                    '&:hover': {
-                      bgcolor: isActive
-                        ? (isDark ? `${theme.palette.primary.main}30` : 'rgba(255,255,255,0.2)')
-                        : sidebarHover,
-                    },
-                  }}
-                >
-                  <ListItemIcon sx={{
-                    minWidth: 40,
-                    color: isActive
-                      ? (isDark ? theme.palette.primary.main : 'white')
-                      : sidebarTextMuted,
-                  }}>
-                    <Icon size={22} />
-                  </ListItemIcon>
-                  <ListItemText
-                    primary={item.label}
-                    primaryTypographyProps={{
-                      fontWeight: isActive ? 600 : 500,
-                      color: 'inherit',
+                <Tooltip title={collapsed ? item.label : ''} placement="right" arrow>
+                  <ListItemButton
+                    onClick={() => handleNavigation(item.path)}
+                    sx={{
+                      mx: collapsed ? 0.5 : 1,
+                      borderRadius: 2,
+                      bgcolor: isActive ? sidebarActive : 'transparent',
+                      color: sidebarText,
+                      transition: 'all 0.2s ease',
+                      justifyContent: collapsed ? 'center' : 'flex-start',
+                      minHeight: 48,
+                      '&:hover': {
+                        bgcolor: isActive
+                          ? (isDark ? `${theme.palette.primary.main}30` : 'rgba(255,255,255,0.2)')
+                          : sidebarHover,
+                      },
                     }}
-                  />
-                </ListItemButton>
+                  >
+                    <ListItemIcon sx={{
+                      minWidth: collapsed ? 0 : 40,
+                      justifyContent: 'center',
+                      color: isActive
+                        ? (isDark ? theme.palette.primary.main : 'white')
+                        : sidebarTextMuted,
+                    }}>
+                      <Icon size={22} />
+                    </ListItemIcon>
+                    {!collapsed && (
+                      <ListItemText
+                        primary={item.label}
+                        primaryTypographyProps={{
+                          fontWeight: isActive ? 600 : 500,
+                          color: 'inherit',
+                        }}
+                      />
+                    )}
+                  </ListItemButton>
+                </Tooltip>
               </ListItem>
             );
           })}
@@ -300,41 +323,124 @@ const Layout: React.FC = () => {
 
       {/* Theme Toggle & Logout */}
       <Box sx={{ borderTop: `1px solid ${sidebarDivider}` }}>
-        <Box sx={{ p: 1.5 }}>
+        <Box sx={{ p: collapsed ? 1 : 1.5 }}>
           {/* Dark Mode Toggle */}
-          <Box sx={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            px: 1.5,
-            py: 1,
-            mb: 1,
-          }}>
-            <Typography variant="body2" sx={{ color: sidebarTextMuted }}>
-              {isDark ? 'Dark Mode' : 'Light Mode'}
-            </Typography>
-            <DarkModeToggle variant="pill" />
-          </Box>
+          {!collapsed ? (
+            <Box sx={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              px: 1.5,
+              py: 1,
+              mb: 1,
+            }}>
+              <Typography variant="body2" sx={{ color: sidebarTextMuted }}>
+                {isDark ? 'Dark Mode' : 'Light Mode'}
+              </Typography>
+              <DarkModeToggle variant="pill" />
+            </Box>
+          ) : (
+            <Box sx={{ display: 'flex', justifyContent: 'center', mb: 1 }}>
+              <Tooltip title={isDark ? 'Light Mode' : 'Dark Mode'} placement="right" arrow>
+                <IconButton
+                  onClick={() => {
+                    const toggle = document.querySelector('[data-theme-toggle]') as HTMLElement;
+                    toggle?.click();
+                  }}
+                  sx={{
+                    color: sidebarTextMuted,
+                    '&:hover': { bgcolor: sidebarHover },
+                  }}
+                >
+                  {isDark ? <Sun size={20} /> : <Moon size={20} />}
+                </IconButton>
+              </Tooltip>
+            </Box>
+          )}
 
           {/* Logout */}
-          <ListItemButton
-            onClick={handleLogout}
-            sx={{
-              borderRadius: 2,
-              color: isDark ? theme.palette.error.main : '#FCA5A5',
-              transition: 'all 0.2s ease',
-              '&:hover': {
-                bgcolor: isDark ? `${theme.palette.error.main}15` : 'rgba(239, 68, 68, 0.15)',
-              },
-            }}
-          >
-            <ListItemIcon sx={{ minWidth: 40, color: 'inherit' }}>
-              <LogOut size={22} />
-            </ListItemIcon>
-            <ListItemText primary="Log out" />
-          </ListItemButton>
+          <Tooltip title={collapsed ? 'Log out' : ''} placement="right" arrow>
+            <ListItemButton
+              onClick={handleLogout}
+              sx={{
+                borderRadius: 2,
+                color: isDark ? theme.palette.error.main : '#FCA5A5',
+                transition: 'all 0.2s ease',
+                justifyContent: collapsed ? 'center' : 'flex-start',
+                '&:hover': {
+                  bgcolor: isDark ? `${theme.palette.error.main}15` : 'rgba(239, 68, 68, 0.15)',
+                },
+              }}
+            >
+              <ListItemIcon sx={{ minWidth: collapsed ? 0 : 40, justifyContent: 'center', color: 'inherit' }}>
+                <LogOut size={22} />
+              </ListItemIcon>
+              {!collapsed && <ListItemText primary="Log out" />}
+            </ListItemButton>
+          </Tooltip>
         </Box>
       </Box>
+
+      {/* Collapse Toggle Button - Desktop Only */}
+      {!isMobile && (
+        <Tooltip 
+          title={sidebarCollapsed ? 'Expand Sidebar' : 'Collapse Sidebar'} 
+          placement="right"
+          arrow
+        >
+          <IconButton
+            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+            sx={{
+              position: 'absolute',
+              right: -20,
+              top: '50%',
+              transform: 'translateY(-50%)',
+              bgcolor: isDark 
+                ? '#1e293b' 
+                : '#f8fafc',
+              border: `2px solid ${isDark ? '#334155' : '#e2e8f0'}`,
+              width: 40,
+              height: 40,
+              borderRadius: '50%',
+              boxShadow: isDark 
+                ? '0 2px 8px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.05)'
+                : '0 2px 8px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.8)',
+              zIndex: 10,
+              color: isDark 
+                ? '#cbd5e1' 
+                : '#475569',
+              '&:hover': {
+                bgcolor: isDark 
+                  ? '#1e293b' 
+                  : '#f8fafc',
+                transform: 'translateY(-50%) scale(1.1)',
+                boxShadow: isDark
+                  ? '0 4px 12px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.05)'
+                  : '0 4px 12px rgba(0, 0, 0, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.8)',
+              },
+              transition: 'all 0.2s ease',
+              '&:active': {
+                transform: 'translateY(-50%) scale(1.05)',
+              },
+            }}
+            aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          >
+            {sidebarCollapsed ? (
+              <ChevronRight 
+                size={40} 
+                strokeWidth={3}
+                className='mr-2'
+              />
+            ) : (
+              <ChevronLeft 
+                size={40} 
+                strokeWidth={3}
+                className='mr-2'
+              />
+            )}
+          </IconButton>
+        </Tooltip>
+      )}
     </Box>
   );
 
@@ -345,17 +451,20 @@ const Layout: React.FC = () => {
         <Drawer
           variant="permanent"
           sx={{
-            width: DRAWER_WIDTH,
+            width: sidebarCollapsed ? DRAWER_WIDTH_COLLAPSED : DRAWER_WIDTH,
             flexShrink: 0,
+            transition: 'width 0.3s ease',
             '& .MuiDrawer-paper': {
-              width: DRAWER_WIDTH,
+              width: sidebarCollapsed ? DRAWER_WIDTH_COLLAPSED : DRAWER_WIDTH,
               boxSizing: 'border-box',
               border: 'none',
-              transition: 'background-color 0.3s ease',
+              transition: 'width 0.3s ease, background-color 0.3s ease',
+              overflowX: 'hidden',
+              position: 'relative',
             },
           }}
         >
-          <SidebarContent />
+          <SidebarContent collapsed={sidebarCollapsed} />
         </Drawer>
       )}
 
@@ -373,7 +482,7 @@ const Layout: React.FC = () => {
           },
         }}
       >
-        <SidebarContent />
+        <SidebarContent collapsed={false} />
       </Drawer>
 
       {/* Main Content Area */}

@@ -4,6 +4,7 @@
  */
 
 import React from 'react';
+import { useThemeMode } from '@oncolife/ui-components';
 
 export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
     variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger';
@@ -23,13 +24,20 @@ export const Button: React.FC<ButtonProps> = ({
     children,
     ...props
 }) => {
+    const { isDark } = useThemeMode();
     const baseStyles = 'inline-flex items-center justify-center font-semibold rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed';
 
     const variants = {
-        primary: 'bg-primary text-white hover:bg-primary-light active:bg-primary-dark focus:ring-primary shadow-sm hover:shadow-md hover:-translate-y-0.5',
+        primary: isDark 
+            ? 'bg-primary text-white hover:bg-primary-light active:bg-primary-dark focus:ring-primary shadow-sm hover:shadow-md hover:-translate-y-0.5'
+            : 'bg-primary text-white hover:bg-primary-light active:bg-primary-dark focus:ring-primary shadow-sm hover:shadow-md hover:-translate-y-0.5',
         secondary: 'bg-secondary text-white hover:bg-blue-700 active:bg-blue-800 focus:ring-secondary shadow-sm hover:shadow-md hover:-translate-y-0.5',
-        outline: 'bg-white text-slate-700 border-2 border-slate-300 hover:bg-slate-50 hover:border-slate-400 active:bg-slate-100 focus:ring-slate-300',
-        ghost: 'bg-transparent text-slate-700 hover:bg-slate-100 active:bg-slate-200 focus:ring-slate-300',
+        outline: isDark
+            ? 'bg-slate-800 text-slate-200 border-2 border-slate-600 hover:bg-slate-700 hover:border-slate-500 active:bg-slate-600 focus:ring-slate-500'
+            : 'bg-white text-slate-700 border-2 border-slate-300 hover:bg-slate-50 hover:border-slate-400 active:bg-slate-100 focus:ring-slate-300',
+        ghost: isDark
+            ? 'bg-transparent text-slate-300 hover:bg-slate-800 active:bg-slate-700 focus:ring-slate-600'
+            : 'bg-transparent text-slate-700 hover:bg-slate-100 active:bg-slate-200 focus:ring-slate-300',
         danger: 'bg-red-600 text-white hover:bg-red-700 active:bg-red-800 focus:ring-red-500 shadow-sm hover:shadow-md hover:-translate-y-0.5',
     };
 
