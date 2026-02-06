@@ -38,8 +38,6 @@ from core.logging import get_logger
 from core.middleware.rate_limiting import limiter, AUTH_RATE_LIMIT, PASSWORD_RESET_LIMIT
 from google.oauth2 import id_token
 from google.auth.transport import requests
-
-
 logger = get_logger(__name__)
 
 router = APIRouter()
@@ -154,7 +152,7 @@ class ProfileCompletionRequest(BaseModel):
 
     role: Optional[str] = None
 
-    clinic_uuid: Optional[UUID] = None
+    clinic_uuid: Optional[str] = None
     clinic_name: Optional[str] = None
     clinic_address: Optional[str] = None
 
@@ -167,7 +165,7 @@ class ProfileCompletionResponse(BaseModel):
 
     role: Optional[str] = None
 
-    clinic_uuid: Optional[UUID] = None
+    clinic_uuid: Optional[str] = None
     clinic_name: Optional[str] = None
     clinic_address: Optional[str] = None
     department: Optional[str] = None
@@ -180,7 +178,12 @@ class GoogleSignupResponse(BaseModel):
     message: str
     email: EmailStr
     staff_id: int
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    is_profile_completed: bool
     created: bool
+    access_token: Optional[str] = None
+    refresh_token: Optional[str] = None
 
 # =============================================================================
 # Endpoints
@@ -584,63 +587,54 @@ async def provision_sso_user(
 @router.post(
     "/profile/complete",
     response_model=ProfileCompletionResponse,
-    summary="Complete profile after social signup (basic flow)",
+    summary="Complete profile after social signup",
 )
 def complete_profile(
     request: ProfileCompletionRequest,
     db: Session = Depends(get_doctor_db_session),
 ):
-    # 1️⃣ Fetch staff using ID
+    # 1️⃣ Fetch staff
     staff = db.query(Staff).filter(Staff.id == request.staff_id).first()
     if not staff:
         raise HTTPException(status_code=404, detail="Staff not found")
 
-    # 2️⃣ Update role
+    # 2️⃣ Update role if provided
     if request.role:
         staff.role = request.role
-        db.commit()
 
-    # 3️⃣ Resolve / create clinic (optional)
+    # 3️⃣ Persist clinic info if clinic_name is provided
     clinic = None
-
-    if request.clinic_uuid:
-        clinic = db.query(Clinic).filter(Clinic.uuid == request.clinic_uuid).first()
-        if not clinic:
-            raise HTTPException(status_code=404, detail="Clinic not found")
-
-    elif request.clinic_name:
-        clinic = (
-            db.query(Clinic)
-            .filter(Clinic.clinic_name == request.clinic_name)
-            .first()
-        )
-
+    if request.clinic_name:
+        clinic = db.query(Clinic).filter(Clinic.name == request.clinic_name).first()
         if not clinic:
             clinic = Clinic(
-                uuid=uuid4(),
-                clinic_name=request.clinic_name,
+                name=request.clinic_name,
                 address=request.clinic_address,
+                is_active=True,
             )
             db.add(clinic)
-            db.commit()
-            db.refresh(clinic)
 
+    # Commit staff + clinic changes
+    db.commit()
+    if clinic:
+        db.refresh(clinic)
+
+    # 4️⃣ Return response (clinic_uuid & department just echoed, not stored)
     return ProfileCompletionResponse(
         message="Profile completed successfully",
         staff_id=staff.id,
-        staff_uuid=staff.uuid,
+        staff_uuid=str(staff.uuid),
         role=staff.role,
-        clinic_uuid=clinic.uuid if clinic else None,
-        clinic_name=clinic.clinic_name if clinic else None,
+        clinic_uuid=request.clinic_uuid,       # returned as-is
+        clinic_name=clinic.name if clinic else None,
         clinic_address=clinic.address if clinic else None,
-        department=request.department,
+        department=request.department,         # returned as-is
     )
 
-
 ALLOWED_CLIENT_IDS = [
-    "407408718192.apps.googleusercontent.com",
+    # "407408718192.apps.googleusercontent.com",
     # "165026362997-vj3hj108oho22jodhhlp2ab8fi9tja9c.apps.googleusercontent.com",
-    # "728521781849-nrcnpe2ac409tsv5d4lghi76tq9btee6.apps.googleusercontent.com"
+    "728521781849-nrcnpe2ac409tsv5d4lghi76tq9btee6.apps.googleusercontent.com"
 ]
 
 def verify_google_token(token: str):
@@ -657,6 +651,28 @@ def verify_google_token(token: str):
             detail=f"Invalid Google token: {str(e)}"
         )
     
+from datetime import datetime, timedelta
+from jose import jwt
+
+SECRET_KEY = "9d7d08631a2cc5e54d080e522c5c15c41fd99a1e3615ddb226f465241ec1e3a4"
+ALGORITHM = "HS256"
+
+ACCESS_TOKEN_EXPIRE_MINUTES = 30
+REFRESH_TOKEN_EXPIRE_DAYS = 7
+
+
+def create_access_token(data: dict):
+    to_encode = data.copy()
+    expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    to_encode.update({"exp": expire, "type": "access"})
+    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+
+
+def create_refresh_token(data: dict):
+    to_encode = data.copy()
+    expire = datetime.utcnow() + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
+    to_encode.update({"exp": expire, "type": "refresh"})
+    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
 @router.post(
     "/auth/google/signup",
@@ -679,12 +695,38 @@ def google_signup(
 
     # Check if user already exists
     staff = db.query(Staff).filter(Staff.email == email).first()
+    # if staff:
+    #     # User exists → determine profile completion by role
+    #     is_profile_completed = bool(staff.role)
+    #     return GoogleSignupResponse(
+    #         message="User already exists",
+    #         email=staff.email,
+    #         staff_id=staff.id,
+    #         staff_uuid=staff.uuid,
+    #         is_profile_completed=is_profile_completed,
+    #         created=False,
+    #     )
     if staff:
+        payload = {
+            "staff_id": staff.id,
+            "staff_uuid": str(staff.uuid),
+            "email": staff.email,
+            "role": staff.role,
+        }
+
+        access_token = create_access_token(payload)
+        refresh_token = create_refresh_token(payload)
+
+        is_profile_completed = bool(staff.role)
+
         return GoogleSignupResponse(
             message="User already exists",
             email=staff.email,
             staff_id=staff.id,
             staff_uuid=staff.uuid,
+            is_profile_completed=is_profile_completed,
+            access_token=access_token,
+            refresh_token=refresh_token,
             created=False,
         )
 
@@ -702,10 +744,16 @@ def google_signup(
     db.commit()
     db.refresh(staff)
 
+    # New user → profile not completed yet
+    is_profile_completed = False
+
     return GoogleSignupResponse(
         message="User signed up successfully via Google",
         email=staff.email,
+        first_name=staff.first_name,
+        last_name=staff.last_name,
         staff_id=staff.id,
         staff_uuid=staff.uuid,
+        is_profile_completed=is_profile_completed,
         created=True,
     )
