@@ -1,24 +1,30 @@
 """
-Clinic Models - Doctor API
-==========================
+Clinic Model - Doctor API
+=========================
 
-This module defines SQLAlchemy models for clinic/location data.
+This module defines the Clinic SQLAlchemy model for healthcare facilities.
 
-Tables:
-- all_clinics: Healthcare facility information
+Table: clinics
+- Stores clinic/facility information
+- Links to Staff via staff_clinics junction table (many-to-many)
 
 Usage:
     from db.models import Clinic
     
     clinic = Clinic(
-        clinic_name="Main Oncology Center",
+        name="Main Oncology Center",
         address="123 Medical Way",
-        phone_number="555-0100"
+        city="Boston",
+        state="MA",
+        zip_code="02101",
+        phone="555-0100"
     )
 """
 
 import uuid
-from sqlalchemy import Column, Integer, String, DateTime, func
+from typing import List
+
+from sqlalchemy import Column, Integer, String, Boolean, Index
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 
@@ -30,33 +36,44 @@ class Clinic(DoctorBase, TimestampMixin):
     Represents a healthcare clinic or facility.
     
     This is the central location entity that staff members
-    and physicians are associated with.
+    are associated with via the staff_clinics junction table.
     
     Attributes:
-        uuid: Unique identifier for the clinic
-        clinic_name: Official name of the clinic
-        address: Physical address
-        phone_number: Contact phone number
-        fax_number: Fax number for medical documents
-        created_at: Timestamp when record was created
-        updated_at: Timestamp when record was last modified
+        id: Auto-increment primary key
+        uuid: Unique identifier for external use
+        name: Official name of the clinic
+        address: Street address
+        city: City
+        state: State/Province
+        zip_code: Postal code
+        phone: Contact phone number
+        fax: Fax number for medical documents
+        is_active: Whether the clinic is active
     """
     
-    __tablename__ = 'all_clinics'
-    __table_args__ = {
-        'comment': 'Healthcare clinics and facilities'
-    }
+    __tablename__ = 'clinics'
+    __table_args__ = (
+        Index('ix_clinics_name', 'name'),
+        {'comment': 'Healthcare clinics and facilities'}
+    )
     
-    # Primary key
+    # Primary identifiers
+    id = Column(
+        Integer,
+        primary_key=True,
+        autoincrement=True,
+        comment="Auto-increment primary key"
+    )
     uuid = Column(
         UUID(as_uuid=True),
-        primary_key=True,
+        unique=True,
+        nullable=False,
         default=uuid.uuid4,
-        comment="Unique identifier for the clinic"
+        comment="Unique identifier for external use"
     )
     
     # Clinic information
-    clinic_name = Column(
+    name = Column(
         String(255),
         nullable=False,
         comment="Official name of the clinic"
@@ -64,29 +81,68 @@ class Clinic(DoctorBase, TimestampMixin):
     address = Column(
         String(500),
         nullable=True,
-        comment="Physical address of the clinic"
+        comment="Street address"
     )
-    phone_number = Column(
+    city = Column(
+        String(100),
+        nullable=True,
+        comment="City"
+    )
+    state = Column(
+        String(50),
+        nullable=True,
+        comment="State/Province"
+    )
+    zip_code = Column(
+        String(20),
+        nullable=True,
+        comment="Postal code"
+    )
+    phone = Column(
         String(20),
         nullable=True,
         comment="Contact phone number"
     )
-    fax_number = Column(
+    fax = Column(
         String(20),
         nullable=True,
         comment="Fax number for medical documents"
     )
     
+    # Status
+    is_active = Column(
+        Boolean,
+        nullable=False,
+        default=True,
+        comment="Whether the clinic is active"
+    )
+    
     # Relationships
-    # staff_associations = relationship(
-    #     "StaffAssociation",
-    #     back_populates="clinic",
-    #     lazy="dynamic"
-    # )
+    staff_associations = relationship(
+        "StaffClinic",
+        back_populates="clinic",
+        cascade="all, delete-orphan"
+    )
     
     def __repr__(self) -> str:
         """String representation of the clinic."""
-        return f"<Clinic(uuid={self.uuid}, name='{self.clinic_name}')>"
+        return f"<Clinic(id={self.id}, name='{self.name}')>"
+    
+    @property
+    def staff_members(self) -> List:
+        """Get all active staff members at this clinic."""
+        return [assoc.staff for assoc in self.staff_associations if assoc.is_active]
+    
+    @property
+    def full_address(self) -> str:
+        """Get the full formatted address."""
+        parts = [self.address]
+        city_state = ", ".join(filter(None, [self.city, self.state]))
+        if city_state:
+            parts.append(city_state)
+        if self.zip_code:
+            parts.append(self.zip_code)
+        return ", ".join(filter(None, parts)) or ""
     
     def to_dict(self) -> dict:
         """
@@ -96,16 +152,17 @@ class Clinic(DoctorBase, TimestampMixin):
             Dictionary representation of the clinic
         """
         return {
+            "id": self.id,
             "uuid": str(self.uuid),
-            "clinic_name": self.clinic_name,
+            "name": self.name,
             "address": self.address,
-            "phone_number": self.phone_number,
-            "fax_number": self.fax_number,
+            "city": self.city,
+            "state": self.state,
+            "zip_code": self.zip_code,
+            "phone": self.phone,
+            "fax": self.fax,
+            "full_address": self.full_address,
+            "is_active": self.is_active,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
         }
-
-
-
-
-

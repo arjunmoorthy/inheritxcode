@@ -2,8 +2,10 @@
 Authentication Endpoints - Doctor API
 =====================================
 
-Complete authentication endpoints using AWS Cognito:
-- POST /signup: Register new staff member
+Complete authentication endpoints:
+- POST /signup: Register new staff member (Cognito)
+- POST /signup/staff: Manual staff signup with password
+- POST /auth/google/signup: Google SSO signup
 - POST /login: Authenticate with email/password
 - POST /complete-new-password: Complete password setup
 - POST /logout: Logout (client-side token removal)
@@ -17,13 +19,15 @@ Rate Limiting:
 
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from pydantic import BaseModel, EmailStr
-from sqlalchemy import UUID
 from sqlalchemy.orm import Session
 from typing import Optional
 from uuid import uuid4, UUID
 import boto3
 from botocore.exceptions import ClientError
-from db.doctor_models import Staff, Clinic
+import bcrypt
+
+# Import models from unified models package
+from db.models import User, Staff, Clinic, StaffClinic
 
 from api.deps import get_doctor_db_session, get_patient_db_session, get_current_user, TokenData
 from services import AuthService
@@ -38,7 +42,23 @@ from core.logging import get_logger
 from core.middleware.rate_limiting import limiter, AUTH_RATE_LIMIT, PASSWORD_RESET_LIMIT
 from google.oauth2 import id_token
 from google.auth.transport import requests
+
 logger = get_logger(__name__)
+
+
+# =============================================================================
+# Password Hashing Utilities
+# =============================================================================
+
+def hash_password(password: str) -> str:
+    """Hash a password using bcrypt."""
+    salt = bcrypt.gensalt()
+    return bcrypt.hashpw(password.encode('utf-8'), salt).decode('utf-8')
+
+
+def verify_password(password: str, password_hash: str) -> bool:
+    """Verify a password against its hash."""
+    return bcrypt.checkpw(password.encode('utf-8'), password_hash.encode('utf-8'))
 
 router = APIRouter()
 
@@ -511,16 +531,25 @@ async def delete_user(
 @router.post(
     "/signup/staff",
     response_model=SSOProvisionResponse,
-    summary="Provision user (DB only)",
+    summary="Manual staff signup with password",
 )
-async def provision_sso_user(
+async def manual_staff_signup(
     request: SSOProvisionRequest,
     db: Session = Depends(get_doctor_db_session),
 ):
+    """
+    Manual staff signup endpoint.
+    
+    Creates:
+    1. User record (with hashed password for authentication)
+    2. Staff record (profile information)
+    3. Clinic record (if clinic_name provided)
+    4. StaffClinic association (if clinic created)
+    """
     if not request.email:
         raise HTTPException(status_code=400, detail="Email is required")
 
-    # Password validation (optional)
+    # Password validation
     if request.password or request.confirm_password:
         if not request.password or not request.confirm_password:
             raise HTTPException(
@@ -533,42 +562,83 @@ async def provision_sso_user(
                 detail="Passwords do not match",
             )
 
-    # Check existing staff
-    staff = db.query(Staff).filter(Staff.email == request.email).first()
-    if staff:
+    # Check if user already exists
+    existing_user = db.query(User).filter(User.email == request.email).first()
+    if existing_user:
+        # Get associated staff profile
+        existing_staff = db.query(Staff).filter(Staff.user_id == existing_user.id).first()
         return SSOProvisionResponse(
-            message="User already provisioned",
-            email=staff.email,
-            staff_uuid=str(staff.uuid),
+            message="User already exists",
+            email=existing_user.email,
+            staff_uuid=str(existing_staff.uuid) if existing_staff else None,
             created=False,
         )
     
-    clinic = None
-
-    if request.clinic_name:
-        clinic = Clinic(
+    try:
+        # 1. Create User record (authentication)
+        user = User(
             uuid=uuid4(),
-            name=request.clinic_name,
-            address=request.clinic_address,
+            email=request.email,
+            password_hash=hash_password(request.password) if request.password else None,
+            auth_provider='local',
+            is_active=True,
+            is_verified=False,
+        )
+        db.add(user)
+        db.flush()  # Get user.id without committing
+        
+        # 2. Create Staff record (profile)
+        staff = Staff(
+            uuid=uuid4(),
+            user_id=user.id,
+            email=request.email,
+            first_name=request.first_name,
+            last_name=request.last_name,
+            role=request.role or "staff",
+            department=request.department,
+            is_profile_completed=False,
             is_active=True,
         )
-        db.add(clinic)
+        db.add(staff)
+        db.flush()  # Get staff.id without committing
+        
+        # 3. Create Clinic if clinic_name provided
+        clinic = None
+        if request.clinic_name:
+            # Check if clinic already exists
+            clinic = db.query(Clinic).filter(Clinic.name == request.clinic_name).first()
+            if not clinic:
+                clinic = Clinic(
+                    uuid=uuid4(),
+                    name=request.clinic_name,
+                    address=request.clinic_address,
+                    is_active=True,
+                )
+                db.add(clinic)
+                db.flush()
+            
+            # 4. Create StaffClinic association
+            staff_clinic = StaffClinic(
+                staff_id=staff.id,
+                clinic_id=clinic.id,
+                is_primary=True,
+                is_active=True,
+            )
+            db.add(staff_clinic)
+        
+        # Commit all changes
         db.commit()
-        db.refresh(clinic)
-
-    # Create staff (only staff fields are persisted)
-    staff = Staff(
-        uuid=uuid4(),
-        email=request.email,
-        first_name=request.first_name,
-        last_name=request.last_name,
-        role=request.role or "staff",
-        is_active=True,
-    )
-
-    db.add(staff)
-    db.commit()
-    db.refresh(staff)
+        db.refresh(staff)
+        
+        logger.info(f"Manual signup successful: {request.email}")
+        
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Signup failed for {request.email}: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to create user: {str(e)}"
+        )
 
     return SSOProvisionResponse(
         message="User provisioned successfully",
@@ -593,42 +663,83 @@ def complete_profile(
     request: ProfileCompletionRequest,
     db: Session = Depends(get_doctor_db_session),
 ):
-    # 1️⃣ Fetch staff
+    """
+    Complete staff profile after signup.
+    
+    Updates:
+    1. Staff role and department
+    2. Creates/associates clinic if provided
+    3. Marks profile as completed
+    """
+    # 1. Fetch staff
     staff = db.query(Staff).filter(Staff.id == request.staff_id).first()
     if not staff:
         raise HTTPException(status_code=404, detail="Staff not found")
 
-    # 2️⃣ Update role if provided
-    if request.role:
-        staff.role = request.role
+    try:
+        # 2. Update role and department if provided
+        if request.role:
+            staff.role = request.role
+        if request.department:
+            staff.department = request.department
 
-    # 3️⃣ Persist clinic info if clinic_name is provided
-    clinic = None
-    if request.clinic_name:
-        clinic = db.query(Clinic).filter(Clinic.name == request.clinic_name).first()
-        if not clinic:
-            clinic = Clinic(
-                name=request.clinic_name,
-                address=request.clinic_address,
-                is_active=True,
-            )
-            db.add(clinic)
+        # 3. Create/associate clinic if clinic_name is provided
+        clinic = None
+        if request.clinic_name:
+            # Check if clinic already exists
+            clinic = db.query(Clinic).filter(Clinic.name == request.clinic_name).first()
+            if not clinic:
+                clinic = Clinic(
+                    uuid=uuid4(),
+                    name=request.clinic_name,
+                    address=request.clinic_address,
+                    is_active=True,
+                )
+                db.add(clinic)
+                db.flush()
+            
+            # Check if staff-clinic association already exists
+            existing_assoc = db.query(StaffClinic).filter(
+                StaffClinic.staff_id == staff.id,
+                StaffClinic.clinic_id == clinic.id
+            ).first()
+            
+            if not existing_assoc:
+                staff_clinic = StaffClinic(
+                    staff_id=staff.id,
+                    clinic_id=clinic.id,
+                    is_primary=True,
+                    is_active=True,
+                )
+                db.add(staff_clinic)
 
-    # Commit staff + clinic changes
-    db.commit()
-    if clinic:
-        db.refresh(clinic)
+        # 4. Mark profile as completed
+        staff.is_profile_completed = True
+        
+        db.commit()
+        db.refresh(staff)
+        if clinic:
+            db.refresh(clinic)
+        
+        logger.info(f"Profile completed for staff_id={staff.id}")
 
-    # 4️⃣ Return response (clinic_uuid & department just echoed, not stored)
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Profile completion failed: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to complete profile: {str(e)}"
+        )
+
     return ProfileCompletionResponse(
         message="Profile completed successfully",
         staff_id=staff.id,
-        staff_uuid=str(staff.uuid),
+        staff_uuid=staff.uuid,
         role=staff.role,
-        clinic_uuid=request.clinic_uuid,       # returned as-is
+        clinic_uuid=str(clinic.uuid) if clinic else request.clinic_uuid,
         clinic_name=clinic.name if clinic else None,
         clinic_address=clinic.address if clinic else None,
-        department=request.department,         # returned as-is
+        department=staff.department,
     )
 
 ALLOWED_CLIENT_IDS = [
@@ -683,77 +794,119 @@ def google_signup(
     request: GoogleSignupRequest,
     db: Session = Depends(get_doctor_db_session),
 ):
+    """
+    Google SSO signup endpoint.
+    
+    Creates:
+    1. User record (with auth_provider='google' and provider_user_id=Google sub)
+    2. Staff record (profile information from Google)
+    
+    No password is stored for SSO users.
+    """
     google_user = verify_google_token(request.id_token)
 
     email = google_user.get("email")
     first_name = google_user.get("given_name")
     last_name = google_user.get("family_name")
-    sub = google_user.get("sub")  # Google unique ID
+    google_sub = google_user.get("sub")  # Google unique ID
 
     if not email:
         raise HTTPException(status_code=400, detail="Email not found from Google")
 
-    # Check if user already exists
-    staff = db.query(Staff).filter(Staff.email == email).first()
-    # if staff:
-    #     # User exists → determine profile completion by role
-    #     is_profile_completed = bool(staff.role)
-    #     return GoogleSignupResponse(
-    #         message="User already exists",
-    #         email=staff.email,
-    #         staff_id=staff.id,
-    #         staff_uuid=staff.uuid,
-    #         is_profile_completed=is_profile_completed,
-    #         created=False,
-    #     )
-    if staff:
+    # Check if user already exists (by email or Google sub)
+    existing_user = db.query(User).filter(
+        (User.email == email) | 
+        ((User.auth_provider == 'google') & (User.provider_user_id == google_sub))
+    ).first()
+    
+    if existing_user:
+        # Get associated staff profile
+        staff = db.query(Staff).filter(Staff.user_id == existing_user.id).first()
+        
+        if staff:
+            payload = {
+                "user_id": existing_user.id,
+                "staff_id": staff.id,
+                "staff_uuid": str(staff.uuid),
+                "email": staff.email,
+                "role": staff.role,
+            }
+
+            access_token = create_access_token(payload)
+            refresh_token = create_refresh_token(payload)
+
+            is_profile_completed = staff.is_profile_completed
+
+            return GoogleSignupResponse(
+                message="User already exists",
+                email=staff.email,
+                staff_id=staff.id,
+                first_name=staff.first_name,
+                last_name=staff.last_name,
+                is_profile_completed=is_profile_completed,
+                access_token=access_token,
+                refresh_token=refresh_token,
+                created=False,
+            )
+    
+    try:
+        # 1. Create User record (authentication - no password for SSO)
+        user = User(
+            uuid=uuid4(),
+            email=email,
+            password_hash=None,  # No password for SSO users
+            auth_provider='google',
+            provider_user_id=google_sub,
+            is_active=True,
+            is_verified=True,  # Google email is already verified
+        )
+        db.add(user)
+        db.flush()
+        
+        # 2. Create Staff record (profile)
+        staff = Staff(
+            uuid=uuid4(),
+            user_id=user.id,
+            email=email,
+            first_name=first_name,
+            last_name=last_name,
+            role="staff",
+            is_profile_completed=False,
+            is_active=True,
+        )
+        db.add(staff)
+        db.commit()
+        db.refresh(staff)
+        
+        logger.info(f"Google signup successful: {email}")
+        
+        # Generate tokens for new user
         payload = {
+            "user_id": user.id,
             "staff_id": staff.id,
             "staff_uuid": str(staff.uuid),
             "email": staff.email,
             "role": staff.role,
         }
-
         access_token = create_access_token(payload)
         refresh_token = create_refresh_token(payload)
-
-        is_profile_completed = bool(staff.role)
-
+        
         return GoogleSignupResponse(
-            message="User already exists",
+            message="User signed up successfully via Google",
             email=staff.email,
+            first_name=staff.first_name,
+            last_name=staff.last_name,
             staff_id=staff.id,
-            staff_uuid=staff.uuid,
-            is_profile_completed=is_profile_completed,
+            is_profile_completed=False,
             access_token=access_token,
             refresh_token=refresh_token,
-            created=False,
+            created=True,
         )
-
-    # Create staff
-    staff = Staff(
-        email=email,
-        first_name=first_name,
-        last_name=last_name,
-        role="staff",
-        cognito_sub=sub,  # reuse column for google sub for now
-        is_active=True,
-    )
-
-    db.add(staff)
-    db.commit()
-    db.refresh(staff)
-
-    # New user → profile not completed yet
-    is_profile_completed = False
-
-    return GoogleSignupResponse(
-        message="User signed up successfully via Google",
-        email=staff.email,
-        first_name=staff.first_name,
-        last_name=staff.last_name,
-        staff_id=staff.id,
-        staff_uuid=staff.uuid,
-        is_profile_completed=is_profile_completed,
-        created=True,
-    )
+        
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Google signup failed for {email}: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to create user: {str(e)}"
+        )

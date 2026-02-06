@@ -3,14 +3,14 @@ Staff Repository - Doctor API
 =============================
 
 Repository for staff-related database operations.
-Handles both StaffProfile and StaffAssociation models.
+Handles Staff, StaffClinic, and PhysicianPatient models.
 
 Usage:
     from db.repositories import StaffRepository
     
     staff_repo = StaffRepository(db)
     physician = staff_repo.get_physician_by_email("doctor@clinic.com")
-    staff_list = staff_repo.get_staff_for_physician(physician_uuid)
+    staff_list = staff_repo.get_staff_for_clinic(clinic_id)
 """
 
 from typing import List, Optional
@@ -19,123 +19,71 @@ from sqlalchemy.orm import Session
 from sqlalchemy import and_
 
 from .base import BaseRepository
-from db.models import StaffProfile, StaffAssociation
+from db.models import Staff, StaffClinic, PhysicianPatient, User
 from core.logging import get_logger
 from core.exceptions import NotFoundError, ConflictError
 
 logger = get_logger(__name__)
 
 
-class StaffRepository(BaseRepository[StaffProfile]):
+class StaffRepository(BaseRepository[Staff]):
     """
-    Repository for StaffProfile model operations.
+    Repository for Staff model operations.
     
     Provides CRUD operations and staff-specific queries
     for managing healthcare personnel data.
     
-    Also handles StaffAssociation operations since they're
-    closely related to staff management.
+    Also handles StaffClinic and PhysicianPatient operations.
     """
     
     def __init__(self, db: Session):
-        """
-        Initialize the staff repository.
-        
-        Args:
-            db: The database session
-        """
-        super().__init__(StaffProfile, db)
+        """Initialize the staff repository."""
+        super().__init__(Staff, db)
     
     # =========================================================================
     # Staff Profile Queries
     # =========================================================================
     
-    def get_by_staff_uuid(self, staff_uuid: UUID) -> Optional[StaffProfile]:
-        """
-        Get a staff profile by their UUID.
-        
-        Args:
-            staff_uuid: The staff member's unique identifier
-            
-        Returns:
-            The StaffProfile instance, or None if not found
-        """
-        return self.db.query(StaffProfile).filter(
-            StaffProfile.staff_uuid == staff_uuid
-        ).first()
+    def get_by_uuid(self, staff_uuid: UUID) -> Optional[Staff]:
+        """Get a staff profile by their UUID."""
+        return self.db.query(Staff).filter(Staff.uuid == staff_uuid).first()
     
-    def get_by_staff_uuid_or_fail(self, staff_uuid: UUID) -> StaffProfile:
-        """
-        Get a staff profile by UUID, raising error if not found.
-        
-        Args:
-            staff_uuid: The staff member's unique identifier
-            
-        Returns:
-            The StaffProfile instance
-            
-        Raises:
-            NotFoundError: If the staff member doesn't exist
-        """
-        profile = self.get_by_staff_uuid(staff_uuid)
-        if not profile:
+    def get_by_uuid_or_fail(self, staff_uuid: UUID) -> Staff:
+        """Get a staff profile by UUID, raising error if not found."""
+        staff = self.get_by_uuid(staff_uuid)
+        if not staff:
             raise NotFoundError(
                 message="Staff member not found",
-                resource_type="StaffProfile",
+                resource_type="Staff",
                 resource_id=str(staff_uuid)
             )
-        return profile
+        return staff
     
-    def get_by_email(self, email: str) -> Optional[StaffProfile]:
-        """
-        Get a staff profile by email address.
-        
-        Args:
-            email: The staff member's email address
-            
-        Returns:
-            The StaffProfile instance, or None if not found
-        """
-        return self.db.query(StaffProfile).filter(
-            StaffProfile.email_address == email
-        ).first()
+    def get_by_user_id(self, user_id: int) -> Optional[Staff]:
+        """Get a staff profile by user ID."""
+        return self.db.query(Staff).filter(Staff.user_id == user_id).first()
     
-    def get_by_email_or_fail(self, email: str) -> StaffProfile:
-        """
-        Get a staff profile by email, raising error if not found.
-        
-        Args:
-            email: The staff member's email address
-            
-        Returns:
-            The StaffProfile instance
-            
-        Raises:
-            NotFoundError: If the staff member doesn't exist
-        """
-        profile = self.get_by_email(email)
-        if not profile:
+    def get_by_email(self, email: str) -> Optional[Staff]:
+        """Get a staff profile by email address."""
+        return self.db.query(Staff).filter(Staff.email == email).first()
+    
+    def get_by_email_or_fail(self, email: str) -> Staff:
+        """Get a staff profile by email, raising error if not found."""
+        staff = self.get_by_email(email)
+        if not staff:
             raise NotFoundError(
                 message="Staff member not found",
-                resource_type="StaffProfile",
+                resource_type="Staff",
                 details={"email": email}
             )
-        return profile
+        return staff
     
-    def get_physician_by_email(self, email: str) -> Optional[StaffProfile]:
-        """
-        Get a physician profile by email address.
-        
-        Args:
-            email: The physician's email address
-            
-        Returns:
-            The StaffProfile instance if it's a physician, or None
-        """
-        return self.db.query(StaffProfile).filter(
+    def get_physician_by_email(self, email: str) -> Optional[Staff]:
+        """Get a physician profile by email address."""
+        return self.db.query(Staff).filter(
             and_(
-                StaffProfile.email_address == email,
-                StaffProfile.role == 'physician'
+                Staff.email == email,
+                Staff.role == 'physician'
             )
         ).first()
     
@@ -143,21 +91,13 @@ class StaffRepository(BaseRepository[StaffProfile]):
         self,
         skip: int = 0,
         limit: int = 100
-    ) -> List[StaffProfile]:
-        """
-        Get all physicians with pagination.
-        
-        Args:
-            skip: Number of records to skip
-            limit: Maximum number of records to return
-            
-        Returns:
-            List of physician profiles
-        """
-        return self.db.query(StaffProfile).filter(
-            StaffProfile.role == 'physician'
+    ) -> List[Staff]:
+        """Get all physicians with pagination."""
+        return self.db.query(Staff).filter(
+            Staff.role == 'physician',
+            Staff.is_active == True
         ).order_by(
-            StaffProfile.last_name, StaffProfile.first_name
+            Staff.last_name, Staff.first_name
         ).offset(skip).limit(limit).all()
     
     def get_staff_by_role(
@@ -165,37 +105,20 @@ class StaffRepository(BaseRepository[StaffProfile]):
         role: str,
         skip: int = 0,
         limit: int = 100
-    ) -> List[StaffProfile]:
-        """
-        Get all staff members with a specific role.
-        
-        Args:
-            role: The role to filter by (physician, staff, admin)
-            skip: Number of records to skip
-            limit: Maximum number of records to return
-            
-        Returns:
-            List of staff profiles with the specified role
-        """
-        return self.db.query(StaffProfile).filter(
-            StaffProfile.role == role
+    ) -> List[Staff]:
+        """Get all staff members with a specific role."""
+        return self.db.query(Staff).filter(
+            Staff.role == role,
+            Staff.is_active == True
         ).order_by(
-            StaffProfile.last_name, StaffProfile.first_name
+            Staff.last_name, Staff.first_name
         ).offset(skip).limit(limit).all()
     
     def count_staff(self, role: Optional[str] = None) -> int:
-        """
-        Count total staff members with optional role filter.
-        
-        Args:
-            role: Optional role to filter by (physician, staff, admin)
-            
-        Returns:
-            Total count of matching staff members
-        """
-        query = self.db.query(StaffProfile)
+        """Count total staff members with optional role filter."""
+        query = self.db.query(Staff).filter(Staff.is_active == True)
         if role:
-            query = query.filter(StaffProfile.role == role)
+            query = query.filter(Staff.role == role)
         return query.count()
     
     def search_by_name(
@@ -203,271 +126,226 @@ class StaffRepository(BaseRepository[StaffProfile]):
         search_term: str,
         role: Optional[str] = None,
         limit: int = 20
-    ) -> List[StaffProfile]:
-        """
-        Search staff by name (first or last name, case-insensitive).
-        
-        Args:
-            search_term: The search term to match
-            role: Optional role filter
-            limit: Maximum number of results
-            
-        Returns:
-            List of matching staff profiles
-        """
-        query = self.db.query(StaffProfile).filter(
-            (StaffProfile.first_name.ilike(f"%{search_term}%")) |
-            (StaffProfile.last_name.ilike(f"%{search_term}%"))
+    ) -> List[Staff]:
+        """Search staff by name (first or last name, case-insensitive)."""
+        query = self.db.query(Staff).filter(
+            Staff.is_active == True,
+            (Staff.first_name.ilike(f"%{search_term}%")) |
+            (Staff.last_name.ilike(f"%{search_term}%"))
         )
         
         if role:
-            query = query.filter(StaffProfile.role == role)
+            query = query.filter(Staff.role == role)
         
         return query.limit(limit).all()
     
     def email_exists(self, email: str) -> bool:
-        """
-        Check if an email address is already in use.
-        
-        Args:
-            email: The email address to check
-            
-        Returns:
-            True if the email is already registered
-        """
-        return self.exists(email_address=email)
+        """Check if an email address is already in use."""
+        return self.exists(email=email)
     
     # =========================================================================
     # Staff Creation
     # =========================================================================
     
-    def create_physician(
+    def create_staff(
         self,
-        email_address: str,
-        first_name: str,
-        last_name: str,
-        npi_number: str,
-        clinic_uuid: UUID,
-    ) -> StaffProfile:
+        user_id: int,
+        email: str,
+        first_name: str = None,
+        last_name: str = None,
+        role: str = 'staff',
+        npi_number: str = None,
+        department: str = None,
+    ) -> Staff:
         """
-        Create a new physician profile with self-association.
-        
-        Physicians are self-associated (staff_uuid == physician_uuid)
-        in the StaffAssociation table.
+        Create a new staff profile linked to a user.
         
         Args:
-            email_address: Physician's email
-            first_name: Physician's first name
-            last_name: Physician's last name
-            npi_number: National Provider Identifier
-            clinic_uuid: UUID of the clinic
-            
-        Returns:
-            The created StaffProfile instance
-            
-        Raises:
-            ConflictError: If email already exists
-        """
-        if self.email_exists(email_address):
-            raise ConflictError(
-                message="A staff member with this email already exists",
-                details={"email": email_address}
-            )
-        
-        # Create the physician profile
-        physician = self.create(
-            email_address=email_address,
-            first_name=first_name,
-            last_name=last_name,
-            role='physician',
-            npi_number=npi_number,
-        )
-        
-        # Create self-association (physician associated with themselves)
-        self.create_association(
-            staff_uuid=physician.staff_uuid,
-            physician_uuid=physician.staff_uuid,  # Self-association
-            clinic_uuid=clinic_uuid,
-        )
-        
-        logger.info(f"Created physician: {physician.full_name} ({email_address})")
-        return physician
-    
-    def create_staff_member(
-        self,
-        email_address: str,
-        first_name: str,
-        last_name: str,
-        role: str,
-        physician_uuids: List[UUID],
-        clinic_uuid: UUID,
-    ) -> StaffProfile:
-        """
-        Create a new staff member with physician associations.
-        
-        Staff members are associated with one or more physicians
-        in the StaffAssociation table.
-        
-        Args:
-            email_address: Staff member's email
+            user_id: ID of the associated user
+            email: Staff member's email
             first_name: Staff member's first name
             last_name: Staff member's last name
-            role: Role (staff or admin)
-            physician_uuids: List of physician UUIDs to associate with
-            clinic_uuid: UUID of the clinic
+            role: Role (physician, nurse, staff, admin)
+            npi_number: National Provider Identifier (physicians only)
+            department: Department within clinic
             
         Returns:
-            The created StaffProfile instance
-            
-        Raises:
-            ConflictError: If email already exists
+            The created Staff instance
         """
-        if self.email_exists(email_address):
+        if self.email_exists(email):
             raise ConflictError(
                 message="A staff member with this email already exists",
-                details={"email": email_address}
+                details={"email": email}
             )
         
-        # Create the staff profile
         staff = self.create(
-            email_address=email_address,
+            user_id=user_id,
+            email=email,
             first_name=first_name,
             last_name=last_name,
             role=role,
+            npi_number=npi_number,
+            department=department,
+            is_profile_completed=False,
+            is_active=True,
         )
         
-        # Create associations with each physician
-        for physician_uuid in physician_uuids:
-            self.create_association(
-                staff_uuid=staff.staff_uuid,
-                physician_uuid=physician_uuid,
-                clinic_uuid=clinic_uuid,
-            )
-        
-        logger.info(
-            f"Created {role}: {staff.full_name} ({email_address}), "
-            f"associated with {len(physician_uuids)} physician(s)"
-        )
+        logger.info(f"Created staff: {email} (role={role})")
         return staff
     
     # =========================================================================
-    # Staff Association Operations
+    # Staff-Clinic Association Operations
     # =========================================================================
     
-    def create_association(
+    def create_clinic_association(
         self,
-        staff_uuid: UUID,
-        physician_uuid: UUID,
-        clinic_uuid: UUID,
-    ) -> StaffAssociation:
-        """
-        Create a staff-physician-clinic association.
-        
-        Args:
-            staff_uuid: UUID of the staff member
-            physician_uuid: UUID of the physician
-            clinic_uuid: UUID of the clinic
-            
-        Returns:
-            The created StaffAssociation instance
-        """
-        association = StaffAssociation(
-            staff_uuid=staff_uuid,
-            physician_uuid=physician_uuid,
-            clinic_uuid=clinic_uuid,
+        staff_id: int,
+        clinic_id: int,
+        is_primary: bool = False,
+    ) -> StaffClinic:
+        """Create a staff-clinic association."""
+        association = StaffClinic(
+            staff_id=staff_id,
+            clinic_id=clinic_id,
+            is_primary=is_primary,
+            is_active=True,
         )
         self.db.add(association)
         self.db.commit()
         self.db.refresh(association)
         return association
     
-    def get_associations_for_staff(
-        self,
-        staff_uuid: UUID
-    ) -> List[StaffAssociation]:
-        """
-        Get all associations for a staff member.
-        
-        Args:
-            staff_uuid: UUID of the staff member
-            
-        Returns:
-            List of StaffAssociation instances
-        """
-        return self.db.query(StaffAssociation).filter(
-            StaffAssociation.staff_uuid == staff_uuid
+    def get_clinic_associations(self, staff_id: int) -> List[StaffClinic]:
+        """Get all clinic associations for a staff member."""
+        return self.db.query(StaffClinic).filter(
+            StaffClinic.staff_id == staff_id,
+            StaffClinic.is_active == True
         ).all()
     
-    def get_associations_for_physician(
-        self,
-        physician_uuid: UUID
-    ) -> List[StaffAssociation]:
-        """
-        Get all staff associations for a physician.
+    def get_staff_for_clinic(self, clinic_id: int) -> List[Staff]:
+        """Get all staff members associated with a clinic."""
+        associations = self.db.query(StaffClinic).filter(
+            StaffClinic.clinic_id == clinic_id,
+            StaffClinic.is_active == True
+        ).all()
         
-        Args:
-            physician_uuid: UUID of the physician
-            
-        Returns:
-            List of StaffAssociation instances
-        """
-        return self.db.query(StaffAssociation).filter(
-            StaffAssociation.physician_uuid == physician_uuid
+        staff_ids = [a.staff_id for a in associations]
+        if not staff_ids:
+            return []
+        
+        return self.db.query(Staff).filter(
+            Staff.id.in_(staff_ids),
+            Staff.is_active == True
         ).all()
     
-    def get_clinic_for_physician(
-        self,
-        physician_uuid: UUID
-    ) -> Optional[UUID]:
-        """
-        Get the clinic UUID for a physician.
-        
-        Args:
-            physician_uuid: UUID of the physician
-            
-        Returns:
-            The clinic UUID, or None if not found
-        """
-        association = self.db.query(StaffAssociation).filter(
-            StaffAssociation.physician_uuid == physician_uuid
+    def get_primary_clinic_id(self, staff_id: int) -> Optional[int]:
+        """Get the primary clinic ID for a staff member."""
+        association = self.db.query(StaffClinic).filter(
+            StaffClinic.staff_id == staff_id,
+            StaffClinic.is_primary == True,
+            StaffClinic.is_active == True
         ).first()
         
         if association:
-            return association.clinic_uuid
-        return None
-    
-    def get_staff_for_physician(
-        self,
-        physician_uuid: UUID
-    ) -> List[StaffProfile]:
-        """
-        Get all staff members associated with a physician.
+            return association.clinic_id
         
-        Args:
-            physician_uuid: UUID of the physician
-            
-        Returns:
-            List of StaffProfile instances
-        """
-        # Get all staff UUIDs associated with this physician
-        associations = self.db.query(StaffAssociation).filter(
-            StaffAssociation.physician_uuid == physician_uuid
+        # If no primary, return first active
+        association = self.db.query(StaffClinic).filter(
+            StaffClinic.staff_id == staff_id,
+            StaffClinic.is_active == True
+        ).first()
+        
+        return association.clinic_id if association else None
+    
+    # =========================================================================
+    # Physician-Patient Assignment Operations
+    # =========================================================================
+    
+    def assign_patient(
+        self,
+        physician_id: int,
+        patient_uuid: UUID,
+        assigned_by: int = None,
+    ) -> PhysicianPatient:
+        """Assign a patient to a physician."""
+        # Check if already assigned
+        existing = self.db.query(PhysicianPatient).filter(
+            PhysicianPatient.physician_id == physician_id,
+            PhysicianPatient.patient_uuid == patient_uuid
+        ).first()
+        
+        if existing:
+            if existing.is_active:
+                return existing  # Already assigned
+            else:
+                # Reactivate
+                existing.is_active = True
+                self.db.commit()
+                self.db.refresh(existing)
+                return existing
+        
+        assignment = PhysicianPatient(
+            physician_id=physician_id,
+            patient_uuid=patient_uuid,
+            assigned_by=assigned_by,
+            is_active=True,
+        )
+        self.db.add(assignment)
+        self.db.commit()
+        self.db.refresh(assignment)
+        
+        logger.info(f"Assigned patient {patient_uuid} to physician {physician_id}")
+        return assignment
+    
+    def unassign_patient(
+        self,
+        physician_id: int,
+        patient_uuid: UUID,
+    ) -> bool:
+        """Unassign a patient from a physician."""
+        assignment = self.db.query(PhysicianPatient).filter(
+            PhysicianPatient.physician_id == physician_id,
+            PhysicianPatient.patient_uuid == patient_uuid,
+            PhysicianPatient.is_active == True
+        ).first()
+        
+        if assignment:
+            assignment.is_active = False
+            self.db.commit()
+            logger.info(f"Unassigned patient {patient_uuid} from physician {physician_id}")
+            return True
+        
+        return False
+    
+    def get_physician_patients(self, physician_id: int) -> List[UUID]:
+        """Get all patient UUIDs assigned to a physician."""
+        assignments = self.db.query(PhysicianPatient).filter(
+            PhysicianPatient.physician_id == physician_id,
+            PhysicianPatient.is_active == True
         ).all()
         
-        staff_uuids = [a.staff_uuid for a in associations]
+        return [a.patient_uuid for a in assignments]
+    
+    def get_patient_physicians(self, patient_uuid: UUID) -> List[Staff]:
+        """Get all physicians assigned to a patient."""
+        assignments = self.db.query(PhysicianPatient).filter(
+            PhysicianPatient.patient_uuid == patient_uuid,
+            PhysicianPatient.is_active == True
+        ).all()
         
-        if not staff_uuids:
+        physician_ids = [a.physician_id for a in assignments]
+        if not physician_ids:
             return []
         
-        # Get the staff profiles (excluding the physician themselves)
-        return self.db.query(StaffProfile).filter(
-            and_(
-                StaffProfile.staff_uuid.in_(staff_uuids),
-                StaffProfile.staff_uuid != physician_uuid  # Exclude self
-            )
+        return self.db.query(Staff).filter(
+            Staff.id.in_(physician_ids),
+            Staff.is_active == True
         ).all()
-
-
-
-
-
+    
+    def is_patient_assigned(self, physician_id: int, patient_uuid: UUID) -> bool:
+        """Check if a patient is assigned to a physician."""
+        return self.db.query(PhysicianPatient).filter(
+            PhysicianPatient.physician_id == physician_id,
+            PhysicianPatient.patient_uuid == patient_uuid,
+            PhysicianPatient.is_active == True
+        ).first() is not None

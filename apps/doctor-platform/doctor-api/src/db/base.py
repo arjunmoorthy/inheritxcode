@@ -6,12 +6,13 @@ This module defines base classes and mixins for SQLAlchemy models:
 - DoctorBase: Declarative base for doctor database models
 - PatientBase: Declarative base for patient database models (read-only)
 - TimestampMixin: Adds created_at/updated_at fields
+- SoftDeleteMixin: Adds soft delete capability
 
 Usage:
     from db.base import DoctorBase, TimestampMixin
     
-    class StaffProfile(DoctorBase, TimestampMixin):
-        __tablename__ = 'staff_profiles'
+    class User(DoctorBase, TimestampMixin):
+        __tablename__ = 'users'
         id = Column(Integer, primary_key=True)
         ...
 """
@@ -54,7 +55,7 @@ class TimestampMixin:
     def created_at(cls):
         """Timestamp when the record was created."""
         return Column(
-            DateTime,
+            DateTime(timezone=True),
             server_default=func.now(),
             nullable=False,
             comment="Timestamp when record was created"
@@ -64,7 +65,7 @@ class TimestampMixin:
     def updated_at(cls):
         """Timestamp when the record was last updated."""
         return Column(
-            DateTime,
+            DateTime(timezone=True),
             server_default=func.now(),
             onupdate=func.now(),
             nullable=False,
@@ -86,11 +87,10 @@ class SoftDeleteMixin:
     """
     
     @declared_attr
-    def is_deleted(cls):
-        """Flag indicating if record is soft-deleted."""
+    def deleted_at(cls):
+        """Timestamp when record was soft-deleted, NULL if active."""
         return Column(
-            "is_deleted",
-            DateTime,
+            DateTime(timezone=True),
             nullable=True,
             default=None,
             comment="Timestamp when record was soft-deleted, NULL if active"
@@ -98,18 +98,13 @@ class SoftDeleteMixin:
     
     def soft_delete(self) -> None:
         """Mark this record as deleted."""
-        self.is_deleted = datetime.utcnow()
+        self.deleted_at = datetime.utcnow()
     
     def restore(self) -> None:
         """Restore a soft-deleted record."""
-        self.is_deleted = None
+        self.deleted_at = None
     
     @property
-    def is_active(self) -> bool:
-        """Check if the record is active (not deleted)."""
-        return self.is_deleted is None
-
-
-
-
-
+    def is_deleted(self) -> bool:
+        """Check if the record is deleted."""
+        return self.deleted_at is not None

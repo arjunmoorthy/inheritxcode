@@ -25,7 +25,7 @@ if os.path.exists(docker_src_path) and docker_src_path not in sys.path:
 
 # Import all models to ensure they're registered with Base.metadata
 from db.base import DoctorBase as Base
-from db.doctor_models import *  # noqa
+from db.models.user import *  # noqa
 from db.models.clinic import *  # noqa
 from db.models.staff import *  # noqa
 from db.models.analytics import *  # noqa
