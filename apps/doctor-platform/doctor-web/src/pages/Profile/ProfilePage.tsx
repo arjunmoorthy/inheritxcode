@@ -112,7 +112,7 @@ const ProfilePage: React.FC = () => {
 
                                 {/* Name & Role */}
                                 <div className="text-white">
-                                    <h2 className="text-2xl md:text-3xl font-bold mb-1">{getUserName()}</h2>
+                                    <h2 className={`text-2xl md:text-3xl font-bold mb-1 text-white`}>{getUserName()}</h2>
                                     <p className="text-white/80 text-lg">{profile?.role || 'Oncology Patient Navigator'}</p>
                                 </div>
                             </div>

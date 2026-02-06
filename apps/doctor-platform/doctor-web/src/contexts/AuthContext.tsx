@@ -99,6 +99,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const logout = () => {
     localStorage.removeItem('authToken');
+    localStorage.removeItem('refreshToken');
+    localStorage.removeItem('accessToken');
     sessionStorage.removeItem(SESSION_START_KEY);
   };
 

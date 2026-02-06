@@ -283,26 +283,40 @@ const LoginPage: React.FC = () => {
                       onSuccess={async (credentialResponse) => {
                         if (credentialResponse.credential) {
                           try {
+                            setError(null);
                             const result = await googleSSOMutation.mutateAsync({
                               id_token: credentialResponse.credential
                             });
 
-                            if (result.created || result.message.includes('exists')) {
-                              // Logic for success - set local storage and redirect
-                              // Since it's a social login, we might need a token if it's already an existing user
-                              // But the current BE doesn't return tokens for Google signup, only staff_uuid.
-                              // Wait, I should check if the BE returns tokens for Google.
+                            console.log('Google SSO Login Response:', result);
 
-                              if (result.created) {
-                                navigate(`/complete-profile?staff_id=${result.staff_id}&email=${result.email}`);
+                            // Handle both new user creation and existing user login
+                            if (result && (result.created || (result.message && (result.message.includes('exists') || result.message.includes('already'))))) {
+                              // Check if profile needs to be completed
+                              if (result.is_profile_completed === false) {
+                                // Build query params with all available data
+                                const queryParams = new URLSearchParams({
+                                  staff_id: result.staff_id.toString(),
+                                  email: result.email || '',
+                                  ...(result.first_name && { first_name: result.first_name }),
+                                  ...(result.last_name && { last_name: result.last_name }),
+                                }).toString();
+                                navigate(`/complete-profile?${queryParams}`);
                               } else {
-                                // For existing users, we need tokens. 
-                                // I'll assume for now they might be redirected to dashboard if they have a session.
-                                navigate('/dashboard');
+                                // Profile already completed - redirect to dashboard
+                                window.location.href = '/dashboard';
                               }
+                            } else {
+                              // Unexpected response format
+                              setError(result?.message || 'Unexpected response from server');
                             }
                           } catch (err: any) {
-                            setError(err.response?.data?.detail || 'Google authentication failed');
+                            console.error('Google SSO Login Error:', err);
+                            const errorMessage = err?.response?.data?.detail 
+                              || err?.response?.data?.message 
+                              || err?.message 
+                              || 'Google authentication failed. Please try again.';
+                            setError(errorMessage);
                           }
                         }
                       }}

@@ -337,27 +337,46 @@ const SignUpPage: React.FC = () => {
                                             onSuccess={async (credentialResponse) => {
                                                 if (credentialResponse.credential) {
                                                     try {
+                                                        setServerError(null);
                                                         const result = await googleSSOMutation.mutateAsync({
                                                             id_token: credentialResponse.credential
                                                         });
 
-                                                        if (result.created || result.message.includes('exists')) {
+                                                        console.log('Google SSO Signup Response:', result);
+
+                                                        // Handle both new user creation and existing user login
+                                                        if (result && (result.created || (result.message && (result.message.includes('exists') || result.message.includes('already'))))) {
                                                             // Logic for success
-                                                            setSuccessMessage(result.message);
+                                                            setSuccessMessage(result.message || 'Authentication successful');
                                                             setIsSuccess(true);
 
-                                                            // In a real app, you might want to redirect to /complete-profile 
-                                                            // if result.created is true, or /dashboard if false.
+                                                            // Check if profile needs to be completed
                                                             setTimeout(() => {
-                                                                if (result.created) {
-                                                                    navigate(`/complete-profile?staff_id=${result.staff_id}&email=${result.email}`);
+                                                                if (result.is_profile_completed === false) {
+                                                                    // Build query params with all available data
+                                                                    const queryParams = new URLSearchParams({
+                                                                        staff_id: result.staff_id.toString(),
+                                                                        email: result.email || '',
+                                                                        ...(result.first_name && { first_name: result.first_name }),
+                                                                        ...(result.last_name && { last_name: result.last_name }),
+                                                                    }).toString();
+                                                                    navigate(`/complete-profile?${queryParams}`);
                                                                 } else {
-                                                                    navigate('/dashboard');
+                                                                    // Profile already completed - redirect to dashboard
+                                                                    window.location.href = '/dashboard';
                                                                 }
                                                             }, 1500);
+                                                        } else {
+                                                            // Unexpected response format
+                                                            setServerError(result?.message || 'Unexpected response from server');
                                                         }
                                                     } catch (err: any) {
-                                                        setServerError(err.response?.data?.detail || 'Google authentication failed');
+                                                        console.error('Google SSO Signup Error:', err);
+                                                        const errorMessage = err?.response?.data?.detail 
+                                                            || err?.response?.data?.message 
+                                                            || err?.message 
+                                                            || 'Google authentication failed. Please try again.';
+                                                        setServerError(errorMessage);
                                                     }
                                                 }
                                             }}

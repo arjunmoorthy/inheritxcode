@@ -170,18 +170,42 @@ export interface GoogleSSOSignupResponse {
   message: string;
   email: string;
   staff_id: number;
-  staff_uuid: string; // Added staff_uuid
+  first_name?: string | null;
+  last_name?: string | null;
+  access_token?: string;
+  refresh_token?: string;
+  is_profile_completed: boolean;
   created: boolean;
+  staff_uuid?: string;
 }
 
 const googleSSOSignup = async (data: GoogleSSOSignupData): Promise<GoogleSSOSignupResponse> => {
-  const response = await apiClient.post<GoogleSSOSignupResponse>(API_CONFIG.ENDPOINTS.AUTH.GOOGLE_SSO_SIGNUP, data);
-  return response.data;
+  try {
+    const response = await apiClient.post<GoogleSSOSignupResponse>(API_CONFIG.ENDPOINTS.AUTH.GOOGLE_SSO_SIGNUP, data);
+    console.log('Google SSO Signup API Response:', response);
+    return response.data;
+  } catch (error: any) {
+    console.error('Google SSO Signup API Error:', error);
+    // Re-throw to let the mutation handle it
+    throw error;
+  }
 };
 
 export const useGoogleSSOSignup = () => {
   return useMutation({
     mutationFn: googleSSOSignup,
+    onSuccess: (data) => {
+      // Store tokens if provided in response
+      if (data.access_token) {
+        localStorage.setItem('authToken', data.access_token);
+      }
+      if (data.refresh_token) {
+        localStorage.setItem('refreshToken', data.refresh_token);
+      }
+    },
+    onError: (error) => {
+      console.error('Google SSO signup error:', error);
+    },
   });
 };
 

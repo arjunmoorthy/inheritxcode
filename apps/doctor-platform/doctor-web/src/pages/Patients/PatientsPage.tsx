@@ -15,7 +15,6 @@ import TableContainer from '@mui/material/TableContainer';
 import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import TablePagination from '@mui/material/TablePagination';
-import CircularProgress from '@mui/material/CircularProgress';
 import Typography from '@mui/material/Typography';
 import IconButton from '@mui/material/IconButton';
 import Tooltip from '@mui/material/Tooltip';
@@ -23,10 +22,9 @@ import Avatar from '@mui/material/Avatar';
 import Chip from '@mui/material/Chip';
 import InputAdornment from '@mui/material/InputAdornment';
 import Skeleton from '@mui/material/Skeleton';
-import Card from '@mui/material/Card';
 import { Search, Plus, Edit, Users, Calendar, Mail, ChevronRight } from 'lucide-react';
-import styled from 'styled-components';
 import { usePatients, type Patient } from '../../services/patients';
+import { useThemeMode } from '@oncolife/ui-components';
 import AddPatientModal from './components/AddPatientModal';
 import EditPatientModal from './components/EditPatientModal';
 
@@ -42,154 +40,9 @@ const colors = {
   border: '#E2E8F0',
 };
 
-const PageContainer = styled.div`
-  padding: 24px;
-  max-width: 1400px;
-  margin: 0 auto;
-  
-  @media (max-width: 768px) {
-    padding: 16px;
-  }
-`;
-
-const PageHeader = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-bottom: 24px;
-  
-  @media (min-width: 768px) {
-    flex-direction: row;
-    justify-content: space-between;
-    align-items: center;
-  }
-`;
-
-const HeaderTitle = styled.div`
-  h1 {
-    font-size: 1.5rem;
-    font-weight: 700;
-    color: ${colors.primary};
-    margin: 0;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-  }
-  
-  p {
-    font-size: 0.875rem;
-    color: ${colors.textSecondary};
-    margin: 4px 0 0 0;
-  }
-  
-  @media (max-width: 768px) {
-    h1 {
-      font-size: 1.25rem;
-    }
-  }
-`;
-
-const ControlsRow = styled.div`
-  display: flex;
-  gap: 12px;
-  align-items: center;
-  flex-wrap: wrap;
-  margin-bottom: 20px;
-  
-  @media (max-width: 576px) {
-    flex-direction: column;
-    align-items: stretch;
-  }
-`;
-
-const SearchWrapper = styled.div`
-  flex: 1;
-  min-width: 280px;
-  
-  @media (max-width: 576px) {
-    min-width: 100%;
-  }
-`;
-
-const TableWrapper = styled.div`
-  background: ${colors.paper};
-  border-radius: 12px;
-  border: 1px solid ${colors.border};
-  overflow: hidden;
-`;
-
-const MobileCard = styled.div`
-  background: ${colors.paper};
-  border-radius: 12px;
-  border: 1px solid ${colors.border};
-  margin-bottom: 12px;
-  overflow: hidden;
-`;
-
-const MobileCardHeader = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 16px;
-  background: linear-gradient(135deg, ${colors.primary}05 0%, ${colors.secondary}05 100%);
-  border-bottom: 1px solid ${colors.border};
-`;
-
-const MobileCardContent = styled.div`
-  padding: 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-`;
-
-const MobileCardRow = styled.div`
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 0.875rem;
-  
-  .label {
-    color: ${colors.textSecondary};
-    font-weight: 500;
-  }
-  
-  .value {
-    color: ${colors.text};
-  }
-`;
-
-const MobileCardAction = styled.div`
-  display: flex;
-  justify-content: flex-end;
-  padding: 12px 16px;
-  border-top: 1px solid ${colors.border};
-`;
-
-const EmptyState = styled.div`
-  text-align: center;
-  padding: 64px 24px;
-  
-  svg {
-    color: ${colors.textSecondary};
-    margin-bottom: 16px;
-  }
-  
-  h3 {
-    font-size: 1.125rem;
-    font-weight: 600;
-    color: ${colors.text};
-    margin: 0 0 8px 0;
-  }
-  
-  p {
-    color: ${colors.textSecondary};
-    font-size: 0.875rem;
-    margin: 0;
-  }
-`;
-
 const PatientsPage: React.FC = () => {
   const theme = useTheme();
+  const { isDark } = useThemeMode();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
@@ -228,15 +81,17 @@ const PatientsPage: React.FC = () => {
   };
   
   return (
-    <PageContainer>
-      <PageHeader>
-        <HeaderTitle>
-          <h1>
-            <Users size={24} color={colors.secondary} />
+    <div className={`p-6 max-w-[1400px] mx-auto ${isDark ? 'bg-[#1A1917]' : 'bg-background'} min-h-screen transition-colors duration-200`}>
+      <div className="flex flex-col gap-2 mb-6 md:flex-row md:justify-between md:items-center">
+        <div>
+          <h1 className={`text-2xl md:text-[1.5rem] font-bold ${isDark ? 'text-slate-100' : 'text-primary'} m-0 flex items-center gap-2.5`}>
+            <Users size={24} className={isDark ? 'text-blue-400' : 'text-secondary'} />
             Patient Management
           </h1>
-          <p>View and manage your patient roster</p>
-        </HeaderTitle>
+          <p className={`text-sm ${isDark ? 'text-slate-400' : 'text-slate-600'} mt-1 mb-0`}>
+            View and manage your patient roster
+          </p>
+        </div>
         
         <Button
           variant="contained"
@@ -256,10 +111,10 @@ const PatientsPage: React.FC = () => {
         >
           Add Patient
         </Button>
-      </PageHeader>
+      </div>
       
-      <ControlsRow>
-        <SearchWrapper>
+      <div className="flex gap-3 items-center flex-wrap mb-5">
+        <div className="flex-1 min-w-[280px]">
           <TextField
             fullWidth
             placeholder="Search by name, email, or MRN..."
@@ -269,64 +124,113 @@ const PatientsPage: React.FC = () => {
             InputProps={{
               startAdornment: (
                 <InputAdornment position="start">
-                  <Search size={18} color={colors.textSecondary} />
+                  <Search size={18} className={isDark ? 'text-slate-400' : 'text-slate-500'} />
                 </InputAdornment>
               ),
             }}
             sx={{
               '& .MuiOutlinedInput-root': {
                 borderRadius: '10px',
-                bgcolor: colors.paper,
+                backgroundColor: isDark ? '#1A1917' : 'white',
+                color: isDark ? '#f1f5f9' : '#0f172a',
+                '& fieldset': {
+                  borderColor: isDark ? '#334155' : '#e2e8f0',
+                },
+                '&:hover fieldset': {
+                  borderColor: isDark ? '#475569' : '#cbd5e1',
+                },
+                '&.Mui-focused fieldset': {
+                  borderColor: '#2563EB',
+                },
+              },
+              '& .MuiInputBase-input': {
+                color: isDark ? '#f1f5f9' : '#0f172a',
+                '&::placeholder': {
+                  color: isDark ? '#94a3b8' : '#64748b',
+                  opacity: 0.6,
+                },
               },
             }}
           />
-        </SearchWrapper>
-      </ControlsRow>
+        </div>
+      </div>
       
       {error && (
         <Box sx={{ 
           p: 2, 
-          bgcolor: '#FEF2F2', 
+          bgcolor: isDark ? '#7f1d1d' : '#FEF2F2', 
           borderRadius: 2, 
-          border: '1px solid #FECACA',
+          border: `1px solid ${isDark ? '#991b1b' : '#FECACA'}`,
           mb: 2 
         }}>
-          <Typography color="error" variant="body2">
+          <Typography 
+            variant="body2"
+            sx={{
+              color: isDark ? '#fca5a5' : '#dc2626',
+            }}
+          >
             Error loading patients. Please try again.
           </Typography>
         </Box>
       )}
       
       {isLoading ? (
-        <TableWrapper>
+        <div className={`${isDark ? 'bg-[#1A1917] border-slate-700/50' : 'bg-white border-slate-200'} rounded-xl border overflow-hidden`}>
           <Box sx={{ p: 3 }}>
             {[1, 2, 3, 4, 5].map((i) => (
               <Box key={i} sx={{ display: 'flex', gap: 2, mb: 2 }}>
-                <Skeleton variant="circular" width={40} height={40} />
+                <Skeleton 
+                  variant="circular" 
+                  width={40} 
+                  height={40}
+                  sx={{
+                    bgcolor: isDark ? '#2A2725' : '#f1f5f9',
+                  }}
+                />
                 <Box sx={{ flex: 1 }}>
-                  <Skeleton variant="text" width="40%" />
-                  <Skeleton variant="text" width="60%" />
+                  <Skeleton 
+                    variant="text" 
+                    width="40%"
+                    sx={{
+                      bgcolor: isDark ? '#2A2725' : '#f1f5f9',
+                      mb: 1,
+                    }}
+                  />
+                  <Skeleton 
+                    variant="text" 
+                    width="60%"
+                    sx={{
+                      bgcolor: isDark ? '#2A2725' : '#f1f5f9',
+                    }}
+                  />
                 </Box>
               </Box>
             ))}
           </Box>
-        </TableWrapper>
+        </div>
       ) : data?.data.length === 0 ? (
-        <TableWrapper>
-          <EmptyState>
-            <Users size={48} />
-            <h3>No Patients Found</h3>
-            <p>Add your first patient or try a different search term.</p>
-          </EmptyState>
-        </TableWrapper>
+        <div className={`${isDark ? 'bg-[#1A1917] border-slate-700/50' : 'bg-white border-slate-200'} rounded-xl border overflow-hidden`}>
+          <div className="text-center py-16 px-6">
+            <Users size={48} className={`${isDark ? 'text-slate-500' : 'text-slate-400'} mx-auto mb-4`} />
+            <h3 className={`text-lg font-semibold ${isDark ? 'text-slate-100' : 'text-slate-900'} m-0 mb-2`}>
+              No Patients Found
+            </h3>
+            <p className={`${isDark ? 'text-slate-400' : 'text-slate-600'} text-sm m-0`}>
+              Add your first patient or try a different search term.
+            </p>
+          </div>
+        </div>
       ) : isMobile ? (
         // Mobile Card View
         <Box>
           {data?.data.map((patient) => (
-            <MobileCard key={patient.id}>
-              <MobileCardHeader>
+            <div 
+              key={patient.id}
+              className={`${isDark ? 'bg-[#1A1917] border-slate-700/50' : 'bg-white border-slate-200'} rounded-xl border mb-3 overflow-hidden`}
+            >
+              <div className={`flex items-center gap-3 p-4 ${isDark ? 'bg-gradient-to-r from-primary/30 via-secondary/30 to-primary/30 border-slate-700/50' : 'bg-gradient-to-r from-primary/5 via-secondary/5 to-primary/5 border-slate-200'} border-b`}>
                 <Avatar sx={{ 
-                  bgcolor: colors.primary, 
+                  bgcolor: isDark ? '#2563EB' : colors.primary, 
                   width: 44, 
                   height: 44,
                   fontWeight: 600,
@@ -334,39 +238,44 @@ const PatientsPage: React.FC = () => {
                   {getInitials(patient.firstName, patient.lastName)}
                 </Avatar>
                 <Box sx={{ flex: 1 }}>
-                  <Typography variant="subtitle1" fontWeight={600}>
+                  <Typography variant="subtitle1" fontWeight={600} sx={{ color: isDark ? '#f1f5f9' : '#0f172a' }}>
                     {patient.firstName} {patient.lastName}
                   </Typography>
-                  <Typography variant="body2" color="textSecondary">
+                  <Typography variant="body2" sx={{ color: isDark ? '#94a3b8' : '#64748b' }}>
                     MRN: {patient.mrn}
                   </Typography>
                 </Box>
-              </MobileCardHeader>
-              <MobileCardContent>
-                <MobileCardRow>
-                  <span className="label">Email</span>
-                  <span className="value">{patient.email}</span>
-                </MobileCardRow>
-                <MobileCardRow>
-                  <span className="label">DOB</span>
-                  <span className="value">{patient.dateOfBirth}</span>
-                </MobileCardRow>
-                <MobileCardRow>
-                  <span className="label">Sex</span>
-                  <span className="value">{patient.sex}</span>
-                </MobileCardRow>
-              </MobileCardContent>
-              <MobileCardAction>
+              </div>
+              <div className="p-4 flex flex-col gap-2">
+                <div className="flex justify-between items-center text-sm">
+                  <span className={`font-medium ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>Email</span>
+                  <span className={isDark ? 'text-slate-100' : 'text-slate-900'}>{patient.email}</span>
+                </div>
+                <div className="flex justify-between items-center text-sm">
+                  <span className={`font-medium ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>DOB</span>
+                  <span className={isDark ? 'text-slate-100' : 'text-slate-900'}>{patient.dateOfBirth}</span>
+                </div>
+                <div className="flex justify-between items-center text-sm">
+                  <span className={`font-medium ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>Sex</span>
+                  <span className={isDark ? 'text-slate-100' : 'text-slate-900'}>{patient.sex}</span>
+                </div>
+              </div>
+              <div className={`flex justify-end px-4 py-3 ${isDark ? 'border-slate-700/50' : 'border-slate-200'} border-t`}>
                 <Button
                   size="small"
                   endIcon={<ChevronRight size={16} />}
                   onClick={() => handleEditPatient(patient)}
-                  sx={{ color: colors.secondary }}
+                  sx={{ 
+                    color: isDark ? '#60a5fa' : colors.secondary,
+                    '&:hover': {
+                      bgcolor: isDark ? 'rgba(96, 165, 250, 0.1)' : 'rgba(37, 99, 235, 0.1)',
+                    },
+                  }}
                 >
                   Edit
                 </Button>
-              </MobileCardAction>
-            </MobileCard>
+              </div>
+            </div>
           ))}
           
           {data && data.total > rowsPerPage && (
@@ -378,23 +287,34 @@ const PatientsPage: React.FC = () => {
               onPageChange={handleChangePage}
               onRowsPerPageChange={handleChangeRowsPerPage}
               rowsPerPageOptions={[5, 10, 25]}
-              sx={{ bgcolor: colors.paper, borderRadius: 2, mt: 2 }}
+              sx={{ 
+                bgcolor: isDark ? '#1A1917' : colors.paper, 
+                borderRadius: 2, 
+                mt: 2,
+                color: isDark ? '#f1f5f9' : '#0f172a',
+                '& .MuiTablePagination-selectLabel, & .MuiTablePagination-displayedRows': {
+                  color: isDark ? '#f1f5f9' : '#0f172a',
+                },
+                '& .MuiIconButton-root': {
+                  color: isDark ? '#cbd5e1' : '#475569',
+                },
+              }}
             />
           )}
         </Box>
       ) : (
         // Desktop Table View
-        <TableWrapper>
+        <div className={`${isDark ? 'bg-[#1A1917] border-slate-700/50' : 'bg-white border-slate-200'} rounded-xl border overflow-hidden`}>
           <TableContainer>
             <Table>
               <TableHead>
-                <TableRow sx={{ bgcolor: `${colors.primary}08` }}>
-                  <TableCell sx={{ fontWeight: 600, color: colors.primary }}>Patient</TableCell>
-                  <TableCell sx={{ fontWeight: 600, color: colors.primary }}>Email</TableCell>
-                  <TableCell sx={{ fontWeight: 600, color: colors.primary }}>MRN</TableCell>
-                  <TableCell sx={{ fontWeight: 600, color: colors.primary }}>DOB</TableCell>
-                  <TableCell sx={{ fontWeight: 600, color: colors.primary }}>Sex</TableCell>
-                  <TableCell sx={{ fontWeight: 600, color: colors.primary }} align="center">Actions</TableCell>
+                <TableRow sx={{ bgcolor: isDark ? 'rgba(30, 58, 95, 0.3)' : 'rgba(30, 58, 95, 0.08)' }}>
+                  <TableCell sx={{ fontWeight: 600, color: isDark ? '#cbd5e1' : colors.primary }}>Patient</TableCell>
+                  <TableCell sx={{ fontWeight: 600, color: isDark ? '#cbd5e1' : colors.primary }}>Email</TableCell>
+                  <TableCell sx={{ fontWeight: 600, color: isDark ? '#cbd5e1' : colors.primary }}>MRN</TableCell>
+                  <TableCell sx={{ fontWeight: 600, color: isDark ? '#cbd5e1' : colors.primary }}>DOB</TableCell>
+                  <TableCell sx={{ fontWeight: 600, color: isDark ? '#cbd5e1' : colors.primary }}>Sex</TableCell>
+                  <TableCell sx={{ fontWeight: 600, color: isDark ? '#cbd5e1' : colors.primary }} align="center">Actions</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -402,14 +322,15 @@ const PatientsPage: React.FC = () => {
                   <TableRow 
                     key={patient.id}
                     sx={{ 
-                      '&:hover': { bgcolor: colors.background },
+                      '&:hover': { bgcolor: isDark ? '#2A2725' : colors.background },
                       cursor: 'pointer',
+                      borderColor: isDark ? '#334155' : '#e2e8f0',
                     }}
                   >
-                    <TableCell>
+                    <TableCell sx={{ color: isDark ? '#f1f5f9' : '#0f172a' }}>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                         <Avatar sx={{ 
-                          bgcolor: colors.primary, 
+                          bgcolor: isDark ? '#2563EB' : colors.primary, 
                           width: 36, 
                           height: 36,
                           fontSize: '0.875rem',
@@ -417,14 +338,14 @@ const PatientsPage: React.FC = () => {
                         }}>
                           {getInitials(patient.firstName, patient.lastName)}
                         </Avatar>
-                        <Typography fontWeight={500}>
+                        <Typography fontWeight={500} sx={{ color: isDark ? '#f1f5f9' : '#0f172a' }}>
                           {patient.firstName} {patient.lastName}
                         </Typography>
                       </Box>
                     </TableCell>
-                    <TableCell>
+                    <TableCell sx={{ color: isDark ? '#f1f5f9' : '#0f172a' }}>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <Mail size={14} color={colors.textSecondary} />
+                        <Mail size={14} className={isDark ? 'text-slate-400' : 'text-slate-500'} />
                         {patient.email}
                       </Box>
                     </TableCell>
@@ -433,28 +354,30 @@ const PatientsPage: React.FC = () => {
                         label={patient.mrn} 
                         size="small" 
                         sx={{ 
-                          bgcolor: `${colors.secondary}15`,
-                          color: colors.secondary,
+                          bgcolor: isDark ? 'rgba(37, 99, 235, 0.2)' : `${colors.secondary}15`,
+                          color: isDark ? '#60a5fa' : colors.secondary,
                           fontWeight: 600,
                           fontSize: '0.75rem',
                         }}
                       />
                     </TableCell>
-                    <TableCell>
+                    <TableCell sx={{ color: isDark ? '#f1f5f9' : '#0f172a' }}>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <Calendar size={14} color={colors.textSecondary} />
+                        <Calendar size={14} className={isDark ? 'text-slate-400' : 'text-slate-500'} />
                         {patient.dateOfBirth}
                       </Box>
                     </TableCell>
-                    <TableCell>{patient.sex}</TableCell>
+                    <TableCell sx={{ color: isDark ? '#f1f5f9' : '#0f172a' }}>{patient.sex}</TableCell>
                     <TableCell align="center">
                       <Tooltip title="Edit Patient">
                         <IconButton
                           size="small"
                           onClick={() => handleEditPatient(patient)}
                           sx={{ 
-                            color: colors.secondary,
-                            '&:hover': { bgcolor: `${colors.secondary}15` },
+                            color: isDark ? '#60a5fa' : colors.secondary,
+                            '&:hover': { 
+                              bgcolor: isDark ? 'rgba(96, 165, 250, 0.15)' : `${colors.secondary}15`,
+                            },
                           }}
                         >
                           <Edit size={18} />
@@ -476,11 +399,21 @@ const PatientsPage: React.FC = () => {
             onRowsPerPageChange={handleChangeRowsPerPage}
             rowsPerPageOptions={[5, 10, 25]}
             sx={{
-              borderTop: `1px solid ${colors.border}`,
-              bgcolor: colors.background,
+              borderTop: `1px solid ${isDark ? '#334155' : colors.border}`,
+              bgcolor: isDark ? '#1A1917' : colors.background,
+              color: isDark ? '#f1f5f9' : '#0f172a',
+              '& .MuiTablePagination-selectLabel, & .MuiTablePagination-displayedRows': {
+                color: isDark ? '#f1f5f9' : '#0f172a',
+              },
+              '& .MuiIconButton-root': {
+                color: isDark ? '#cbd5e1' : '#475569',
+                '&:hover': {
+                  bgcolor: isDark ? '#2A2725' : '#f1f5f9',
+                },
+              },
             }}
           />
-        </TableWrapper>
+        </div>
       )}
       
       <AddPatientModal
@@ -496,7 +429,7 @@ const PatientsPage: React.FC = () => {
         }}
         patient={selectedPatient}
       />
-    </PageContainer>
+    </div>
   );
 };
 

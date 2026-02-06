@@ -51,9 +51,23 @@ export const apiClient: AxiosInstance = axios.create({
 
 apiClient.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
-    const token = tokenManager.getToken();
-    if (token && config.headers) {
-      config.headers.Authorization = `Bearer ${token}`;
+    // Get access token from localStorage (stored as 'authToken')
+    const accessToken = tokenManager.getToken();
+    // Get refresh token from localStorage (stored as 'refreshToken')
+    const refreshToken = tokenManager.getRefreshToken();
+    
+    if (config.headers) {
+      // Set access token in Authorization header (standard OAuth2/JWT format)
+      // Format: Authorization: Bearer <access_token>
+      if (accessToken) {
+        config.headers.Authorization = `Bearer ${accessToken}`;
+      }
+      
+      // Set refresh token in custom header for token refresh operations
+      // Format: X-Refresh-Token: <refresh_token>
+      if (refreshToken) {
+        config.headers['X-Refresh-Token'] = refreshToken;
+      }
     }
     return config;
   },
@@ -66,20 +80,20 @@ apiClient.interceptors.request.use(
 // Response Interceptor
 // =============================================================================
 
-apiClient.interceptors.response.use(
-  (response) => response,
-  (error: AxiosError) => {
-    // Handle 401 Unauthorized
-    if (error.response?.status === 401) {
-      tokenManager.clearTokens();
-      // Redirect to login if not already there
-      if (window.location.pathname !== '/login') {
-        window.location.href = '/login';
-      }
-    }
-    return Promise.reject(error);
-  }
-);
+// apiClient.interceptors.response.use(
+//   (response) => response,
+//   (error: AxiosError) => {
+//     // Handle 401 Unauthorized
+//     if (error.response?.status === 401) {
+//       tokenManager.clearTokens();
+//       // Redirect to login if not already there
+//       if (window.location.pathname !== '/login') {
+//         window.location.href = '/login';
+//       }
+//     }
+//     return Promise.reject(error);
+//   }
+// );
 
 export default apiClient;
 

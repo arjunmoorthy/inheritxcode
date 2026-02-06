@@ -4,6 +4,7 @@ export default {
         "./index.html",
         "./src/**/*.{js,ts,jsx,tsx}",
     ],
+    darkMode: ['selector', '[data-theme="dark"]'], // Enable dark mode using data-theme attribute
     theme: {
         extend: {
             colors: {
@@ -20,6 +21,13 @@ export default {
                 accent: '#0D9488',
                 background: '#F8FAFC',
                 paper: '#FFFFFF',
+                // Severity colors for patient status
+                severity: {
+                    mild: '#10B981',
+                    moderate: '#F59E0B',
+                    severe: '#EA580C',
+                    urgent: '#DC2626',
+                },
             },
             fontFamily: {
                 sans: ['DM Sans', 'sans-serif'],

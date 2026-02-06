@@ -14,12 +14,14 @@ const AuthCallback: React.FC = () => {
             const params = new URLSearchParams(location.search);
             const accessToken = params.get('access_token');
             const refreshToken = params.get('refresh_token');
-            const isNewUser = params.get('created') === 'true' || params.get('is_new_user') === 'true';
+            const isProfileCompleted = params.get('is_profile_completed');
             const staffId = params.get('staff_id');
             const firstName = params.get('first_name');
             const lastName = params.get('last_name');
+            const email = params.get('email');
 
             if (accessToken) {
+                // Store tokens in localStorage
                 localStorage.setItem('authToken', accessToken);
                 if (refreshToken) {
                     localStorage.setItem('refreshToken', refreshToken);
@@ -27,22 +29,24 @@ const AuthCallback: React.FC = () => {
 
                 hasProcessed.current = true;
 
-                if (isNewUser) {
-                    // Redirect to complete profile if it's a new social signup
+                // Determine if user is new based on 'created' parameter
+                // created: 'true' = new user, created: 'false' = existing user
+                const profileCompleted = isProfileCompleted === 'true';
+                
+                // Use window.location.href for full page navigation to ensure AuthContext picks up tokens
+                if (!profileCompleted) {
+                    // New user - redirect to complete profile
                     const queryParams = new URLSearchParams({
                         staff_id: staffId || '',
                         first_name: firstName || '',
-                        last_name: lastName || ''
+                        last_name: lastName || '',
+                        email: email || ''
                     }).toString();
-                    navigate(`/complete-profile?${queryParams}`);
+                    window.location.href = `/complete-profile?${queryParams}`;
                 } else {
-                    navigate('/dashboard');
+                    // Existing user or profile already completed - redirect to dashboard
+                    window.location.href = '/dashboard';
                 }
-
-                // Force a slight delay or just use navigate. 
-                // Using window.location.reload() can sometimes break the react-router navigation.
-                // But for AuthContext to pick up the token from localStorage, a reload or a context update is needed.
-                window.location.reload();
             } else {
                 // If we have an id_token in the URL (unlikely in redirect flow, but possible if FE handles it)
                 const idToken = params.get('id_token');

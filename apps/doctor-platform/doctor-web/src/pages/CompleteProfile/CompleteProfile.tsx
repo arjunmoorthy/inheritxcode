@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { Activity, CheckCircle, MapPin, Building, Stethoscope, Briefcase, UserCheck, User } from 'lucide-react';
-import { useCompleteProfile } from '../../services/login';
+import { Activity, CheckCircle, MapPin, Building, Stethoscope, Briefcase, User, Mail } from 'lucide-react';
+import { useCompleteProfile, fetchStaffProfile } from '../../services/login';
 import { Button, Input, Select } from '@/components/ui';
 import { useThemeMode } from '@oncolife/ui-components';
 import { useAuth } from '../../contexts/AuthContext';
@@ -20,24 +20,78 @@ const completeProfileSchema = z.object({
 type CompleteProfileValues = z.infer<typeof completeProfileSchema>;
 
 const roleOptions = [
-    { value: 'doctor', label: 'Doctor' },
-    { value: 'nurse', label: 'Nurse' },
     { value: 'staff', label: 'Staff' },
-    { value: 'admin', label: 'Administrator' },
 ];
 
 const CompleteProfile: React.FC = () => {
     const [searchParams] = useSearchParams();
-    const staffId = searchParams.get('staff_id');
+    const { user, isAuthenticated } = useAuth();
+    
+    // Get data from URL params (fallback)
+    const urlStaffId = searchParams.get('staff_id');
     const urlFirstName = searchParams.get('first_name') || '';
     const urlLastName = searchParams.get('last_name') || '';
+    const urlEmail = searchParams.get('email') || '';
+
+    // State for user data (from API or URL params)
+    const [userData, setUserData] = useState({
+        staffId: urlStaffId || '',
+        firstName: urlFirstName,
+        lastName: urlLastName,
+        email: urlEmail,
+    });
+    const [isLoadingProfile, setIsLoadingProfile] = useState(false);
 
     const [serverError, setServerError] = useState<string | null>(null);
     const [isSuccess, setIsSuccess] = useState(false);
     const { isDark } = useThemeMode();
-    const { } = useAuth();
     const navigate = useNavigate();
     const completeProfileMutation = useCompleteProfile();
+
+    // Fetch user profile from API if authenticated (preferred method)
+    useEffect(() => {
+        const loadUserProfile = async () => {
+            // If we have URL params, use them (for new users)
+            if (urlStaffId && urlFirstName && urlEmail) {
+                setUserData({
+                    staffId: urlStaffId,
+                    firstName: urlFirstName,
+                    lastName: urlLastName,
+                    email: urlEmail,
+                });
+                return;
+            }
+
+            // Otherwise, try to fetch from API if authenticated
+            if (isAuthenticated) {
+                setIsLoadingProfile(true);
+                try {
+                    const profile = await fetchStaffProfile();
+                    setUserData({
+                        staffId: profile.staff_id?.toString() || '',
+                        firstName: profile.first_name || '',
+                        lastName: profile.last_name || '',
+                        email: profile.email || '',
+                    });
+                } catch (error) {
+                    console.error('Failed to fetch profile:', error);
+                    // Keep URL params as fallback
+                } finally {
+                    setIsLoadingProfile(false);
+                }
+            } else if (user) {
+                // Use data from AuthContext if available
+                setUserData({
+                    staffId: user.staff_id?.toString() || urlStaffId || '',
+                    firstName: user.first_name || urlFirstName,
+                    lastName: user.last_name || urlLastName,
+                    email: user.email || urlEmail,
+                });
+            }
+        };
+
+        loadUserProfile();
+    }, [isAuthenticated, user, urlStaffId, urlFirstName, urlLastName, urlEmail]);
 
     const {
         register,
@@ -57,7 +111,7 @@ const CompleteProfile: React.FC = () => {
         try {
             const payload = {
                 ...values,
-                staff_id: parseInt(staffId || '0', 10),
+                staff_id: parseInt(userData.staffId || '0', 10),
             };
             const result = await completeProfileMutation.mutateAsync(payload);
 
@@ -153,22 +207,50 @@ const CompleteProfile: React.FC = () => {
                             </div>
 
                     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <Input
-                                label="First Name"
-                                value={urlFirstName}
-                                readOnly
-                                disabled
-                                icon={<User size={16} />}
-                            />
-                            <Input
-                                label="Last Name"
-                                value={urlLastName}
-                                readOnly
-                                disabled
-                                icon={<User size={16} />}
-                            />
-                        </div>
+                        {/* Read-only user information from API */}
+                        {isLoadingProfile ? (
+                            <div className="flex items-center justify-center py-4">
+                                <Activity className="animate-spin text-primary" size={20} />
+                                <span className={`ml-2 text-sm ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                                    Loading profile information...
+                                </span>
+                            </div>
+                        ) : (
+                            <>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <Input
+                                        label="Staff ID"
+                                        value={userData.staffId}
+                                        readOnly
+                                        disabled
+                                        icon={<Briefcase size={16} />}
+                                    />
+                                    <Input
+                                        label="Email"
+                                        value={userData.email}
+                                        readOnly
+                                        disabled
+                                        icon={<Mail size={16} />}
+                                    />
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <Input
+                                        label="First Name"
+                                        value={userData.firstName}
+                                        readOnly
+                                        disabled
+                                        icon={<User size={16} />}
+                                    />
+                                    <Input
+                                        label="Last Name"
+                                        value={userData.lastName}
+                                        readOnly
+                                        disabled
+                                        icon={<User size={16} />}
+                                    />
+                                </div>
+                            </>
+                        )}
 
                         <Controller
                             name="role"
