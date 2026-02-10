@@ -6,6 +6,7 @@
 import React, { useState, useMemo } from 'react';
 import { useTheme, useMediaQuery, Drawer, IconButton, CircularProgress } from '@mui/material';
 import styled, { css } from 'styled-components';
+import { useThemeMode } from '@oncolife/ui-components';
 import { useEducationPdfs, openEducationPdf } from '../../services/education';
 import { 
   BookOpen, 
@@ -25,6 +26,7 @@ import {
   Plus,
   Triangle,
   Moon,
+  Sun,
   Brain,
   Utensils,
   CircleDot,
@@ -62,11 +64,12 @@ const colors = {
 
 // ============= Styled Components =============
 
-const PageContainer = styled.div`
+const PageContainer = styled.div<{ $isDark?: boolean }>`
   display: flex;
   flex: 1;
   overflow: hidden;
-  background: ${colors.background};
+  background: transparent;
+  transition: background-color 0.3s ease;
 `;
 
 const MainContent = styled.div`
@@ -83,29 +86,31 @@ const ContentWrapper = styled.div`
   max-width: 700px;
 `;
 
-const PageHeader = styled.div`
+const PageHeader = styled.div<{ $isDark?: boolean }>`
   margin-bottom: 1.5rem;
   display: flex;
   align-items: center;
   justify-content: space-between;
 `;
 
-const PageTitle = styled.h1`
+const PageTitle = styled.h1<{ $isDark?: boolean }>`
   font-family: 'Fraunces', Georgia, serif;
   font-size: 1.5rem;
   font-weight: 600;
-  color: ${colors.foreground};
+  color: ${props => props.$isDark ? '#F1F5F9' : colors.foreground};
   margin: 0 0 0.5rem 0;
+  transition: color 0.3s ease;
   
   @media (min-width: 600px) {
     font-size: 1.75rem;
   }
 `;
 
-const PageSubtitle = styled.p`
+const PageSubtitle = styled.p<{ $isDark?: boolean }>`
   font-size: 0.875rem;
-  color: ${colors.muted};
+  color: ${props => props.$isDark ? '#94A3B8' : colors.muted};
   margin: 0;
+  transition: color 0.3s ease;
   
   @media (min-width: 600px) {
     font-size: 1rem;
@@ -142,22 +147,22 @@ const FiltersRow = styled.div`
   }
 `;
 
-const SearchInputWrapper = styled.div`
+const SearchInputWrapper = styled.div<{ $isDark?: boolean }>`
   position: relative;
   flex: 1;
   
   input {
     width: 100%;
     padding: 0.75rem 1rem 0.75rem 2.5rem;
-    background: ${colors.paper};
-    border: 1px solid ${colors.border};
+    background: ${props => props.$isDark ? '#1A1917' : colors.paper};
+    border: 1px solid ${props => props.$isDark ? '#3A3835' : colors.border};
     border-radius: 12px;
     font-size: 0.875rem;
-    color: ${colors.foreground};
+    color: ${props => props.$isDark ? '#F1F5F9' : colors.foreground};
     transition: all 0.2s ease;
     
     &::placeholder {
-      color: ${colors.muted};
+      color: ${props => props.$isDark ? '#94A3B8' : colors.muted};
     }
     
     &:focus {
@@ -174,22 +179,23 @@ const SearchInputWrapper = styled.div`
     transform: translateY(-50%);
     width: 16px;
     height: 16px;
-    color: ${colors.muted};
+    color: ${props => props.$isDark ? '#94A3B8' : colors.muted};
     pointer-events: none;
+    transition: color 0.3s ease;
   }
 `;
 
-const FilterButton = styled.button`
+const FilterButton = styled.button<{ $isDark?: boolean }>`
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 0.75rem;
-  background: ${colors.paper};
-  border: 1px solid ${colors.border};
+  background: ${props => props.$isDark ? '#1A1917' : colors.paper};
+  border: 1px solid ${props => props.$isDark ? '#3A3835' : colors.border};
   border-radius: 12px;
   cursor: pointer;
   transition: all 0.2s ease;
-  color: ${colors.muted};
+  color: ${props => props.$isDark ? '#94A3B8' : colors.muted};
   
   &:hover {
     border-color: ${colors.primary};
@@ -202,18 +208,18 @@ const FilterButton = styled.button`
   }
 `;
 
-const SelectWrapper = styled.div`
+const SelectWrapper = styled.div<{ $isDark?: boolean }>`
   position: relative;
   min-width: 160px;
   
   select {
     width: 100%;
     padding: 0.75rem 2.5rem 0.75rem 1rem;
-    background: ${colors.paper};
-    border: 1px solid ${colors.border};
+    background: ${props => props.$isDark ? '#1A1917' : colors.paper};
+    border: 1px solid ${props => props.$isDark ? '#3A3835' : colors.border};
     border-radius: 12px;
     font-size: 0.875rem;
-    color: ${colors.foreground};
+    color: ${props => props.$isDark ? '#F1F5F9' : colors.foreground};
     cursor: pointer;
     appearance: none;
     transition: all 0.2s ease;
@@ -221,6 +227,11 @@ const SelectWrapper = styled.div`
     &:focus {
       outline: none;
       border-color: ${colors.primary};
+    }
+
+    option {
+      background: ${props => props.$isDark ? '#2A2725' : colors.paper};
+      color: ${props => props.$isDark ? '#F1F5F9' : colors.foreground};
     }
   }
   
@@ -231,25 +242,26 @@ const SelectWrapper = styled.div`
     top: 50%;
     transform: translateY(-50%);
     font-size: 0.625rem;
-    color: ${colors.muted};
+    color: ${props => props.$isDark ? '#94A3B8' : colors.muted};
     pointer-events: none;
+    transition: color 0.3s ease;
   }
 `;
 
 // Resource card - Lovable style with left border
-const ResourceCard = styled.div<{ $accentColor?: string; $isNew?: boolean }>`
-  background: ${colors.paper};
-  border: 1px solid ${colors.border};
+const ResourceCard = styled.div<{ $isDark?: boolean; $accentColor?: string; $isNew?: boolean }>`
+  background: ${props => props.$isDark ? '#2A2725' : colors.paper};
+  border: 1px solid ${props => props.$isDark ? '#3A3835' : colors.border};
   border-left: 4px solid ${props => props.$accentColor || colors.primary};
   border-radius: 16px;
   padding: 1.25rem;
   margin-bottom: 1rem;
-  box-shadow: 0 4px 24px -8px rgba(0, 0, 0, 0.08);
+  box-shadow: ${props => props.$isDark ? '0 4px 24px -8px rgba(0, 0, 0, 0.3)' : '0 4px 24px -8px rgba(0, 0, 0, 0.08)'};
   transition: all 0.25s ease;
   cursor: pointer;
   
   &:hover {
-    box-shadow: 0 8px 32px -8px rgba(0, 0, 0, 0.12);
+    box-shadow: ${props => props.$isDark ? '0 8px 32px -8px rgba(0, 0, 0, 0.5)' : '0 8px 32px -8px rgba(0, 0, 0, 0.12)'};
     transform: translateY(-2px);
   }
   
@@ -265,12 +277,13 @@ const CardTitleRow = styled.div`
   margin-bottom: 0.5rem;
 `;
 
-const CardTitle = styled.h3`
+const CardTitle = styled.h3<{ $isDark?: boolean }>`
   font-family: 'DM Sans', sans-serif;
   font-size: 1rem;
   font-weight: 600;
-  color: ${colors.foreground};
+  color: ${props => props.$isDark ? '#F1F5F9' : colors.foreground};
   margin: 0;
+  transition: color 0.3s ease;
 `;
 
 const NewBadge = styled.span`
@@ -284,14 +297,15 @@ const NewBadge = styled.span`
   font-weight: 600;
 `;
 
-const CardDescription = styled.p`
+const CardDescription = styled.p<{ $isDark?: boolean }>`
   font-size: 0.875rem;
-  color: ${colors.muted};
+  color: ${props => props.$isDark ? '#94A3B8' : colors.muted};
   margin: 0 0 1rem 0;
   line-height: 1.6;
+  transition: color 0.3s ease;
 `;
 
-const CardMeta = styled.div`
+const CardMeta = styled.div<{ $isDark?: boolean }>`
   display: flex;
   align-items: center;
   gap: 1rem;
@@ -299,23 +313,25 @@ const CardMeta = styled.div`
   flex-wrap: wrap;
 `;
 
-const MetaBadge = styled.span`
+const MetaBadge = styled.span<{ $isDark?: boolean }>`
   display: inline-flex;
   align-items: center;
   padding: 0.25rem 0.75rem;
-  background: ${colors.background};
-  color: ${colors.muted};
+  background: ${props => props.$isDark ? '#1A1917' : colors.background};
+  color: ${props => props.$isDark ? '#94A3B8' : colors.muted};
   border-radius: 12px;
   font-size: 0.75rem;
   font-weight: 500;
+  transition: all 0.3s ease;
 `;
 
-const MetaItem = styled.span`
+const MetaItem = styled.span<{ $isDark?: boolean }>`
   display: flex;
   align-items: center;
   gap: 0.25rem;
   font-size: 0.75rem;
-  color: ${colors.muted};
+  color: ${props => props.$isDark ? '#94A3B8' : colors.muted};
+  transition: color 0.3s ease;
   
   svg {
     width: 14px;
@@ -354,12 +370,12 @@ const ReadButton = styled.button`
   }
 `;
 
-const SaveButton = styled.button`
+const SaveButton = styled.button<{ $isDark?: boolean }>`
   display: flex;
   align-items: center;
   padding: 0.625rem 1rem;
   background: transparent;
-  color: ${colors.muted};
+  color: ${props => props.$isDark ? '#94A3B8' : colors.muted};
   border: none;
   font-size: 0.875rem;
   font-weight: 500;
@@ -367,19 +383,20 @@ const SaveButton = styled.button`
   transition: all 0.2s ease;
   
   &:hover {
-    color: ${colors.foreground};
+    color: ${props => props.$isDark ? '#F1F5F9' : colors.foreground};
   }
 `;
 
 // ============= Sidebar =============
 
-const Sidebar = styled.aside`
+const Sidebar = styled.aside<{ $isDark?: boolean }>`
   width: 300px;
-  background: rgba(255, 255, 255, 0.5);
-  border-left: 1px solid ${colors.border};
+  background: ${props => props.$isDark ? 'rgba(42, 39, 37, 0.5)' : 'rgba(255, 255, 255, 0.5)'};
+  border-left: 1px solid ${props => props.$isDark ? '#3A3835' : colors.border};
   padding: 1.5rem;
   overflow-y: auto;
   display: none;
+  transition: all 0.3s ease;
   
   @media (min-width: 1024px) {
     display: block;
@@ -390,15 +407,16 @@ const SidebarSection = styled.div`
   margin-bottom: 2rem;
 `;
 
-const SidebarTitle = styled.h3`
+const SidebarTitle = styled.h3<{ $isDark?: boolean }>`
   font-family: 'DM Sans', sans-serif;
   font-size: 0.875rem;
   font-weight: 600;
-  color: ${colors.foreground};
+  color: ${props => props.$isDark ? '#F1F5F9' : colors.foreground};
   margin: 0 0 1rem 0;
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  transition: color 0.3s ease;
   
   svg {
     width: 16px;
@@ -420,8 +438,9 @@ const SymptomInfo = styled.div`
   gap: 0.5rem;
 `;
 
-const SymptomIcon = styled.span`
-  color: ${colors.muted};
+const SymptomIcon = styled.span<{ $isDark?: boolean }>`
+  color: ${props => props.$isDark ? '#94A3B8' : colors.muted};
+  transition: color 0.3s ease;
   
   svg {
     width: 16px;
@@ -429,9 +448,10 @@ const SymptomIcon = styled.span`
   }
 `;
 
-const SymptomName = styled.span`
+const SymptomName = styled.span<{ $isDark?: boolean }>`
   font-size: 0.875rem;
-  color: ${colors.foreground};
+  color: ${props => props.$isDark ? '#F1F5F9' : colors.foreground};
+  transition: color 0.3s ease;
 `;
 
 const SeverityTag = styled.span<{ $severity?: 'mild' | 'moderate' | 'severe' }>`
@@ -462,13 +482,14 @@ const SeverityTag = styled.span<{ $severity?: 'mild' | 'moderate' | 'severe' }>`
   }}
 `;
 
-const RemoveButton = styled.button`
+const RemoveButton = styled.button<{ $isDark?: boolean }>`
   font-size: 0.75rem;
-  color: ${colors.muted};
+  color: ${props => props.$isDark ? '#94A3B8' : colors.muted};
   background: none;
   border: none;
   cursor: pointer;
   padding: 0.25rem;
+  transition: color 0.3s ease;
   
   &:hover {
     color: ${colors.severe};
@@ -663,6 +684,7 @@ const categories = ['Current Symptoms', 'All Categories', 'Symptom Management', 
 // ============= Component =============
 
 const EducationPage: React.FC = () => {
+  const { isDark, toggleTheme } = useThemeMode();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('lg'));
   const [searchQuery, setSearchQuery] = useState('');
@@ -735,7 +757,7 @@ const EducationPage: React.FC = () => {
     <>
       {/* Current Symptoms */}
       <SidebarSection>
-        <SidebarTitle>
+        <SidebarTitle $isDark={isDark}>
           <Zap />
           Current Symptoms
         </SidebarTitle>
@@ -743,11 +765,11 @@ const EducationPage: React.FC = () => {
         {symptoms.map(symptom => (
           <SymptomRow key={symptom.name}>
             <SymptomInfo>
-              <SymptomIcon><symptom.icon /></SymptomIcon>
-              <SymptomName>{symptom.name}</SymptomName>
+              <SymptomIcon $isDark={isDark}><symptom.icon /></SymptomIcon>
+              <SymptomName $isDark={isDark}>{symptom.name}</SymptomName>
               <SeverityTag $severity={symptom.severity}>{symptom.severity}</SeverityTag>
             </SymptomInfo>
-            <RemoveButton onClick={() => removeSymptom(symptom.name)}>Remove</RemoveButton>
+            <RemoveButton $isDark={isDark} onClick={() => removeSymptom(symptom.name)}>Remove</RemoveButton>
           </SymptomRow>
         ))}
 
@@ -799,116 +821,131 @@ const EducationPage: React.FC = () => {
   );
 
   return (
-    <PageContainer>
-      <MainContent>
-        <ContentWrapper>
-          <PageHeader>
-            <div>
-              <PageTitle>Education Resources</PageTitle>
-              <PageSubtitle>
-                Personalized educational content based on your current symptoms and treatment journey.
-              </PageSubtitle>
-            </div>
-            <MobileMenuButton onClick={() => setSidebarOpen(true)}>
-              <Menu size={20} />
-            </MobileMenuButton>
-          </PageHeader>
-
-          {/* Search and Filters */}
-          <FiltersRow>
-            <SearchInputWrapper>
-              <Search />
-              <input
-                type="text"
-                placeholder="Search education resources..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-            </SearchInputWrapper>
-            
-            <FilterButton>
-              <Filter />
-            </FilterButton>
-            
-            <SelectWrapper>
-              <select value={selectedCategory} onChange={(e) => setSelectedCategory(e.target.value)}>
-                {categories.map(cat => (
-                  <option key={cat} value={cat}>{cat}</option>
-                ))}
-              </select>
-            </SelectWrapper>
-          </FiltersRow>
-
-          {/* Resource Cards */}
-          {isLoading ? (
-            <div style={{ textAlign: 'center', padding: '3rem' }}>
-              <CircularProgress size={40} />
-              <p style={{ marginTop: '1rem', color: colors.muted }}>Loading education resources...</p>
-            </div>
-          ) : filteredResources.map(resource => (
-            <ResourceCard key={resource.id} $accentColor={resource.color}>
-              <CardTitleRow>
-                <CardTitle>{resource.title}</CardTitle>
-                {resource.isNew && <NewBadge>New</NewBadge>}
-              </CardTitleRow>
-              
-              <CardDescription>{resource.description}</CardDescription>
-              
-              <CardMeta>
-                <MetaBadge>{resource.symptomName || resource.category}</MetaBadge>
-                <MetaItem>
-                  <Clock /> {resource.readTime} min read
-                </MetaItem>
-                {resource.source && (
-                  <MetaItem>
-                    <FileText /> {resource.source}
-                  </MetaItem>
-                )}
-              </CardMeta>
-              
-              <CardActions>
-                <ReadButton onClick={() => resource.pdfUrl && openEducationPdf(resource.pdfUrl)}>
-                  <BookOpen /> {resource.pdfUrl ? 'Read PDF' : 'Read Now'}
-                </ReadButton>
-                <SaveButton>Save for Later</SaveButton>
-              </CardActions>
-            </ResourceCard>
-          ))}
-
-          {filteredResources.length === 0 && (
-            <div style={{ textAlign: 'center', padding: '3rem', color: colors.muted }}>
-              No resources found matching your search.
-            </div>
-          )}
-        </ContentWrapper>
-      </MainContent>
-
-      {/* Desktop Sidebar */}
-      <Sidebar>
-        <SidebarContent />
-      </Sidebar>
-
-      {/* Mobile Drawer */}
-      <Drawer
-        anchor="right"
-        open={sidebarOpen}
-        onClose={() => setSidebarOpen(false)}
-        PaperProps={{
-          sx: {
-            width: 300,
-            backgroundColor: 'rgba(250, 248, 245, 0.98)',
-            p: 2,
-          }
-        }}
+    <div className={`min-h-screen transition-colors duration-300 ${isDark ? 'bg-[#1A1917]' : 'bg-[#FAF8F5]'}`}>
+      {/* Dark Mode Toggle */}
+      <button
+        onClick={toggleTheme}
+        className={`fixed top-4 right-4 z-50 p-3 rounded-full transition-all duration-200 ${
+          isDark 
+            ? 'bg-[#2A2725] text-white hover:bg-[#3A3835] border border-slate-700 shadow-lg' 
+            : 'bg-white text-slate-700 hover:bg-slate-50 border border-slate-200 shadow-lg'
+        }`}
+        aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
       >
-        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem' }}>
-          <IconButton onClick={() => setSidebarOpen(false)}>
-            <X size={20} />
-          </IconButton>
-        </div>
-        <SidebarContent />
-      </Drawer>
-    </PageContainer>
+        {isDark ? <Sun size={20} /> : <Moon size={20} />}
+      </button>
+
+      <PageContainer $isDark={isDark}>
+        <MainContent>
+          <ContentWrapper>
+            <PageHeader $isDark={isDark}>
+              <div>
+                <PageTitle $isDark={isDark}>Education Resources</PageTitle>
+                <PageSubtitle $isDark={isDark}>
+                  Personalized educational content based on your current symptoms and treatment journey.
+                </PageSubtitle>
+              </div>
+              <MobileMenuButton onClick={() => setSidebarOpen(true)}>
+                <Menu size={20} />
+              </MobileMenuButton>
+            </PageHeader>
+
+            {/* Search and Filters */}
+            <FiltersRow>
+              <SearchInputWrapper $isDark={isDark}>
+                <Search />
+                <input
+                  type="text"
+                  placeholder="Search education resources..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </SearchInputWrapper>
+              
+              <FilterButton $isDark={isDark}>
+                <Filter />
+              </FilterButton>
+              
+              <SelectWrapper $isDark={isDark}>
+                <select value={selectedCategory} onChange={(e) => setSelectedCategory(e.target.value)}>
+                  {categories.map(cat => (
+                    <option key={cat} value={cat}>{cat}</option>
+                  ))}
+                </select>
+              </SelectWrapper>
+            </FiltersRow>
+
+            {/* Resource Cards */}
+            {isLoading ? (
+              <div className={`text-center py-12 ${isDark ? 'text-slate-400' : ''}`}>
+                <CircularProgress size={40} />
+                <p className={`mt-4 ${isDark ? 'text-slate-400' : ''}`}>Loading education resources...</p>
+              </div>
+            ) : filteredResources.map(resource => (
+              <ResourceCard key={resource.id} $isDark={isDark} $accentColor={resource.color}>
+                <CardTitleRow>
+                  <CardTitle $isDark={isDark}>{resource.title}</CardTitle>
+                  {resource.isNew && <NewBadge>New</NewBadge>}
+                </CardTitleRow>
+                
+                <CardDescription $isDark={isDark}>{resource.description}</CardDescription>
+                
+                <CardMeta $isDark={isDark}>
+                  <MetaBadge $isDark={isDark}>{resource.symptomName || resource.category}</MetaBadge>
+                  <MetaItem $isDark={isDark}>
+                    <Clock /> {resource.readTime} min read
+                  </MetaItem>
+                  {resource.source && (
+                    <MetaItem $isDark={isDark}>
+                      <FileText /> {resource.source}
+                    </MetaItem>
+                  )}
+                </CardMeta>
+                
+                <CardActions>
+                  <ReadButton onClick={() => resource.pdfUrl && openEducationPdf(resource.pdfUrl)}>
+                    <BookOpen /> {resource.pdfUrl ? 'Read PDF' : 'Read Now'}
+                  </ReadButton>
+                  <SaveButton $isDark={isDark}>Save for Later</SaveButton>
+                </CardActions>
+              </ResourceCard>
+            ))}
+
+            {filteredResources.length === 0 && (
+              <div className={`text-center py-12 ${isDark ? 'text-slate-400' : ''}`}>
+                No resources found matching your search.
+              </div>
+            )}
+          </ContentWrapper>
+        </MainContent>
+
+        {/* Desktop Sidebar */}
+        <Sidebar $isDark={isDark}>
+          <SidebarContent />
+        </Sidebar>
+
+        {/* Mobile Drawer */}
+        <Drawer
+          anchor="right"
+          open={sidebarOpen}
+          onClose={() => setSidebarOpen(false)}
+          PaperProps={{
+            sx: {
+              width: 300,
+              backgroundColor: isDark ? '#2A2725' : 'rgba(250, 248, 245, 0.98)',
+              p: 2,
+            }
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem' }}>
+            <IconButton onClick={() => setSidebarOpen(false)}>
+              <X size={20} />
+            </IconButton>
+          </div>
+          <SidebarContent />
+        </Drawer>
+      </PageContainer>
+    </div>
   );
 };
 

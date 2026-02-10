@@ -17,8 +17,11 @@ import {
   Clock,
   Send,
   Eye,
-  EyeOff
+  EyeOff,
+  Moon,
+  Sun
 } from 'lucide-react';
+import { useThemeMode } from '@oncolife/ui-components';
 import {
   QuestionsPageContainer,
   PageHeader,
@@ -48,6 +51,8 @@ import {
 type FilterType = 'all' | 'shared' | 'private' | 'answered';
 
 const QuestionsPage: React.FC = () => {
+  const { isDark, toggleTheme } = useThemeMode();
+  
   // State
   const [filter, setFilter] = useState<FilterType>('all');
   const [newQuestion, setNewQuestion] = useState('');
@@ -152,104 +157,122 @@ const QuestionsPage: React.FC = () => {
   };
 
   return (
-    <QuestionsPageContainer>
-      <PageHeader>
-        <h1>
-          <MessageCircleQuestion size={28} />
-          Questions to Ask Doctor
-        </h1>
-        <p>
-          Write down questions you'd like to discuss with your care team. 
-          Share them to make them visible in your doctor's portal.
-        </p>
-      </PageHeader>
+    <div className={`min-h-screen transition-colors duration-300 ${
+      isDark ? 'bg-[#1A1917]' : 'bg-[#F5F7FA]'
+    }`}>
+      {/* Dark Mode Toggle */}
+      <button
+        onClick={toggleTheme}
+        className={`fixed top-4 right-4 z-50 p-3 rounded-full transition-all duration-200 ${
+          isDark 
+            ? 'bg-[#2A2725] text-white hover:bg-[#3A3835] border border-slate-700 shadow-lg' 
+            : 'bg-white text-slate-700 hover:bg-slate-50 border border-slate-200 shadow-lg'
+        }`}
+        aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+      >
+        {isDark ? <Sun size={20} /> : <Moon size={20} />}
+      </button>
 
-      {/* New Question Form */}
-      <QuestionForm onSubmit={handleSubmit}>
-        <QuestionInput
-          placeholder="Type your question here... (e.g., 'Should I take my anti-nausea medication before or after meals?')"
-          value={newQuestion}
-          onChange={(e) => setNewQuestion(e.target.value)}
-          maxLength={2000}
-        />
-        
-        <div className="form-actions">
-          <div className="form-row">
-            <CategorySelect
-              value={newCategory}
-              onChange={(e) => setNewCategory(e.target.value as typeof newCategory)}
-            >
-              <option value="symptom">Symptom Related</option>
-              <option value="medication">Medication</option>
-              <option value="treatment">Treatment</option>
-              <option value="other">Other</option>
-            </CategorySelect>
-
-            <ShareToggle>
-              <input
-                type="checkbox"
-                checked={shareNew}
-                onChange={(e) => setShareNew(e.target.checked)}
-              />
-              <span className="share-label">
-                <Share2 size={16} />
-                Share with doctor
-              </span>
-            </ShareToggle>
-          </div>
-
-          <SubmitButton 
-            type="submit" 
-            disabled={!newQuestion.trim() || createMutation.isPending}
-          >
-            <Plus size={18} />
-            {createMutation.isPending ? 'Adding...' : 'Add Question'}
-          </SubmitButton>
-        </div>
-      </QuestionForm>
-
-      {/* Filter Tabs */}
-      <FilterTabs>
-        <FilterTab $active={filter === 'all'} onClick={() => setFilter('all')}>
-          All ({data?.questions.length || 0})
-        </FilterTab>
-        <FilterTab $active={filter === 'shared'} onClick={() => setFilter('shared')}>
-          <Eye size={14} style={{ marginRight: 4 }} />
-          Shared
-        </FilterTab>
-        <FilterTab $active={filter === 'private'} onClick={() => setFilter('private')}>
-          <EyeOff size={14} style={{ marginRight: 4 }} />
-          Private
-        </FilterTab>
-        <FilterTab $active={filter === 'answered'} onClick={() => setFilter('answered')}>
-          <CheckCircle size={14} style={{ marginRight: 4 }} />
-          Answered
-        </FilterTab>
-      </FilterTabs>
-
-      {/* Questions List */}
-      {isLoading ? (
-        <LoadingSpinner>
-          <div className="spinner" />
-        </LoadingSpinner>
-      ) : filteredQuestions.length === 0 ? (
-        <EmptyState>
-          <MessageCircleQuestion className="icon" />
-          <h3>No questions yet</h3>
+      <QuestionsPageContainer $isDark={isDark}>
+        <PageHeader $isDark={isDark}>
+          <h1>
+            <MessageCircleQuestion size={28} />
+            Questions to Ask Doctor
+          </h1>
           <p>
-            {filter === 'all' 
-              ? "Write down questions you'd like to ask your doctor."
-              : `No ${filter} questions found.`}
+            Write down questions you'd like to discuss with your care team. 
+            Share them to make them visible in your doctor's portal.
           </p>
-        </EmptyState>
-      ) : (
-        <QuestionsList>
-          {filteredQuestions.map((question) => (
-            <QuestionCard 
-              key={question.id}
-              $shared={question.share_with_physician}
-              $answered={question.is_answered}
+        </PageHeader>
+
+        {/* New Question Form */}
+        <QuestionForm $isDark={isDark} onSubmit={handleSubmit}>
+          <QuestionInput
+            $isDark={isDark}
+            placeholder="Type your question here... (e.g., 'Should I take my anti-nausea medication before or after meals?')"
+            value={newQuestion}
+            onChange={(e) => setNewQuestion(e.target.value)}
+            maxLength={2000}
+          />
+          
+          <div className="form-actions">
+            <div className="form-row">
+              <CategorySelect $isDark={isDark}
+                value={newCategory}
+                onChange={(e) => setNewCategory(e.target.value as typeof newCategory)}
+              >
+                <option value="symptom">Symptom Related</option>
+                <option value="medication">Medication</option>
+                <option value="treatment">Treatment</option>
+                <option value="other">Other</option>
+              </CategorySelect>
+
+              <ShareToggle $isDark={isDark}>
+                <input
+                  type="checkbox"
+                  checked={shareNew}
+                  onChange={(e) => setShareNew(e.target.checked)}
+                />
+                <span className="share-label">
+                  <Share2 size={16} />
+                  Share with doctor
+                </span>
+              </ShareToggle>
+            </div>
+
+            <SubmitButton 
+              type="submit" 
+              disabled={!newQuestion.trim() || createMutation.isPending}
             >
+              <Plus size={18} />
+              {createMutation.isPending ? 'Adding...' : 'Add Question'}
+            </SubmitButton>
+          </div>
+        </QuestionForm>
+
+        {/* Filter Tabs */}
+        <FilterTabs>
+          <FilterTab $isDark={isDark} $active={filter === 'all'} onClick={() => setFilter('all')}>
+            All ({data?.questions.length || 0})
+          </FilterTab>
+          <FilterTab $isDark={isDark} $active={filter === 'shared'} onClick={() => setFilter('shared')}>
+            <Eye size={14} style={{ marginRight: 4 }} />
+            Shared
+          </FilterTab>
+          <FilterTab $isDark={isDark} $active={filter === 'private'} onClick={() => setFilter('private')}>
+            <EyeOff size={14} style={{ marginRight: 4 }} />
+            Private
+          </FilterTab>
+          <FilterTab $isDark={isDark} $active={filter === 'answered'} onClick={() => setFilter('answered')}>
+            <CheckCircle size={14} style={{ marginRight: 4 }} />
+            Answered
+          </FilterTab>
+        </FilterTabs>
+
+        {/* Questions List */}
+        {isLoading ? (
+          <LoadingSpinner $isDark={isDark}>
+            <div className="spinner" />
+          </LoadingSpinner>
+        ) : filteredQuestions.length === 0 ? (
+          <EmptyState $isDark={isDark}>
+            <MessageCircleQuestion className="icon" />
+            <h3>No questions yet</h3>
+            <p>
+              {filter === 'all' 
+                ? "Write down questions you'd like to ask your doctor."
+                : `No ${filter} questions found.`}
+            </p>
+          </EmptyState>
+        ) : (
+          <QuestionsList>
+            {filteredQuestions.map((question) => (
+              <QuestionCard 
+                key={question.id}
+                $isDark={isDark}
+                $shared={question.share_with_physician}
+                $answered={question.is_answered}
+              >
               <div className="question-header">
                 <div className="question-meta">
                   <Badge $variant="category">
@@ -270,79 +293,81 @@ const QuestionsPage: React.FC = () => {
                 </div>
               </div>
 
-              {editingId === question.id ? (
-                <div style={{ marginBottom: 16 }}>
-                  <QuestionInput
-                    value={editText}
-                    onChange={(e) => setEditText(e.target.value)}
-                    style={{ minHeight: 80 }}
-                  />
-                  <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-                    <ActionButton 
+                {editingId === question.id ? (
+                  <div style={{ marginBottom: 16 }}>
+                    <QuestionInput
+                      $isDark={isDark}
+                      value={editText}
+                      onChange={(e) => setEditText(e.target.value)}
+                      style={{ minHeight: 80 }}
+                    />
+                    <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                      <ActionButton 
+                        $variant="share"
+                        onClick={() => handleSaveEdit(question.id)}
+                        disabled={updateMutation.isPending}
+                      >
+                        <Send size={14} />
+                        Save
+                      </ActionButton>
+                      <ActionButton onClick={() => setEditingId(null)}>
+                        Cancel
+                      </ActionButton>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="question-text">{question.question_text}</p>
+                )}
+
+                <div className="question-footer">
+                  <span className="question-date">
+                    <Clock size={14} style={{ marginRight: 4, verticalAlign: 'middle' }} />
+                    {formatDate(question.created_at)}
+                  </span>
+
+                  <div className="question-actions">
+                    <ActionButton
                       $variant="share"
-                      onClick={() => handleSaveEdit(question.id)}
+                      onClick={() => handleToggleShare(question)}
+                      disabled={shareMutation.isPending}
+                      title={question.share_with_physician ? 'Make Private' : 'Share with Doctor'}
+                    >
+                      {question.share_with_physician ? <EyeOff size={14} /> : <Share2 size={14} />}
+                      {question.share_with_physician ? 'Unshare' : 'Share'}
+                    </ActionButton>
+
+                    <ActionButton
+                      $variant="mark"
+                      onClick={() => handleMarkAnswered(question)}
                       disabled={updateMutation.isPending}
                     >
-                      <Send size={14} />
-                      Save
+                      <CheckCircle size={14} />
+                      {question.is_answered ? 'Reopen' : 'Mark Answered'}
                     </ActionButton>
-                    <ActionButton onClick={() => setEditingId(null)}>
-                      Cancel
+
+                    <ActionButton
+                      $variant="edit"
+                      onClick={() => handleStartEdit(question)}
+                      disabled={editingId !== null}
+                    >
+                      <Edit3 size={14} />
+                    </ActionButton>
+
+                    <ActionButton
+                      $variant="delete"
+                      onClick={() => handleDelete(question.id)}
+                      disabled={deleteMutation.isPending}
+                    >
+                      <Trash2 size={14} />
                     </ActionButton>
                   </div>
                 </div>
-              ) : (
-                <p className="question-text">{question.question_text}</p>
-              )}
-
-              <div className="question-footer">
-                <span className="question-date">
-                  <Clock size={14} style={{ marginRight: 4, verticalAlign: 'middle' }} />
-                  {formatDate(question.created_at)}
-                </span>
-
-                <div className="question-actions">
-                  <ActionButton
-                    $variant="share"
-                    onClick={() => handleToggleShare(question)}
-                    disabled={shareMutation.isPending}
-                    title={question.share_with_physician ? 'Make Private' : 'Share with Doctor'}
-                  >
-                    {question.share_with_physician ? <EyeOff size={14} /> : <Share2 size={14} />}
-                    {question.share_with_physician ? 'Unshare' : 'Share'}
-                  </ActionButton>
-
-                  <ActionButton
-                    $variant="mark"
-                    onClick={() => handleMarkAnswered(question)}
-                    disabled={updateMutation.isPending}
-                  >
-                    <CheckCircle size={14} />
-                    {question.is_answered ? 'Reopen' : 'Mark Answered'}
-                  </ActionButton>
-
-                  <ActionButton
-                    $variant="edit"
-                    onClick={() => handleStartEdit(question)}
-                    disabled={editingId !== null}
-                  >
-                    <Edit3 size={14} />
-                  </ActionButton>
-
-                  <ActionButton
-                    $variant="delete"
-                    onClick={() => handleDelete(question.id)}
-                    disabled={deleteMutation.isPending}
-                  >
-                    <Trash2 size={14} />
-                  </ActionButton>
-                </div>
-              </div>
-            </QuestionCard>
-          ))}
-        </QuestionsList>
-      )}
-    </QuestionsPageContainer>
+              </QuestionCard>
+            ))}
+          </QuestionsList>
+        )}
+      </QuestionsPageContainer>
+    </div>
   );
 };
 

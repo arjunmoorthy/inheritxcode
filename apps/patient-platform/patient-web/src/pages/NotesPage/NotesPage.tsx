@@ -4,9 +4,10 @@
  */
 import React, { useState } from 'react';
 import styled from 'styled-components';
-import { Plus, Calendar, Stethoscope, X } from 'lucide-react';
+import { Plus, Calendar, Stethoscope, X, Moon, Sun } from 'lucide-react';
 import dayjs, { Dayjs } from 'dayjs';
 import { Container, Header, Title } from '@oncolife/ui-components';
+import { useThemeMode } from '@oncolife/ui-components';
 import { useFetchNotes, useSaveNewNotes, useDeleteNote } from '../../services/notes';
 import type { Note, NoteResponse } from './types';
 
@@ -27,11 +28,12 @@ const colors = {
   forDoctorBg: '#E8F0F8',
 };
 
-const PageContainer = styled.div`
+const PageContainer = styled.div<{ $isDark?: boolean }>`
   flex: 1;
   padding: 2rem;
   overflow: auto;
-  background: ${colors.background};
+  background: ${props => props.$isDark ? '#1A1917' : colors.background};
+  transition: background-color 0.3s ease;
 `;
 
 const ContentWrapper = styled.div`
@@ -48,18 +50,20 @@ const PageHeader = styled.div`
 
 const HeaderText = styled.div``;
 
-const PageTitle = styled.h1`
+const PageTitle = styled.h1<{ $isDark?: boolean }>`
   font-family: 'Fraunces', Georgia, serif;
   font-size: 1.75rem;
   font-weight: 600;
-  color: ${colors.foreground};
+  color: ${props => props.$isDark ? '#F1F5F9' : colors.foreground};
   margin: 0 0 0.5rem 0;
+  transition: color 0.3s ease;
 `;
 
-const PageSubtitle = styled.p`
+const PageSubtitle = styled.p<{ $isDark?: boolean }>`
   font-size: 1rem;
-  color: ${colors.muted};
+  color: ${props => props.$isDark ? '#94A3B8' : colors.muted};
   margin: 0;
+  transition: color 0.3s ease;
 `;
 
 const NewEntryButton = styled.button`
@@ -93,18 +97,18 @@ const EntriesList = styled.div`
   gap: 1rem;
 `;
 
-const DiaryCard = styled.div`
-  background: ${colors.paper};
-  border: 1px solid ${colors.border};
+const DiaryCard = styled.div<{ $isDark?: boolean }>`
+  background: ${props => props.$isDark ? '#2A2725' : colors.paper};
+  border: 1px solid ${props => props.$isDark ? '#3A3835' : colors.border};
   border-left: 4px solid ${colors.primary};
   border-radius: 16px;
   padding: 1.25rem 1.5rem;
   cursor: pointer;
   transition: all 0.25s ease;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  box-shadow: ${props => props.$isDark ? '0 2px 8px rgba(0, 0, 0, 0.3)' : '0 2px 8px rgba(0, 0, 0, 0.04)'};
   
   &:hover {
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+    box-shadow: ${props => props.$isDark ? '0 4px 16px rgba(0, 0, 0, 0.5)' : '0 4px 16px rgba(0, 0, 0, 0.08)'};
     transform: translateY(-2px);
   }
 `;
@@ -116,12 +120,13 @@ const CardHeader = styled.div`
   margin-bottom: 0.75rem;
 `;
 
-const CardDate = styled.span`
+const CardDate = styled.span<{ $isDark?: boolean }>`
   display: flex;
   align-items: center;
   gap: 0.5rem;
   font-size: 0.875rem;
-  color: ${colors.muted};
+  color: ${props => props.$isDark ? '#94A3B8' : colors.muted};
+  transition: color 0.3s ease;
   
   svg {
     width: 16px;
@@ -146,9 +151,10 @@ const ForDoctorBadge = styled.span`
   }
 `;
 
-const CardContent = styled.p`
+const CardContent = styled.p<{ $isDark?: boolean }>`
   font-size: 1rem;
-  color: ${colors.foreground};
+  color: ${props => props.$isDark ? '#F1F5F9' : colors.foreground};
+  transition: color 0.3s ease;
   line-height: 1.6;
   margin: 0;
   display: -webkit-box;
@@ -157,10 +163,11 @@ const CardContent = styled.p`
   overflow: hidden;
 `;
 
-const EmptyState = styled.div`
+const EmptyState = styled.div<{ $isDark?: boolean }>`
   text-align: center;
   padding: 4rem 2rem;
-  color: ${colors.muted};
+  color: ${props => props.$isDark ? '#94A3B8' : colors.muted};
+  transition: color 0.3s ease;
   
   .icon {
     font-size: 3rem;
@@ -168,8 +175,9 @@ const EmptyState = styled.div`
   }
   
   h3 {
-    color: ${colors.foreground};
+    color: ${props => props.$isDark ? '#F1F5F9' : colors.foreground};
     margin-bottom: 0.5rem;
+    transition: color 0.3s ease;
   }
 `;
 
@@ -188,15 +196,16 @@ const ModalOverlay = styled.div`
   padding: 1rem;
 `;
 
-const ModalContainer = styled.div`
-  background: ${colors.paper};
+const ModalContainer = styled.div<{ $isDark?: boolean }>`
+  background: ${props => props.$isDark ? '#2A2725' : colors.paper};
   border-radius: 20px;
   width: 100%;
   max-width: 600px;
   max-height: 90vh;
   overflow: hidden;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+  box-shadow: ${props => props.$isDark ? '0 20px 60px rgba(0, 0, 0, 0.5)' : '0 20px 60px rgba(0, 0, 0, 0.2)'};
   animation: slideUp 0.3s ease;
+  transition: background-color 0.3s ease;
   
   @keyframes slideUp {
     from {
@@ -215,13 +224,14 @@ const ModalHeader = styled.div`
   position: relative;
 `;
 
-const ModalDate = styled.div`
+const ModalDate = styled.div<{ $isDark?: boolean }>`
   display: flex;
   align-items: center;
   gap: 0.5rem;
   font-size: 0.875rem;
-  color: ${colors.muted};
+  color: ${props => props.$isDark ? '#94A3B8' : colors.muted};
   margin-bottom: 0.5rem;
+  transition: color 0.3s ease;
   
   svg {
     width: 16px;
@@ -229,12 +239,13 @@ const ModalDate = styled.div`
   }
 `;
 
-const ModalTitle = styled.h2`
+const ModalTitle = styled.h2<{ $isDark?: boolean }>`
   font-family: 'Fraunces', Georgia, serif;
   font-size: 1.5rem;
   font-weight: 600;
-  color: ${colors.foreground};
+  color: ${props => props.$isDark ? '#F1F5F9' : colors.foreground};
   margin: 0;
+  transition: color 0.3s ease;
 `;
 
 const CloseButton = styled.button`
@@ -264,21 +275,21 @@ const ModalBody = styled.div`
   padding: 0 1.5rem;
 `;
 
-const DiaryTextarea = styled.textarea`
+const DiaryTextarea = styled.textarea<{ $isDark?: boolean }>`
   width: 100%;
   min-height: 200px;
   padding: 1rem;
-  border: 2px solid ${colors.border};
+  border: 2px solid ${props => props.$isDark ? '#3A3835' : colors.border};
   border-radius: 12px;
   font-size: 1rem;
   font-family: inherit;
-  color: ${colors.foreground};
-  background: #FFFEF8;
+  color: ${props => props.$isDark ? '#F1F5F9' : colors.foreground};
+  background: ${props => props.$isDark ? '#1A1917' : '#FFFEF8'};
   resize: vertical;
-  transition: border-color 0.2s ease;
+  transition: all 0.2s ease;
   
   &::placeholder {
-    color: ${colors.muted};
+    color: ${props => props.$isDark ? '#94A3B8' : colors.muted};
   }
   
   &:focus {
@@ -296,13 +307,14 @@ const ModalFooter = styled.div`
   margin-top: 1rem;
 `;
 
-const MarkForDoctorCheckbox = styled.label`
+const MarkForDoctorCheckbox = styled.label<{ $isDark?: boolean }>`
   display: flex;
   align-items: center;
   gap: 0.5rem;
   cursor: pointer;
   font-size: 0.9375rem;
-  color: ${colors.foreground};
+  color: ${props => props.$isDark ? '#F1F5F9' : colors.foreground};
+  transition: color 0.3s ease;
   
   input {
     width: 18px;
@@ -365,6 +377,7 @@ const SaveButton = styled.button`
 // =============================================================================
 
 const NotesPage: React.FC = () => {
+  const { isDark, toggleTheme } = useThemeMode();
   const [selectedDate] = useState<Dayjs>(dayjs());
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newEntryText, setNewEntryText] = useState('');
@@ -429,31 +442,47 @@ const NotesPage: React.FC = () => {
   };
 
   return (
-    <Container>
-      <Header>
-        <Title>Notes</Title>
-      </Header>
-      
-      <PageContainer>
-        <ContentWrapper>
-          <PageHeader>
-            <HeaderText>
-              <PageTitle>Your Diary</PageTitle>
-              <PageSubtitle>A private space to reflect on your journey.</PageSubtitle>
-            </HeaderText>
-            <NewEntryButton onClick={handleNewEntry}>
-              <Plus />
-              New Entry
-            </NewEntryButton>
-          </PageHeader>
+    <div className={`min-h-screen transition-colors duration-300 ${
+      isDark ? 'bg-[#1A1917]' : 'bg-[#FAF8F5]'
+    }`}>
+      {/* Dark Mode Toggle */}
+      <button
+        onClick={toggleTheme}
+        className={`fixed top-4 right-4 z-50 p-3 rounded-full transition-all duration-200 ${
+          isDark 
+            ? 'bg-[#2A2725] text-white hover:bg-[#3A3835] border border-slate-700 shadow-lg' 
+            : 'bg-white text-slate-700 hover:bg-slate-50 border border-slate-200 shadow-lg'
+        }`}
+        aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+      >
+        {isDark ? <Sun size={20} /> : <Moon size={20} />}
+      </button>
+
+      <Container>
+        <Header>
+          <Title>Notes</Title>
+        </Header>
+        
+        <PageContainer $isDark={isDark}>
+          <ContentWrapper>
+            <PageHeader>
+              <HeaderText>
+                <PageTitle $isDark={isDark}>Your Diary</PageTitle>
+                <PageSubtitle $isDark={isDark}>A private space to reflect on your journey.</PageSubtitle>
+              </HeaderText>
+              <NewEntryButton onClick={handleNewEntry}>
+                <Plus />
+                New Entry
+              </NewEntryButton>
+            </PageHeader>
           
           {isLoading ? (
-            <EmptyState>
+            <EmptyState $isDark={isDark}>
               <div className="icon">⏳</div>
               <p>Loading your diary...</p>
             </EmptyState>
           ) : notes.length === 0 ? (
-            <EmptyState>
+            <EmptyState $isDark={isDark}>
               <div className="icon">📔</div>
               <h3>No Entries Yet</h3>
               <p>Start writing about your journey. Click "New Entry" to create your first diary entry.</p>
@@ -462,11 +491,12 @@ const NotesPage: React.FC = () => {
             <EntriesList>
               {notes.map((note) => (
                 <DiaryCard 
-                  key={note.id || note.entry_uuid} 
+                  key={note.id || note.entry_uuid}
+                  $isDark={isDark}
                   onClick={() => handleCardClick(note)}
                 >
                   <CardHeader>
-                    <CardDate>
+                    <CardDate $isDark={isDark}>
                       <Calendar />
                       {formatDate(note.created_at)}
                     </CardDate>
@@ -477,7 +507,7 @@ const NotesPage: React.FC = () => {
                       </ForDoctorBadge>
                     )}
                   </CardHeader>
-                  <CardContent>
+                  <CardContent $isDark={isDark}>
                     {note.diary_entry || note.title}
                   </CardContent>
                 </DiaryCard>
@@ -487,40 +517,41 @@ const NotesPage: React.FC = () => {
         </ContentWrapper>
       </PageContainer>
       
-      {/* New Entry Modal */}
-      {isModalOpen && (
-        <ModalOverlay onClick={handleCloseModal}>
-          <ModalContainer onClick={(e) => e.stopPropagation()}>
-            <ModalHeader>
-              <ModalDate>
-                <Calendar />
-                {dayjs().format('dddd, MMMM D, YYYY')}
-              </ModalDate>
-              <ModalTitle>New Diary Entry</ModalTitle>
-              <CloseButton onClick={handleCloseModal}>
-                <X />
-              </CloseButton>
-            </ModalHeader>
-            
-            <ModalBody>
-              <DiaryTextarea
-                placeholder="How are you feeling today? Write your thoughts..."
-                value={newEntryText}
-                onChange={(e) => setNewEntryText(e.target.value)}
-                autoFocus
-              />
-            </ModalBody>
-            
-            <ModalFooter>
-              <MarkForDoctorCheckbox>
-                <input
-                  type="checkbox"
-                  checked={markForDoctor}
-                  onChange={(e) => setMarkForDoctor(e.target.checked)}
+        {/* New Entry Modal */}
+        {isModalOpen && (
+          <ModalOverlay onClick={handleCloseModal}>
+            <ModalContainer $isDark={isDark} onClick={(e) => e.stopPropagation()}>
+              <ModalHeader>
+                <ModalDate $isDark={isDark}>
+                  <Calendar />
+                  {dayjs().format('dddd, MMMM D, YYYY')}
+                </ModalDate>
+                <ModalTitle $isDark={isDark}>New Diary Entry</ModalTitle>
+                <CloseButton onClick={handleCloseModal}>
+                  <X />
+                </CloseButton>
+              </ModalHeader>
+              
+              <ModalBody>
+                <DiaryTextarea
+                  $isDark={isDark}
+                  placeholder="How are you feeling today? Write your thoughts..."
+                  value={newEntryText}
+                  onChange={(e) => setNewEntryText(e.target.value)}
+                  autoFocus
                 />
-                <Stethoscope />
-                Mark for Doctor
-              </MarkForDoctorCheckbox>
+              </ModalBody>
+            
+              <ModalFooter>
+                <MarkForDoctorCheckbox $isDark={isDark}>
+                  <input
+                    type="checkbox"
+                    checked={markForDoctor}
+                    onChange={(e) => setMarkForDoctor(e.target.checked)}
+                  />
+                  <Stethoscope />
+                  Mark for Doctor
+                </MarkForDoctorCheckbox>
               
               <ButtonGroup>
                 <CancelButton onClick={handleCloseModal}>
@@ -532,12 +563,13 @@ const NotesPage: React.FC = () => {
                 >
                   {saveNewNotesMutation.isPending ? 'Saving...' : 'Save Entry'}
                 </SaveButton>
-              </ButtonGroup>
-            </ModalFooter>
-          </ModalContainer>
-        </ModalOverlay>
-      )}
-    </Container>
+                </ButtonGroup>
+              </ModalFooter>
+            </ModalContainer>
+          </ModalOverlay>
+        )}
+      </Container>
+    </div>
   );
 };
 

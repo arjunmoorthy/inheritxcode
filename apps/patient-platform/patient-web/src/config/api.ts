@@ -31,6 +31,9 @@ export const API_CONFIG = {
       COMPLETE_NEW_PASSWORD: '/auth/complete-new-password',
       LOGOUT: '/auth/logout',
       DELETE: '/auth/delete-patient',
+      FORGOT_PASSWORD: '/auth/forgot-password',
+      VERIFY_RESET_TOKEN: '/auth/verify-reset-token',
+      RESET_PASSWORD: '/auth/reset-password',
     },
 
     // Patient Profile

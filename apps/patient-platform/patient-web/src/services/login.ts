@@ -12,6 +12,19 @@ interface CompleteNewPasswordData {
   newPassword: string;
 }
 
+interface ForgotPasswordData {
+  email: string;
+}
+
+interface VerifyResetTokenData {
+  token: string;
+}
+
+interface ResetPasswordData {
+  token: string;
+  new_password: string;
+}
+
 export interface CompleteNewPasswordResponse {
   success: boolean;
   message: string;
@@ -111,5 +124,38 @@ export const useLogout = () => {
     onError: (error) => {
       console.error('Logout error:', error);
     },
+  });
+};
+
+const forgotPassword = async (data: ForgotPasswordData) => {
+  const response = await apiClient.post(API_CONFIG.ENDPOINTS.AUTH.FORGOT_PASSWORD, data);
+  return response.data;
+};
+
+export const useForgotPassword = () => {
+  return useMutation({
+    mutationFn: forgotPassword,
+  });
+};
+
+const verifyResetToken = async (data: VerifyResetTokenData) => {
+  const response = await apiClient.post(API_CONFIG.ENDPOINTS.AUTH.VERIFY_RESET_TOKEN, data);
+  return response.data;
+};
+
+export const useVerifyResetToken = () => {
+  return useMutation({
+    mutationFn: verifyResetToken,
+  });
+};
+
+const resetPassword = async (data: ResetPasswordData) => {
+  const response = await apiClient.post(API_CONFIG.ENDPOINTS.AUTH.RESET_PASSWORD, data);
+  return response.data;
+};
+
+export const useResetPassword = () => {
+  return useMutation({
+    mutationFn: resetPassword,
   });
 };

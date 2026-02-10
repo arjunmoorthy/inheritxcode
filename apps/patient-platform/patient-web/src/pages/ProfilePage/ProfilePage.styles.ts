@@ -20,27 +20,29 @@ const colors = {
   error: '#EF4444',
 };
 
-export const ProfileContainer = styled.div`
+export const ProfileContainer = styled.div<{ $isDark?: boolean }>`
   display: flex;
   flex-direction: column;
   min-height: 100%;
-  background-color: ${colors.background};
+  background-color: transparent;
+  transition: background-color 0.3s ease;
 `;
 
-export const ProfileHeader = styled.div`
+export const ProfileHeader = styled.div<{ $isDark?: boolean }>`
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 20px 24px;
   background: linear-gradient(135deg, ${colors.primary} 0%, ${colors.primaryDark} 100%);
   color: white;
+  transition: all 0.3s ease;
   
   @media (max-width: 576px) {
     padding: 16px;
   }
 `;
 
-export const ProfileTitle = styled.h1`
+export const ProfileTitle = styled.h1<{ $isDark?: boolean }>`
   font-size: 1.5rem;
   font-weight: 700;
   color: white;
@@ -48,6 +50,7 @@ export const ProfileTitle = styled.h1`
   display: flex;
   align-items: center;
   gap: 12px;
+  transition: color 0.3s ease;
   
   @media (max-width: 576px) {
     font-size: 1.25rem;
@@ -66,11 +69,12 @@ export const ProfileContent = styled.div`
   }
 `;
 
-export const ProfileCard = styled.div`
-  background-color: ${colors.paper};
+export const ProfileCard = styled.div<{ $isDark?: boolean }>`
+  background-color: ${props => props.$isDark ? '#2A2725' : colors.paper};
   border-radius: 16px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+  box-shadow: ${props => props.$isDark ? '0 4px 20px rgba(0, 0, 0, 0.3)' : '0 4px 20px rgba(0, 0, 0, 0.06)'};
   overflow: hidden;
+  transition: all 0.3s ease;
   
   @media (max-width: 576px) {
     border-radius: 12px;
@@ -300,7 +304,7 @@ export const InputField = styled.input<{ isEditing?: boolean }>`
   }
 `;
 
-export const LoadingContainer = styled.div`
+export const LoadingContainer = styled.div<{ $isDark?: boolean }>`
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -309,21 +313,23 @@ export const LoadingContainer = styled.div`
   gap: 16px;
   
   span {
-    color: ${colors.textSecondary};
+    color: ${props => props.$isDark ? '#94A3B8' : colors.textSecondary};
     font-size: 0.9375rem;
+    transition: color 0.3s ease;
   }
 `;
 
-export const ErrorContainer = styled.div`
-  background: #FEF2F2;
-  border: 1px solid #FECACA;
+export const ErrorContainer = styled.div<{ $isDark?: boolean }>`
+  background: ${props => props.$isDark ? '#7F1D1D' : '#FEF2F2'};
+  border: 1px solid ${props => props.$isDark ? '#991B1B' : '#FECACA'};
   border-radius: 12px;
   padding: 16px 20px;
   margin-bottom: 20px;
-  color: #991B1B;
+  color: ${props => props.$isDark ? '#FCA5A5' : '#991B1B'};
   display: flex;
   align-items: center;
   gap: 12px;
+  transition: all 0.3s ease;
   
   svg {
     flex-shrink: 0;

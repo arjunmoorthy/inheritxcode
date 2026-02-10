@@ -23,34 +23,37 @@ const colors = {
   error: '#EF4444',
 };
 
-export const QuestionsPageContainer = styled.div`
+export const QuestionsPageContainer = styled.div<{ $isDark?: boolean }>`
   padding: 24px;
   max-width: 900px;
   margin: 0 auto;
   animation: fadeInUp 0.4s ease-out;
+  transition: background-color 0.3s ease;
 
   @media (max-width: 768px) {
     padding: 16px;
   }
 `;
 
-export const PageHeader = styled.div`
+export const PageHeader = styled.div<{ $isDark?: boolean }>`
   margin-bottom: 24px;
 
   h1 {
     font-size: 1.75rem;
     font-weight: 700;
-    color: ${colors.primary};
+    color: ${props => props.$isDark ? colors.primaryLight : colors.primary};
     margin: 0 0 8px 0;
     display: flex;
     align-items: center;
     gap: 12px;
+    transition: color 0.3s ease;
   }
 
   p {
     font-size: 0.95rem;
-    color: ${colors.textSecondary};
+    color: ${props => props.$isDark ? '#CBD5E1' : colors.textSecondary};
     margin: 0;
+    transition: color 0.3s ease;
   }
 
   @media (max-width: 768px) {
@@ -60,13 +63,14 @@ export const PageHeader = styled.div`
   }
 `;
 
-export const QuestionForm = styled.form`
-  background: ${colors.paper};
+export const QuestionForm = styled.form<{ $isDark?: boolean }>`
+  background: ${props => props.$isDark ? '#2A2725' : colors.paper};
   border-radius: 16px;
   padding: 20px;
   margin-bottom: 24px;
-  border: 1px solid ${colors.border};
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  border: 1px solid ${props => props.$isDark ? '#3A3835' : colors.border};
+  box-shadow: ${props => props.$isDark ? '0 2px 8px rgba(0, 0, 0, 0.3)' : '0 2px 8px rgba(0, 0, 0, 0.04)'};
+  transition: all 0.3s ease;
 
   .form-row {
     display: flex;
@@ -92,16 +96,18 @@ export const QuestionForm = styled.form`
   }
 `;
 
-export const QuestionInput = styled.textarea`
+export const QuestionInput = styled.textarea<{ $isDark?: boolean }>`
   width: 100%;
   min-height: 100px;
   padding: 14px;
-  border: 2px solid ${colors.border};
+  border: 2px solid ${props => props.$isDark ? '#3A3835' : colors.border};
   border-radius: 12px;
   font-size: 1rem;
   font-family: 'Source Sans Pro', sans-serif;
   resize: vertical;
-  transition: border-color 0.2s ease;
+  transition: all 0.2s ease;
+  background: ${props => props.$isDark ? '#1A1917' : 'white'};
+  color: ${props => props.$isDark ? '#F1F5F9' : colors.text};
 
   &:focus {
     outline: none;
@@ -109,33 +115,41 @@ export const QuestionInput = styled.textarea`
   }
 
   &::placeholder {
-    color: ${colors.textSecondary};
+    color: ${props => props.$isDark ? '#94A3B8' : colors.textSecondary};
   }
 `;
 
-export const CategorySelect = styled.select`
+export const CategorySelect = styled.select<{ $isDark?: boolean }>`
   padding: 12px 16px;
-  border: 2px solid ${colors.border};
+  border: 2px solid ${props => props.$isDark ? '#3A3835' : colors.border};
   border-radius: 12px;
   font-size: 0.95rem;
   font-family: 'Source Sans Pro', sans-serif;
-  background: white;
+  background: ${props => props.$isDark ? '#1A1917' : 'white'};
+  color: ${props => props.$isDark ? '#F1F5F9' : colors.text};
   cursor: pointer;
   min-width: 150px;
+  transition: all 0.2s ease;
 
   &:focus {
     outline: none;
     border-color: ${colors.primary};
   }
+
+  option {
+    background: ${props => props.$isDark ? '#2A2725' : 'white'};
+    color: ${props => props.$isDark ? '#F1F5F9' : colors.text};
+  }
 `;
 
-export const ShareToggle = styled.label`
+export const ShareToggle = styled.label<{ $isDark?: boolean }>`
   display: flex;
   align-items: center;
   gap: 8px;
   cursor: pointer;
   font-size: 0.95rem;
-  color: ${colors.text};
+  color: ${props => props.$isDark ? '#CBD5E1' : colors.text};
+  transition: color 0.3s ease;
 
   input {
     width: 20px;
@@ -182,17 +196,17 @@ export const QuestionsList = styled.div`
   gap: 12px;
 `;
 
-export const QuestionCard = styled.div<{ $shared?: boolean; $answered?: boolean }>`
-  background: ${colors.paper};
+export const QuestionCard = styled.div<{ $isDark?: boolean; $shared?: boolean; $answered?: boolean }>`
+  background: ${props => props.$isDark ? '#2A2725' : colors.paper};
   border-radius: 16px;
   padding: 20px;
-  border: 2px solid ${props => props.$shared ? colors.primary : colors.border};
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  border: 2px solid ${props => props.$shared ? colors.primary : (props.$isDark ? '#3A3835' : colors.border)};
+  box-shadow: ${props => props.$isDark ? '0 2px 8px rgba(0, 0, 0, 0.3)' : '0 2px 8px rgba(0, 0, 0, 0.04)'};
   transition: all 0.2s ease;
   opacity: ${props => props.$answered ? 0.7 : 1};
 
   &:hover {
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    box-shadow: ${props => props.$isDark ? '0 4px 12px rgba(0, 0, 0, 0.5)' : '0 4px 12px rgba(0, 0, 0, 0.08)'};
   }
 
   .question-header {
@@ -216,10 +230,11 @@ export const QuestionCard = styled.div<{ $shared?: boolean; $answered?: boolean 
 
   .question-text {
     font-size: 1rem;
-    color: ${colors.text};
+    color: ${props => props.$isDark ? '#F1F5F9' : colors.text};
     line-height: 1.6;
     margin-bottom: 16px;
     text-decoration: ${props => props.$answered ? 'line-through' : 'none'};
+    transition: color 0.3s ease;
   }
 
   .question-footer {
@@ -236,7 +251,8 @@ export const QuestionCard = styled.div<{ $shared?: boolean; $answered?: boolean 
 
   .question-date {
     font-size: 0.85rem;
-    color: ${colors.textSecondary};
+    color: ${props => props.$isDark ? '#94A3B8' : colors.textSecondary};
+    transition: color 0.3s ease;
   }
 
   .question-actions {
@@ -329,31 +345,34 @@ export const ActionButton = styled.button<{ $variant?: 'share' | 'edit' | 'delet
   }
 `;
 
-export const EmptyState = styled.div`
+export const EmptyState = styled.div<{ $isDark?: boolean }>`
   text-align: center;
   padding: 48px 24px;
-  background: ${colors.paper};
+  background: ${props => props.$isDark ? '#2A2725' : colors.paper};
   border-radius: 16px;
-  border: 2px dashed ${colors.border};
+  border: 2px dashed ${props => props.$isDark ? '#3A3835' : colors.border};
+  transition: all 0.3s ease;
 
   .icon {
     width: 64px;
     height: 64px;
     margin: 0 auto 16px;
-    color: ${colors.textSecondary};
+    color: ${props => props.$isDark ? '#94A3B8' : colors.textSecondary};
     opacity: 0.5;
   }
 
   h3 {
     font-size: 1.25rem;
-    color: ${colors.text};
+    color: ${props => props.$isDark ? '#F1F5F9' : colors.text};
     margin: 0 0 8px 0;
+    transition: color 0.3s ease;
   }
 
   p {
     font-size: 0.95rem;
-    color: ${colors.textSecondary};
+    color: ${props => props.$isDark ? '#94A3B8' : colors.textSecondary};
     margin: 0;
+    transition: color 0.3s ease;
   }
 `;
 
@@ -364,12 +383,12 @@ export const FilterTabs = styled.div`
   flex-wrap: wrap;
 `;
 
-export const FilterTab = styled.button<{ $active?: boolean }>`
+export const FilterTab = styled.button<{ $isDark?: boolean; $active?: boolean }>`
   padding: 8px 16px;
-  border: 2px solid ${props => props.$active ? colors.primary : colors.border};
+  border: 2px solid ${props => props.$active ? colors.primary : (props.$isDark ? '#3A3835' : colors.border)};
   border-radius: 20px;
-  background: ${props => props.$active ? colors.primary : 'white'};
-  color: ${props => props.$active ? 'white' : colors.text};
+  background: ${props => props.$active ? colors.primary : (props.$isDark ? '#2A2725' : 'white')};
+  color: ${props => props.$active ? 'white' : (props.$isDark ? '#F1F5F9' : colors.text)};
   font-size: 0.9rem;
   font-weight: 500;
   cursor: pointer;
@@ -380,7 +399,7 @@ export const FilterTab = styled.button<{ $active?: boolean }>`
   }
 `;
 
-export const LoadingSpinner = styled.div`
+export const LoadingSpinner = styled.div<{ $isDark?: boolean }>`
   display: flex;
   justify-content: center;
   padding: 48px;
@@ -388,7 +407,7 @@ export const LoadingSpinner = styled.div`
   .spinner {
     width: 40px;
     height: 40px;
-    border: 3px solid ${colors.border};
+    border: 3px solid ${props => props.$isDark ? '#3A3835' : colors.border};
     border-top-color: ${colors.primary};
     border-radius: 50%;
     animation: spin 1s linear infinite;

@@ -17,6 +17,12 @@
 
     /* Type resolution */
     "types": ["vite/client", "react", "react-dom"],
+    
+    /* Path aliases */
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/*"]
+    },
 
     /* Linting */
     "strict": true,

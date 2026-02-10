@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { CircularProgress } from '@mui/material';
+import { Moon, Sun } from 'lucide-react';
+import { useThemeMode } from '@oncolife/ui-components';
 import {
   ProfileContainer,
   ProfileHeader as ProfileHeaderStyled,
@@ -14,6 +16,7 @@ import type { ProfileData, ProfileFormData } from './types';
 import { useFetchProfile, useUpdateProfile } from '../../services/profile';
 
 const ProfilePage: React.FC = () => {
+  const { isDark, toggleTheme } = useThemeMode();
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [formData, setFormData] = useState<ProfileFormData | null>(null);
   const [isEditing, setIsEditing] = useState(false);
@@ -113,73 +116,92 @@ const ProfilePage: React.FC = () => {
     setError(null);
   };
 
+  const DarkModeToggle = () => (
+    <button
+      onClick={toggleTheme}
+      className={`fixed top-4 right-4 z-50 p-3 rounded-full transition-all duration-200 ${
+        isDark 
+          ? 'bg-[#2A2725] text-white hover:bg-[#3A3835] border border-slate-700 shadow-lg' 
+          : 'bg-white text-slate-700 hover:bg-slate-50 border border-slate-200 shadow-lg'
+      }`}
+      aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+    >
+      {isDark ? <Sun size={20} /> : <Moon size={20} />}
+    </button>
+  );
+
   if (isProfileLoading) {
     return (
-      <ProfileContainer>
-        <ProfileHeaderStyled>
-          <ProfileTitle>Profile</ProfileTitle>
-        </ProfileHeaderStyled>
-        <LoadingContainer>
-          <CircularProgress size={48} />
-        </LoadingContainer>
-      </ProfileContainer>
+      <div className={`min-h-screen transition-colors duration-300 ${isDark ? 'bg-[#1A1917]' : 'bg-[#F8FAFC]'}`}>
+        <DarkModeToggle />
+        <ProfileContainer $isDark={isDark}>
+          <ProfileHeaderStyled $isDark={isDark}>
+            <ProfileTitle $isDark={isDark}>Profile</ProfileTitle>
+          </ProfileHeaderStyled>
+          <LoadingContainer $isDark={isDark}>
+            <CircularProgress size={48} />
+          </LoadingContainer>
+        </ProfileContainer>
+      </div>
     );
   }
 
   if (error) {
     return (
-      <ProfileContainer>
-        <ProfileHeaderStyled>
-          <ProfileTitle>Profile</ProfileTitle>
-        </ProfileHeaderStyled>
-        <ProfileContent>
-          <ErrorContainer>
-            <strong>Error:</strong> {error}
-          </ErrorContainer>
-        </ProfileContent>
-      </ProfileContainer>
+      <div className={`min-h-screen transition-colors duration-300 ${isDark ? 'bg-[#1A1917]' : 'bg-[#F8FAFC]'}`}>
+        <DarkModeToggle />
+        <ProfileContainer $isDark={isDark}>
+          <ProfileHeaderStyled $isDark={isDark}>
+            <ProfileTitle $isDark={isDark}>Profile</ProfileTitle>
+          </ProfileHeaderStyled>
+          <ProfileContent>
+            <ErrorContainer $isDark={isDark}>
+              <strong>Error:</strong> {error}
+            </ErrorContainer>
+          </ProfileContent>
+        </ProfileContainer>
+      </div>
     );
   }
 
   if (!profile || !formData) {
     return (
-      <ProfileContainer>
-        <ProfileHeaderStyled>
-          <ProfileTitle>Profile</ProfileTitle>
-        </ProfileHeaderStyled>
-        <ProfileContent>
-          <ErrorContainer>
-            <strong>Error:</strong> No profile data available
-          </ErrorContainer>
-        </ProfileContent>
-      </ProfileContainer>
+      <div className={`min-h-screen transition-colors duration-300 ${isDark ? 'bg-[#1A1917]' : 'bg-[#F8FAFC]'}`}>
+        <DarkModeToggle />
+        <ProfileContainer $isDark={isDark}>
+          <ProfileHeaderStyled $isDark={isDark}>
+            <ProfileTitle $isDark={isDark}>Profile</ProfileTitle>
+          </ProfileHeaderStyled>
+          <ProfileContent>
+            <ErrorContainer $isDark={isDark}>
+              <strong>Error:</strong> No profile data available
+            </ErrorContainer>
+          </ProfileContent>
+        </ProfileContainer>
+      </div>
     );
   }
 
   return (
-    <ProfileContainer>
-      <ProfileHeaderStyled>
-        <ProfileTitle>Profile</ProfileTitle>
-      </ProfileHeaderStyled>
+    <div className={`min-h-screen transition-colors duration-300 ${isDark ? 'bg-[#1A1917]' : 'bg-[#F8FAFC]'}`}>
+      <DarkModeToggle />
+      <ProfileContainer $isDark={isDark}>
+        <ProfileHeaderStyled $isDark={isDark}>
+          <ProfileTitle $isDark={isDark}>Profile</ProfileTitle>
+        </ProfileHeaderStyled>
       
       <ProfileContent>
         {saveSuccess && (
-          <div style={{
-            background: 'linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%)',
-            border: '1px solid #4caf50',
-            borderRadius: '8px',
-            padding: '12px 16px',
-            marginBottom: '16px',
-            color: '#2e7d32',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-          }}>
+          <div className={`rounded-lg p-3 mb-4 flex items-center gap-2 transition-colors duration-300 ${
+            isDark 
+              ? 'bg-green-500/20 border border-green-500/50 text-green-400' 
+              : 'bg-gradient-to-r from-green-50 to-green-100 border border-green-300 text-green-700'
+          }`}>
             ✅ Profile saved successfully!
           </div>
         )}
         
-        <ProfileCard>
+        <ProfileCard $isDark={isDark}>
           <ProfileHeader
             profile={profile}
             onEditProfile={handleEditProfile}
@@ -197,11 +219,12 @@ const ProfilePage: React.FC = () => {
         </ProfileCard>
         
         {/* Chemo Timeline Section */}
-        <ProfileCard style={{ marginTop: '24px' }}>
+        <ProfileCard $isDark={isDark} style={{ marginTop: '24px' }}>
           <ChemoTimeline />
         </ProfileCard>
       </ProfileContent>
     </ProfileContainer>
+    </div>
   );
 };
 

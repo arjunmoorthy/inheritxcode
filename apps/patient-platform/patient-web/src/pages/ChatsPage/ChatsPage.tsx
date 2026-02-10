@@ -25,6 +25,8 @@
  */
 
 import React, { useEffect, useState, useRef, useCallback } from 'react';
+import { Moon, Sun } from 'lucide-react';
+import { useThemeMode } from '@oncolife/ui-components';
 import { MessageBubble } from '../../components/chat/MessageBubble';
 import { MessageInput } from '../../components/chat/MessageInput';
 import { ThinkingBubble } from '../../components/chat/ThinkingBubble';
@@ -38,6 +40,7 @@ import '../../components/chat/Chat.css';
 import { API_CONFIG } from '../../config/api';
 
 const ChatsPage: React.FC = () => {
+  const { isDark, toggleTheme } = useThemeMode();
   const [chatSession, setChatSession] = useState<ChatSession | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
@@ -408,22 +411,38 @@ const ChatsPage: React.FC = () => {
 
   if (error) {
     return (
-      <div className="error">
-        <p>Error: {error}</p>
-        <button onClick={loadTodaySession}>Retry</button>
+      <div className={`min-h-screen transition-colors duration-300 ${isDark ? 'bg-[#1A1917]' : 'bg-[#F8FAFC]'}`}>
+        <div className={`error ${isDark ? 'text-red-400' : ''}`}>
+          <p>Error: {error}</p>
+          <button onClick={loadTodaySession}>Retry</button>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="chat-container">
-      <div className="chat-header">
-        <div className="chat-title">Chat with Ruby</div>
-        <button onClick={handleStartNewConversation} className="new-conversation-button">
-          <span className="new-conversation-icon">+</span>
-          New Conversation
-        </button>
-      </div>
+    <div className={`min-h-screen transition-colors duration-300 ${isDark ? 'bg-[#1A1917]' : 'bg-[#F8FAFC]'}`}>
+      {/* Dark Mode Toggle */}
+      <button
+        onClick={toggleTheme}
+        className={`fixed top-4 right-4 z-50 p-3 rounded-full transition-all duration-200 ${
+          isDark 
+            ? 'bg-[#2A2725] text-white hover:bg-[#3A3835] border border-slate-700 shadow-lg' 
+            : 'bg-white text-slate-700 hover:bg-slate-50 border border-slate-200 shadow-lg'
+        }`}
+        aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+      >
+        {isDark ? <Sun size={20} /> : <Moon size={20} />}
+      </button>
+
+      <div className={`chat-container ${isDark ? 'dark' : ''}`}>
+        <div className={`chat-header ${isDark ? 'bg-[#2A2725] border-b border-slate-700' : ''}`}>
+          <div className={`chat-title ${isDark ? 'text-white' : ''}`}>Chat with Ruby</div>
+          <button onClick={handleStartNewConversation} className={`new-conversation-button ${isDark ? 'bg-[#1A1917] text-white border-slate-700 hover:bg-[#3A3835]' : ''}`}>
+            <span className="new-conversation-icon">+</span>
+            New Conversation
+          </button>
+        </div>
 
       {/* Full-page overlay while connecting (blocks interactions) */}
       {!isConnected && !connectionError && (
@@ -447,26 +466,27 @@ const ChatsPage: React.FC = () => {
         )
       )}
       
-      <div className="messages-container">
-        {messages.map((message, index) => (
-          <MessageBubble
-            key={`${message.id}-${message.content.length}`}
-            message={message}
-            onButtonClick={handleButtonClick}
-            onMultiSelectSubmit={handleMultiSelectSubmit}
-            onFeelingSelect={handleFeelingSelect}
-            shouldShowInteractiveElements={shouldShowInteractiveElements(message, index)}
-          />
-        ))}
-        {isThinking && <ThinkingBubble />}
-        <div ref={messagesEndRef} />
+        <div className={`messages-container ${isDark ? 'bg-[#1A1917]' : ''}`}>
+          {messages.map((message, index) => (
+            <MessageBubble
+              key={`${message.id}-${message.content.length}`}
+              message={message}
+              onButtonClick={handleButtonClick}
+              onMultiSelectSubmit={handleMultiSelectSubmit}
+              onFeelingSelect={handleFeelingSelect}
+              shouldShowInteractiveElements={shouldShowInteractiveElements(message, index)}
+            />
+          ))}
+          {isThinking && <ThinkingBubble />}
+          <div ref={messagesEndRef} />
+        </div>
+        
+        <MessageInput 
+          onSendMessage={handleSendMessage}
+          disabled={!isConnected || isThinking}
+          shouldShow={shouldShowTextInput()}
+        />
       </div>
-      
-      <MessageInput 
-        onSendMessage={handleSendMessage}
-        disabled={!isConnected || isThinking}
-        shouldShow={shouldShowTextInput()}
-      />
 
       {/* Calendar Modal for selecting chemo dates */}
       <CalendarModal

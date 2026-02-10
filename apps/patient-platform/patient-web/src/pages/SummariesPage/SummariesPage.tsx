@@ -4,7 +4,8 @@
  */
 import React, { useState, useMemo } from 'react';
 import { CircularProgress } from '@mui/material';
-import { Search, Calendar, Filter, ChevronDown } from 'lucide-react';
+import { Search, Calendar, Filter, ChevronDown, Moon, Sun } from 'lucide-react';
+import { useThemeMode } from '@oncolife/ui-components';
 import { 
   PageContainer,
   ContentWrapper,
@@ -226,6 +227,7 @@ const searchSummaries = (summaries: Summary[], query: string): Summary[] => {
 };
 
 const SummariesPage: React.FC = () => {
+  const { isDark, toggleTheme } = useThemeMode();
   const navigate = useNavigate();
   
   // State for filters
@@ -274,136 +276,152 @@ const SummariesPage: React.FC = () => {
   };
 
   return (
-    <Container>
-      <Header>
-        <Title>Daily Check-ins</Title>
-      </Header>
-      
-      <Content>
-        <ContentWrapper>
-        <PageHeader>
-            <PageTitle>Daily Check-ins</PageTitle>
-            <PageSubtitle>Your daily symptom tracking entries from chat conversations.</PageSubtitle>
-          </PageHeader>
-          
-          {/* Search and Filters */}
-          <FiltersRow>
-            <SearchInputWrapper>
-              <Search />
-              <input 
-                type="text"
-                placeholder="Search entries..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-            </SearchInputWrapper>
-            
-            <SelectWrapper>
-              <Calendar size={16} />
-              <select 
-                value={dateFilter}
-                onChange={(e) => setDateFilter(e.target.value)}
-              >
-                {DATE_FILTER_OPTIONS.map(opt => (
-                  <option key={opt.value} value={opt.value}>{opt.label}</option>
-                ))}
-              </select>
-              <ChevronDown size={16} />
-            </SelectWrapper>
-            
-            <SelectWrapper>
-              <Filter size={16} />
-              <select 
-                value={symptomFilter}
-                onChange={(e) => setSymptomFilter(e.target.value)}
-              >
-                <option value="all">All Symptoms</option>
-                {availableSymptoms.map(symptom => (
-                  <option key={symptom} value={symptom}>{symptom}</option>
-                ))}
-              </select>
-              <ChevronDown size={16} />
-            </SelectWrapper>
-          </FiltersRow>
-          
-          {/* Error State */}
-        {error && (
-          <ErrorContainer>
-              <strong>Error:</strong> {error.message || 'Failed to load check-ins'}
-          </ErrorContainer>
-        )}
+    <div className={`min-h-screen transition-colors duration-300 ${isDark ? 'bg-[#1A1917]' : 'bg-[#F5F7FA]'}`}>
+      {/* Dark Mode Toggle */}
+      <button
+        onClick={toggleTheme}
+        className={`fixed top-4 right-4 z-50 p-3 rounded-full transition-all duration-200 ${
+          isDark 
+            ? 'bg-[#2A2725] text-white hover:bg-[#3A3835] border border-slate-700 shadow-lg' 
+            : 'bg-white text-slate-700 hover:bg-slate-50 border border-slate-200 shadow-lg'
+        }`}
+        aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+      >
+        {isDark ? <Sun size={20} /> : <Moon size={20} />}
+      </button>
 
-          {/* Loading State */}
-        {isLoading ? (
-          <LoadingContainer>
-            <CircularProgress size={48} />
-              <span>Loading your check-ins...</span>
-          </LoadingContainer>
-          ) : filteredSummaries.length === 0 ? (
-            <EmptyState>
-              <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>📋</div>
-              <h3 style={{ marginBottom: '0.5rem', color: '#495057' }}>No Check-ins Found</h3>
-              <p>
-                {searchQuery || dateFilter !== 'all' || symptomFilter !== 'all' 
-                  ? 'Try adjusting your filters to see more results.'
-                  : 'Start a symptom check in the Chat to create your first daily check-in.'}
-              </p>
-            </EmptyState>
-          ) : (
-            <EntriesList>
-              {filteredSummaries.map((summary, index) => {
-                const severity = getSeverity(summary);
-                const symptoms = extractSymptoms(summary);
-                const duration = extractDuration(summary);
-                const meds = extractMedicationsTried(summary);
-                const notes = extractPersonalNotes(summary);
-                const naturalSummary = generateNaturalSummary(summary);
-                
-                return (
-                  <EntryCard 
-                    key={summary.uuid} 
-                    $severity={severity}
-                    onClick={() => handleViewDetails(summary.uuid)}
-                    style={{ animationDelay: `${index * 0.05}s` }}
-                  >
-                    <EntryHeader>
-                      <EntryDate>{formatDate(summary.created_at)}</EntryDate>
-                      <SeverityBadge $severity={severity}>
-                        {severity === 'urgent' ? 'Severe' : severity.charAt(0).toUpperCase() + severity.slice(1)}
-                      </SeverityBadge>
-                    </EntryHeader>
-                    
-                    <SummaryText>{naturalSummary}</SummaryText>
-                    
-                    {notes && (
-                      <NotesQuote>"{notes}"</NotesQuote>
-                    )}
-                    
-                    <MetadataRow>
-                      {duration && (
-                        <>
-                          <span>Duration: {duration}</span>
-                          <MetadataSeparator>•</MetadataSeparator>
-                        </>
+      <Container>
+        <Header>
+          <Title>Daily Check-ins</Title>
+        </Header>
+        
+        <Content>
+          <ContentWrapper>
+            <PageHeader $isDark={isDark}>
+              <PageTitle $isDark={isDark}>Daily Check-ins</PageTitle>
+              <PageSubtitle $isDark={isDark}>Your daily symptom tracking entries from chat conversations.</PageSubtitle>
+            </PageHeader>
+            
+            {/* Search and Filters */}
+            <FiltersRow>
+              <SearchInputWrapper $isDark={isDark}>
+                <Search />
+                <input 
+                  type="text"
+                  placeholder="Search entries..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </SearchInputWrapper>
+              
+              <SelectWrapper $isDark={isDark}>
+                <Calendar size={16} />
+                <select 
+                  value={dateFilter}
+                  onChange={(e) => setDateFilter(e.target.value)}
+                >
+                  {DATE_FILTER_OPTIONS.map(opt => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))}
+                </select>
+                <ChevronDown size={16} />
+              </SelectWrapper>
+              
+              <SelectWrapper $isDark={isDark}>
+                <Filter size={16} />
+                <select 
+                  value={symptomFilter}
+                  onChange={(e) => setSymptomFilter(e.target.value)}
+                >
+                  <option value="all">All Symptoms</option>
+                  {availableSymptoms.map(symptom => (
+                    <option key={symptom} value={symptom}>{symptom}</option>
+                  ))}
+                </select>
+                <ChevronDown size={16} />
+              </SelectWrapper>
+            </FiltersRow>
+            
+            {/* Error State */}
+            {error && (
+              <ErrorContainer $isDark={isDark}>
+                <strong>Error:</strong> {error.message || 'Failed to load check-ins'}
+              </ErrorContainer>
+            )}
+
+            {/* Loading State */}
+            {isLoading ? (
+              <LoadingContainer $isDark={isDark}>
+                <CircularProgress size={48} />
+                <span>Loading your check-ins...</span>
+              </LoadingContainer>
+            ) : filteredSummaries.length === 0 ? (
+              <EmptyState $isDark={isDark}>
+                <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>📋</div>
+                <h3>No Check-ins Found</h3>
+                <p>
+                  {searchQuery || dateFilter !== 'all' || symptomFilter !== 'all' 
+                    ? 'Try adjusting your filters to see more results.'
+                    : 'Start a symptom check in the Chat to create your first daily check-in.'}
+                </p>
+              </EmptyState>
+            ) : (
+              <EntriesList>
+                {filteredSummaries.map((summary, index) => {
+                  const severity = getSeverity(summary);
+                  const symptoms = extractSymptoms(summary);
+                  const duration = extractDuration(summary);
+                  const meds = extractMedicationsTried(summary);
+                  const notes = extractPersonalNotes(summary);
+                  const naturalSummary = generateNaturalSummary(summary);
+                  
+                  return (
+                    <EntryCard 
+                      key={summary.uuid}
+                      $isDark={isDark}
+                      $severity={severity}
+                      onClick={() => handleViewDetails(summary.uuid)}
+                      style={{ animationDelay: `${index * 0.05}s` }}
+                    >
+                      <EntryHeader>
+                        <EntryDate $isDark={isDark}>{formatDate(summary.created_at)}</EntryDate>
+                        <SeverityBadge $severity={severity}>
+                          {severity === 'urgent' ? 'Severe' : severity.charAt(0).toUpperCase() + severity.slice(1)}
+                        </SeverityBadge>
+                      </EntryHeader>
+                      
+                      <SummaryText $isDark={isDark}>{naturalSummary}</SummaryText>
+                      
+                      {notes && (
+                        <NotesQuote $isDark={isDark}>"{notes}"</NotesQuote>
                       )}
-                      <span>Tried: {meds || 'None tried'}</span>
-                    </MetadataRow>
-                    
-                    {symptoms.length > 0 && (
-                      <SymptomTags>
-                        {symptoms.map((symptom, idx) => (
-                          <SymptomTag key={idx}>{symptom}</SymptomTag>
-                        ))}
-                      </SymptomTags>
-                    )}
-                  </EntryCard>
-                );
-              })}
-            </EntriesList>
-          )}
-        </ContentWrapper>
-      </Content>
-    </Container>
+                      
+                      <MetadataRow $isDark={isDark}>
+                        {duration && (
+                          <>
+                            <span>Duration: {duration}</span>
+                            <MetadataSeparator>•</MetadataSeparator>
+                          </>
+                        )}
+                        <span>Tried: {meds || 'None tried'}</span>
+                      </MetadataRow>
+                      
+                      {symptoms.length > 0 && (
+                        <SymptomTags>
+                          {symptoms.map((symptom, idx) => (
+                            <SymptomTag key={idx} $isDark={isDark}>{symptom}</SymptomTag>
+                          ))}
+                        </SymptomTags>
+                      )}
+                    </EntryCard>
+                  );
+                })}
+              </EntriesList>
+            )}
+          </ContentWrapper>
+        </Content>
+      </Container>
+    </div>
   );
 };
 

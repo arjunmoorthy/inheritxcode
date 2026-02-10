@@ -43,7 +43,7 @@ export const ContentWrapper = styled.div`
   margin: 0 auto;
 `;
 
-export const PageHeader = styled.div`
+export const PageHeader = styled.div<{ $isDark?: boolean }>`
   margin-bottom: 1.5rem;
   animation: fadeInDown 0.4s ease forwards;
   
@@ -52,22 +52,24 @@ export const PageHeader = styled.div`
   }
 `;
 
-export const PageTitle = styled.h1`
+export const PageTitle = styled.h1<{ $isDark?: boolean }>`
   font-family: 'Fraunces', Georgia, serif;
   font-size: 1.5rem;
   font-weight: 600;
-  color: ${colors.foreground};
+  color: ${props => props.$isDark ? '#F1F5F9' : colors.foreground};
   margin: 0 0 0.5rem 0;
+  transition: color 0.3s ease;
   
   @media (min-width: 600px) {
     font-size: 1.75rem;
   }
 `;
 
-export const PageSubtitle = styled.p`
+export const PageSubtitle = styled.p<{ $isDark?: boolean }>`
   font-size: 0.875rem;
-  color: ${colors.muted};
+  color: ${props => props.$isDark ? '#94A3B8' : colors.muted};
   margin: 0;
+  transition: color 0.3s ease;
   
   @media (min-width: 600px) {
     font-size: 1rem;
@@ -87,22 +89,22 @@ export const FiltersRow = styled.div`
   }
 `;
 
-export const SearchInputWrapper = styled.div`
+export const SearchInputWrapper = styled.div<{ $isDark?: boolean }>`
   position: relative;
   flex: 1;
   
   input {
     width: 100%;
     padding: 0.75rem 1rem 0.75rem 2.5rem;
-    background: ${colors.paper};
-    border: 1px solid ${colors.border};
+    background: ${props => props.$isDark ? '#1A1917' : colors.paper};
+    border: 1px solid ${props => props.$isDark ? '#3A3835' : colors.border};
     border-radius: 12px;
     font-size: 0.875rem;
-    color: ${colors.foreground};
+    color: ${props => props.$isDark ? '#F1F5F9' : colors.foreground};
     transition: all 0.2s ease;
     
     &::placeholder {
-      color: ${colors.muted};
+      color: ${props => props.$isDark ? '#94A3B8' : colors.muted};
     }
     
     &:focus {
@@ -119,8 +121,9 @@ export const SearchInputWrapper = styled.div`
     transform: translateY(-50%);
     width: 16px;
     height: 16px;
-    color: ${colors.muted};
+    color: ${props => props.$isDark ? '#94A3B8' : colors.muted};
     pointer-events: none;
+    transition: color 0.3s ease;
   }
 `;
 
@@ -147,7 +150,7 @@ export const FilterButton = styled.button`
   }
 `;
 
-export const SelectWrapper = styled.div`
+export const SelectWrapper = styled.div<{ $isDark?: boolean }>`
   position: relative;
   min-width: 160px;
   display: flex;
@@ -156,11 +159,11 @@ export const SelectWrapper = styled.div`
   select {
     width: 100%;
     padding: 0.75rem 2.25rem 0.75rem 2.25rem;
-    background: ${colors.paper};
-    border: 1px solid ${colors.border};
+    background: ${props => props.$isDark ? '#1A1917' : colors.paper};
+    border: 1px solid ${props => props.$isDark ? '#3A3835' : colors.border};
     border-radius: 12px;
     font-size: 0.875rem;
-    color: ${colors.foreground};
+    color: ${props => props.$isDark ? '#F1F5F9' : colors.foreground};
     cursor: pointer;
     appearance: none;
     transition: all 0.2s ease;
@@ -168,6 +171,11 @@ export const SelectWrapper = styled.div`
     &:focus {
       outline: none;
       border-color: ${colors.primary};
+    }
+
+    option {
+      background: ${props => props.$isDark ? '#2A2725' : colors.paper};
+      color: ${props => props.$isDark ? '#F1F5F9' : colors.foreground};
     }
   }
   
@@ -179,9 +187,10 @@ export const SelectWrapper = styled.div`
     transform: translateY(-50%);
     width: 16px;
     height: 16px;
-    color: ${colors.muted};
+    color: ${props => props.$isDark ? '#94A3B8' : colors.muted};
     pointer-events: none;
     z-index: 1;
+    transition: color 0.3s ease;
   }
   
   /* Right icon (chevron) */
@@ -192,8 +201,9 @@ export const SelectWrapper = styled.div`
     transform: translateY(-50%);
     width: 16px;
     height: 16px;
-    color: ${colors.muted};
+    color: ${props => props.$isDark ? '#94A3B8' : colors.muted};
     pointer-events: none;
+    transition: color 0.3s ease;
   }
 `;
 
@@ -205,9 +215,9 @@ export const EntriesList = styled.div`
 `;
 
 // Single summary entry card - Lovable style with left border
-export const EntryCard = styled.div<{ $severity?: 'mild' | 'moderate' | 'severe' | 'urgent' }>`
-  background: ${colors.paper};
-  border: 1px solid ${colors.border};
+export const EntryCard = styled.div<{ $isDark?: boolean; $severity?: 'mild' | 'moderate' | 'severe' | 'urgent' }>`
+  background: ${props => props.$isDark ? '#2A2725' : colors.paper};
+  border: 1px solid ${props => props.$isDark ? '#3A3835' : colors.border};
   border-left: 4px solid ${props => {
     switch (props.$severity) {
       case 'urgent':
@@ -218,13 +228,13 @@ export const EntryCard = styled.div<{ $severity?: 'mild' | 'moderate' | 'severe'
   }};
   border-radius: 16px;
   padding: 1.25rem;
-  box-shadow: 0 4px 24px -8px rgba(0, 0, 0, 0.08);
+  box-shadow: ${props => props.$isDark ? '0 4px 24px -8px rgba(0, 0, 0, 0.3)' : '0 4px 24px -8px rgba(0, 0, 0, 0.08)'};
   transition: all 0.25s ease;
   cursor: pointer;
   animation: fadeInUp 0.4s ease forwards;
   
   &:hover {
-    box-shadow: 0 8px 32px -8px rgba(0, 0, 0, 0.12);
+    box-shadow: ${props => props.$isDark ? '0 8px 32px -8px rgba(0, 0, 0, 0.5)' : '0 8px 32px -8px rgba(0, 0, 0, 0.12)'};
     transform: translateY(-2px);
   }
   
@@ -245,10 +255,11 @@ export const EntryHeader = styled.div`
   }
 `;
 
-export const EntryDate = styled.p`
+export const EntryDate = styled.p<{ $isDark?: boolean }>`
   font-size: 0.875rem;
-  color: ${colors.muted};
+  color: ${props => props.$isDark ? '#94A3B8' : colors.muted};
   margin: 0;
+  transition: color 0.3s ease;
 `;
 
 export const SeverityBadge = styled.span<{ $severity?: 'mild' | 'moderate' | 'severe' | 'urgent' }>`
@@ -286,30 +297,33 @@ export const SeverityBadge = styled.span<{ $severity?: 'mild' | 'moderate' | 'se
 `;
 
 // Natural language summary text
-export const SummaryText = styled.p`
+export const SummaryText = styled.p<{ $isDark?: boolean }>`
   font-size: 1rem;
-  color: ${colors.foreground};
+  color: ${props => props.$isDark ? '#F1F5F9' : colors.foreground};
   margin: 0 0 0.75rem 0;
   line-height: 1.6;
+  transition: color 0.3s ease;
 `;
 
 // Italic quote for additional notes
-export const NotesQuote = styled.p`
+export const NotesQuote = styled.p<{ $isDark?: boolean }>`
   font-size: 0.875rem;
   font-style: italic;
-  color: ${colors.muted};
+  color: ${props => props.$isDark ? '#94A3B8' : colors.muted};
   margin: 0 0 0.75rem 0;
+  transition: color 0.3s ease;
 `;
 
 // Metadata row (duration, tried, etc.)
-export const MetadataRow = styled.div`
+export const MetadataRow = styled.div<{ $isDark?: boolean }>`
   display: flex;
   align-items: center;
   gap: 0.5rem;
   font-size: 0.875rem;
-  color: ${colors.muted};
+  color: ${props => props.$isDark ? '#94A3B8' : colors.muted};
   margin-bottom: 0.75rem;
   flex-wrap: wrap;
+  transition: color 0.3s ease;
 `;
 
 export const MetadataSeparator = styled.span`
@@ -323,15 +337,16 @@ export const SymptomTags = styled.div`
   gap: 0.5rem;
 `;
 
-export const SymptomTag = styled.span`
+export const SymptomTag = styled.span<{ $isDark?: boolean }>`
   display: inline-flex;
   align-items: center;
   padding: 0.25rem 0.75rem;
-  background: rgba(79, 124, 172, 0.08);
-  color: ${colors.primaryDark};
+  background: ${props => props.$isDark ? 'rgba(79, 124, 172, 0.2)' : 'rgba(79, 124, 172, 0.08)'};
+  color: ${props => props.$isDark ? '#7BA3C9' : colors.primaryDark};
   border-radius: 12px;
   font-size: 0.75rem;
   font-weight: 500;
+  transition: all 0.3s ease;
 `;
 
 // Navigation container (date picker, today button)
@@ -392,7 +407,7 @@ export const NavigationButton = styled.button`
   }
 `;
 
-export const LoadingContainer = styled.div`
+export const LoadingContainer = styled.div<{ $isDark?: boolean }>`
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -401,27 +416,36 @@ export const LoadingContainer = styled.div`
   gap: 16px;
   
   span {
-    color: ${colors.muted};
+    color: ${props => props.$isDark ? '#94A3B8' : colors.muted};
     font-size: 0.9375rem;
+    transition: color 0.3s ease;
   }
 `;
 
-export const ErrorContainer = styled.div`
-  background: ${colors.severeBg};
-  border: 1px solid ${colors.severe}30;
+export const ErrorContainer = styled.div<{ $isDark?: boolean }>`
+  background: ${props => props.$isDark ? '#7F1D1D' : colors.severeBg};
+  border: 1px solid ${props => props.$isDark ? '#991B1B' : `${colors.severe}30`};
   border-radius: 16px;
   padding: 16px 20px;
   margin-bottom: 20px;
-  color: ${colors.severe};
+  color: ${props => props.$isDark ? '#FCA5A5' : colors.severe};
   display: flex;
   align-items: center;
   gap: 12px;
+  transition: all 0.3s ease;
 `;
 
-export const EmptyState = styled.div`
+export const EmptyState = styled.div<{ $isDark?: boolean }>`
   text-align: center;
   padding: 64px 24px;
-  color: ${colors.muted};
+  color: ${props => props.$isDark ? '#94A3B8' : colors.muted};
+  transition: color 0.3s ease;
+  
+  h3 {
+    color: ${props => props.$isDark ? '#F1F5F9' : colors.foreground};
+    margin-bottom: 0.5rem;
+    transition: color 0.3s ease;
+  }
   
   p {
     margin-bottom: 1rem;
@@ -434,7 +458,7 @@ export const Container = styled.div`
   display: flex;
   flex-direction: column;
   min-height: 100%;
-  background-color: ${colors.background};
+  background-color: transparent;
 `;
 
 export const Header = styled.div`

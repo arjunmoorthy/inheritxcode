@@ -602,9 +602,14 @@ const Layout: React.FC = () => {
         ModalProps={{ keepMounted: true }}
         sx={{
           display: { xs: 'block', md: 'none' },
+          zIndex: theme.zIndex.modal,
           '& .MuiDrawer-paper': {
             width: 280,
             boxSizing: 'border-box',
+            zIndex: theme.zIndex.modal,
+          },
+          '& .MuiBackdrop-root': {
+            zIndex: theme.zIndex.modal - 1,
           },
         }}
       >

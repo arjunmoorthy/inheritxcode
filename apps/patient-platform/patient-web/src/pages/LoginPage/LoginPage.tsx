@@ -1,68 +1,81 @@
 /**
  * OncoLife Ruby - Patient Login Page
  * "Compassionate Care, Intelligent Triage"
+ * 
+ * Enhanced with Tailwind CSS and dark mode support
  */
 
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Mail, Eye, EyeOff, AlertCircle } from 'lucide-react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
+import { Mail, Eye, EyeOff, AlertCircle, Activity, CheckCircle, ArrowLeft, Shield, Wrench, Rocket, Moon, Sun } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
-import {
-  LoginContainer,
-  BrandPanel,
-  BrandContent,
-  LogoContainer,
-  BrandTitle,
-  BrandSubtitle,
-  BrandTagline,
-  LoginPanel,
-  LoginCard,
-  LoginTitle,
-  LoginSubtitle,
-  FormGroup,
-  FormLabel,
-  InputWrapper,
-  InputIcon,
-  StyledInput,
-  PasswordToggle,
-  ForgotPasswordLink,
-  SubmitButton,
-  ErrorMessage,
-  SignUpLink,
-  Footer,
-} from './LoginPage.styles';
+import { useForgotPassword } from '../../services/login';
+import { Input } from '../../components/ui';
+import { useThemeMode } from '@oncolife/ui-components';
 
 // Check if demo mode should be shown
-// Shows on: 1) Local dev (localhost), 2) When VITE_DEMO_MODE=true (e.g., Vercel demo)
 const showDemoButton = 
   import.meta.env.VITE_DEMO_MODE === 'true' || 
   (import.meta.env.DEV && window.location.hostname === 'localhost');
 
+// Validation Schemas
+const loginSchema = z.object({
+  email: z.string().email('Please enter a valid email address'),
+  password: z.string().min(1, 'Password is required'),
+});
+
+const forgotPasswordSchema = z.object({
+  email: z.string().email('Please enter a valid email address'),
+});
+
+type LoginFormValues = z.infer<typeof loginSchema>;
+type ForgotPasswordFormValues = z.infer<typeof forgotPasswordSchema>;
+
 const LoginPage: React.FC = () => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isForgotPassword, setIsForgotPassword] = useState(false);
+  const [forgotSuccess, setForgotSuccess] = useState(false);
+  const { isDark, toggleTheme } = useThemeMode();
   
   const { authenticateLogin } = useAuth();
+  const forgotPasswordMutation = useForgotPassword();
   const navigate = useNavigate();
+
+  // React Hook Form for Login
+  const {
+    register: loginRegister,
+    handleSubmit: handleLoginSubmit,
+    formState: { errors: loginErrors, isSubmitting: isLoginSubmitting },
+  } = useForm<LoginFormValues>({
+    resolver: zodResolver(loginSchema),
+  });
+
+  // React Hook Form for Forgot Password
+  const {
+    register: forgotRegister,
+    handleSubmit: handleForgotSubmit,
+    formState: { errors: forgotErrors, isSubmitting: isForgotSubmitting },
+  } = useForm<ForgotPasswordFormValues>({
+    resolver: zodResolver(forgotPasswordSchema),
+  });
+
+  const isLoading = isLoginSubmitting || isForgotSubmitting;
 
   // Dev mode auto-login function
   const handleDevLogin = () => {
-    // Set a fake token for local development
     localStorage.setItem('authToken', 'dev-mode-token-11111111-1111-1111-1111-111111111111');
     navigate('/chat');
-    window.location.reload(); // Refresh to pick up the new token
+    window.location.reload();
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const onLoginSubmit = async (values: LoginFormValues) => {
     setError(null);
-    setIsLoading(true);
-
     try {
-      const result = await authenticateLogin(email, password);
+      const result = await authenticateLogin(values.email, values.password);
       if (result?.data?.requiresPasswordChange) {
         navigate('/reset-password');
       } else if (result?.data?.user_status === 'CONFIRMED') {
@@ -74,145 +87,259 @@ const LoginPage: React.FC = () => {
         message = 'Invalid email or password. Please check your credentials.';
       }
       setError(message);
-    } finally {
-      setIsLoading(false);
     }
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      handleSubmit(e);
+  const onForgotPasswordSubmit = async (values: ForgotPasswordFormValues) => {
+    setError(null);
+    try {
+      const result = await forgotPasswordMutation.mutateAsync({ email: values.email });
+      if (result.success) {
+        setForgotSuccess(true);
+      } else {
+        setError(result.message || 'Unable to process request. Please try again.');
+      }
+    } catch (err: any) {
+      setError('An error occurred. Please verify your email and try again.');
     }
+  };
+
+  const toggleForgotPassword = () => {
+    setIsForgotPassword(!isForgotPassword);
+    setForgotSuccess(false);
+    setError(null);
   };
 
   return (
-    <LoginContainer>
+    <div className={`min-h-screen lg:h-screen flex flex-col lg:flex-row transition-colors duration-500 overflow-x-hidden ${isDark ? 'bg-[#1A1917]' : 'bg-[#F8FAFC]'}`}>
+      {/* Dark Mode Toggle */}
+      <button
+        onClick={toggleTheme}
+        className={`fixed top-4 right-4 z-50 p-3 rounded-full transition-all duration-200 ${
+          isDark 
+            ? 'bg-[#2A2725] text-white hover:bg-[#3A3835] border border-slate-700 shadow-lg' 
+            : 'bg-white text-slate-700 hover:bg-slate-50 border border-slate-200 shadow-lg'
+        }`}
+        aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+      >
+        {isDark ? <Sun size={20} /> : <Moon size={20} />}
+      </button>
+
       {/* Left Brand Panel */}
-      <BrandPanel>
-        <BrandContent>
-          <LogoContainer>💎</LogoContainer>
-          <BrandTitle>OncoLife</BrandTitle>
-          <BrandSubtitle>Ruby</BrandSubtitle>
-          <BrandTagline>"Compassionate Care, Intelligent Triage"</BrandTagline>
-        </BrandContent>
-      </BrandPanel>
+      <div className="flex-1 flex flex-col justify-center items-center px-12 py-16 lg:py-0 bg-gradient-to-br from-primary to-primary-dark relative overflow-hidden min-h-[300px] lg:min-h-0 lg:h-full">
+        {/* Visual Elements */}
+        <div className="absolute top-0 right-0 w-full h-full opacity-20 pointer-events-none">
+          <div className="absolute top-[-10%] right-[-10%] w-[50%] h-[50%] bg-secondary-light rounded-full blur-[120px]" />
+          <div className="absolute bottom-[-10%] left-[-10%] w-[50%] h-[50%] bg-primary-light rounded-full blur-[120px]" />
+        </div>
+
+        {/* Mesh pattern overlay */}
+        <div className="absolute inset-0 opacity-[0.03] pointer-events-none"
+          style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2v-4h4v-2h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2v-4h4v-2H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")` }}
+        />
+
+        <div className="relative z-10 text-center max-w-lg animate-fade-in px-4">
+          <div className="w-16 h-16 md:w-20 md:h-20 rounded-2xl bg-white/10 backdrop-blur-xl flex items-center justify-center mx-auto mb-6 border border-white/20 shadow-2xl">
+            <Activity size={32} className="text-white animate-pulse-soft" />
+          </div>
+
+          <h1 className="text-2xl md:text-4xl font-bold mb-3 tracking-tight font-serif text-white">
+            OncoLife
+          </h1>
+
+          <div className="inline-flex items-center px-3 py-1 rounded-full bg-white/10 backdrop-blur-md border border-white/10 mb-6 font-sans">
+            <span className="text-[10px] md:text-xs font-medium text-white/90 uppercase tracking-widest">
+              Ruby
+            </span>
+          </div>
+
+          <p className="text-sm md:text-base text-white/70 leading-relaxed max-w-xs mx-auto hidden md:block font-light">
+            "Compassionate Care, Intelligent Triage"
+          </p>
+        </div>
+      </div>
 
       {/* Right Login Panel */}
-      <LoginPanel>
-        <LoginCard>
-          <LoginTitle>Welcome Back 👋</LoginTitle>
-          <LoginSubtitle>
-            Sign in to access your personalized symptom tracker and care resources
-          </LoginSubtitle>
+      <div className={`flex-[1.2] flex flex-col lg:h-full transition-colors duration-500 overflow-y-auto ${isDark ? 'bg-[#1A1917]' : 'bg-[#F8FAFC]'}`}>
+        <div className="flex-1 flex flex-col justify-center items-center px-5 py-10 lg:px-12 lg:py-12">
+          <div className={`w-full max-w-md animate-fade-in transition-all duration-300 ${isDark
+            ? 'bg-[#2A2725] border border-[#3A3835] shadow-[0_20px_50px_rgba(0,0,0,0.3)]'
+            : 'bg-white border border-slate-200 shadow-[0_10px_40px_rgba(0,0,0,0.04)]'
+            } rounded-3xl overflow-hidden`}>
 
-          {error && (
-            <ErrorMessage>
-              <AlertCircle size={18} />
-              {error}
-            </ErrorMessage>
-          )}
+            <div className="p-8 md:p-10">
+              {/* Title Header */}
+              <div className="text-center mb-8">
+                <h2 className={`text-xl md:text-2xl font-bold mb-2 font-serif transition-colors duration-300 ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                  {isForgotPassword ? 'Reset Your Password' : 'Welcome Back 👋'}
+                </h2>
+                <p className={`text-[13px] md:text-sm transition-colors duration-300 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                  {isForgotPassword
+                    ? 'Enter your email address to receive a password reset link'
+                    : 'Sign in to access your personalized symptom tracker and care resources'}
+                </p>
+              </div>
 
-          <form onSubmit={handleSubmit}>
-            <FormGroup>
-              <FormLabel htmlFor="email">Email Address</FormLabel>
-              <InputWrapper>
-                <InputIcon>
-                  <Mail size={20} />
-                </InputIcon>
-                <StyledInput
-                  id="email"
+              <form onSubmit={isForgotPassword ? handleForgotSubmit(onForgotPasswordSubmit) : handleLoginSubmit(onLoginSubmit)} className="space-y-5">
+                <Input
+                  label="Email Address"
                   type="email"
                   placeholder="Enter your email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  autoComplete="email"
-                  required
+                  icon={<Mail size={18} />}
+                  error={isForgotPassword ? forgotErrors.email?.message : loginErrors.email?.message}
+                  {...(isForgotPassword ? forgotRegister('email') : loginRegister('email'))}
                 />
-              </InputWrapper>
-            </FormGroup>
 
-            <FormGroup>
-              <FormLabel htmlFor="password">Password</FormLabel>
-              <InputWrapper>
-                <InputIcon>
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-                    <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-                  </svg>
-                </InputIcon>
-                <StyledInput
-                  id="password"
-                  type={showPassword ? 'text' : 'password'}
-                  placeholder="Enter your password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  autoComplete="current-password"
-                  required
-                />
-                <PasswordToggle
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  aria-label={showPassword ? 'Hide password' : 'Show password'}
-                >
-                  {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-                </PasswordToggle>
-              </InputWrapper>
-            </FormGroup>
+                {!isForgotPassword && (
+                  <div className="space-y-1">
+                    <Input
+                      label="Password"
+                      type="password"
+                      placeholder="Enter your password"
+                      error={loginErrors.password?.message}
+                      autoComplete="current-password"
+                      {...loginRegister('password')}
+                    />
+                    <div className="flex justify-end">
+                      <button
+                        type="button"
+                        onClick={toggleForgotPassword}
+                        className="text-[13px] text-primary font-bold hover:underline transition-all"
+                      >
+                        Forgot Password?
+                      </button>
+                    </div>
+                  </div>
+                )}
 
-            <ForgotPasswordLink href="#">
-              Forgot password?
-            </ForgotPasswordLink>
+                <div>
+                  <button
+                    type="submit"
+                    disabled={isLoading || (isForgotPassword && forgotSuccess)}
+                    className={`group relative w-full overflow-hidden rounded-xl font-bold text-[15px] transition-all duration-300 ${
+                      isLoading || (isForgotPassword && forgotSuccess)
+                        ? 'opacity-60 cursor-not-allowed'
+                        : 'hover:scale-[1.02] active:scale-[0.98]'
+                    } bg-primary text-white shadow-lg hover:shadow-xl hover:bg-primary-dark py-3.5 px-6 flex items-center justify-center gap-2`}
+                  >
+                    {isLoading ? (
+                      <>
+                        <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        <span>{isForgotPassword ? 'Sending...' : 'Signing in...'}</span>
+                      </>
+                    ) : (
+                      <>
+                        {isForgotPassword ? (
+                          forgotSuccess ? (
+                            <>
+                              <CheckCircle size={18} className="shrink-0" />
+                              <span>Email Sent</span>
+                            </>
+                          ) : (
+                            <>
+                              <Mail size={18} className="shrink-0" />
+                              <span>Send Reset Link</span>
+                            </>
+                          )
+                        ) : (
+                          <>
+                            <span>Sign In</span>
+                          </>
+                        )}
+                      </>
+                    )}
+                  </button>
 
-            <SubmitButton type="submit" disabled={isLoading}>
-              {isLoading ? 'Signing in...' : 'Sign In'}
-            </SubmitButton>
-          </form>
+                  {/* Status Feedback (Error/Success) below button */}
+                  {(error || (isForgotPassword && forgotSuccess)) && (
+                    <div className={`mt-4 px-4 py-3 rounded-xl text-[13px] flex items-center gap-3 animate-fade-in border ${forgotSuccess
+                      ? (isDark ? 'bg-emerald-900/20 border-emerald-800/40 text-emerald-400' : 'bg-emerald-50 border-emerald-200 text-emerald-600')
+                      : (isDark ? 'bg-red-900/20 border-red-800/40 text-red-400' : 'bg-red-50 border-red-200 text-red-600')
+                      }`}>
+                      {forgotSuccess ? <CheckCircle size={18} className="shrink-0" /> : <AlertCircle size={18} className="shrink-0" />}
+                      <p className="font-medium !mb-0">
+                        {forgotSuccess
+                          ? "Instructions have been sent to your email. Please check your inbox."
+                          : error}
+                      </p>
+                    </div>
+                  )}
+                </div>
 
-          <SignUpLink>
-            Don't have an account?
-            <Link to="/signup">Sign up</Link>
-          </SignUpLink>
+                {isForgotPassword && (
+                  <button
+                    type="button"
+                    onClick={toggleForgotPassword}
+                    className={`w-full text-sm font-bold transition-colors flex items-center justify-center gap-2 ${isDark ? 'text-slate-400 hover:text-slate-200' : 'text-slate-600 hover:text-slate-900'}`}
+                  >
+                    <ArrowLeft size={16} />
+                    Back to Sign In
+                  </button>
+                )}
+              </form>
 
-          {/* Demo Mode Quick Login - Shows in local dev or when VITE_DEMO_MODE=true */}
-          {showDemoButton && (
-            <div style={{ 
-              marginTop: '20px', 
-              padding: '15px', 
-              background: '#fff3cd', 
-              borderRadius: '8px',
-              border: '1px solid #ffc107'
-            }}>
-              <div style={{ fontSize: '14px', color: '#856404', marginBottom: '10px' }}>
-                🛠️ <strong>Local Development Mode</strong>
-              </div>
-              <button
-                onClick={handleDevLogin}
-                style={{
-                  width: '100%',
-                  padding: '12px',
-                  background: '#28a745',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '6px',
-                  cursor: 'pointer',
-                  fontSize: '16px',
-                  fontWeight: 'bold'
-                }}
-              >
-                🚀 Quick Dev Login (No Password)
-              </button>
+              {!isForgotPassword && !forgotSuccess && (
+                <>
+                  <div className={`mt-6 text-center text-sm transition-colors duration-300 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                    Don't have an account?
+                    <Link to="/signup" className="text-primary ml-2 font-bold hover:underline">
+                      Sign up
+                    </Link>
+                  </div>
+
+                  {/* Demo Mode Quick Login - Shows in local dev or when VITE_DEMO_MODE=true */}
+                  {showDemoButton && (
+                    <div className="mt-8 animate-fade-in">
+                      {/* HIPAA Notice */}
+                      <div className="flex items-center justify-center gap-2 mb-4">
+                        <Shield size={16} className="text-primary" />
+                        <span className={`text-xs font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                          Secure, HIPAA-compliant access
+                        </span>
+                      </div>
+
+                      {/* Local Development Mode Card */}
+                      <div className={`rounded-2xl border-2 p-5 transition-all duration-300 ${
+                        isDark 
+                          ? 'bg-emerald-900/20 border-emerald-700/40' 
+                          : 'bg-emerald-50 border-emerald-200'
+                      }`}>
+                        <div className="flex items-center gap-2 mb-3">
+                          <Wrench size={16} className={isDark ? 'text-emerald-400' : 'text-emerald-700'} />
+                          <h3 className={`font-bold text-sm ${isDark ? 'text-emerald-300' : 'text-emerald-800'}`}>
+                            Local Development Mode
+                          </h3>
+                        </div>
+                        
+                        <button
+                          onClick={handleDevLogin}
+                          className={`w-full py-3 px-4 rounded-xl font-bold text-sm transition-all duration-300 active:scale-[0.98] flex items-center justify-center gap-2 ${
+                            isDark
+                              ? 'bg-gradient-to-r from-primary to-secondary text-white hover:from-primary-dark hover:to-secondary-dark shadow-lg shadow-primary/30 hover:shadow-xl hover:shadow-primary/40'
+                              : 'bg-gradient-to-r from-primary to-secondary text-white hover:from-primary-dark hover:to-secondary-dark shadow-md hover:shadow-lg'
+                          }`}
+                        >
+                          <Rocket size={16} className="shrink-0" />
+                          <span>Quick Dev Login (No Password)</span>
+                        </button>
+                      </div>
+
+                      {/* Copyright Notice */}
+                      <div className={`mt-4 text-center text-[10px] ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
+                        © 2025 HealthAI - OncoLife. All rights reserved.
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
             </div>
-          )}
-
-          <Footer>
-            © 2025 HealthAI - OncoLife. All rights reserved.
-          </Footer>
-        </LoginCard>
-      </LoginPanel>
-    </LoginContainer>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 };
 
