@@ -281,9 +281,11 @@ const DashboardPage: React.FC = () => {
   };
 
   return (
-    <div className={`flex flex-col h-screen ${isDark ? 'bg-[#1A1917]' : ''} transition-colors duration-200 overflow-hidden`} style={!isDark ? { backgroundColor: 'rgb(250, 248, 245)' } : {}}>
+    <div className={`flex flex-col h-full w-full overflow-hidden ${isDark ? 'bg-[#1A1917]' : 'bg-[rgb(250,248,245)]'} transition-colors duration-200`}>
       {/* Fixed Header - Enhanced Dashboard Style */}
-      <div className={`flex-shrink-0 ${isDark ? 'bg-[#1A1917] border-b border-slate-800/50' : 'bg-white/80 backdrop-blur-sm border-b border-slate-200/60'} transition-colors duration-200 shadow-sm`}>
+      <div 
+        className={`flex-shrink-0 ${isDark ? 'bg-[#1A1917] border-b border-slate-800/50' : 'bg-white/95 backdrop-blur-sm border-b border-slate-200/60'} transition-all duration-200 shadow-sm`}
+      >
         <div className="p-6 pb-5 max-w-[1400px] mx-auto w-full">
           <div className="flex flex-col gap-4 md:flex-row md:justify-between md:items-center">
             <div className="flex items-start gap-4">
@@ -314,14 +316,9 @@ const DashboardPage: React.FC = () => {
         </div>
       </div>
       
-      {/* Sticky Search and Filters Bar */}
-      <div 
-        className={`flex-shrink-0 sticky top-0 z-20 transition-all duration-200 ${
-          isDark ? 'bg-[#1A1917]/95 backdrop-blur-sm border-b border-slate-800/50' : 'bg-white/95 backdrop-blur-sm border-b border-slate-200/60'
-        }`}
-        style={{
-          boxShadow: isDark ? '0 4px 20px rgba(0, 0, 0, 0.2)' : '0 4px 20px rgba(0, 0, 0, 0.06)',
-        }}
+      {/* Fixed Search and Filters Bar */}
+      <div
+        className={`flex-shrink-0 ${isDark ? 'bg-[#1A1917]/95 backdrop-blur-sm border-b border-slate-800/50' : 'bg-white/95 backdrop-blur-sm border-b border-slate-200/60'} transition-all duration-200 shadow-md`}
       >
         <div className="p-6 py-5 max-w-[1400px] mx-auto w-full">
           <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center flex-wrap">
@@ -535,9 +532,15 @@ const DashboardPage: React.FC = () => {
         </div>
       </div>
       
-      {/* Scrollable Patient List Container */}
-      <div className="flex-1 overflow-y-auto">
-        <div className="p-6 pt-4 max-w-[1400px] mx-auto w-full">
+      {/* Patient List Container - Scrollable */}
+      <div 
+        className={`flex-1 min-h-0 overflow-y-auto overflow-x-hidden ${isDark ? '[&::-webkit-scrollbar-thumb]:bg-slate-600 [&::-webkit-scrollbar-track]:bg-slate-800' : '[&::-webkit-scrollbar-thumb]:bg-slate-300 [&::-webkit-scrollbar-track]:bg-slate-100'}`}
+        style={{
+          scrollbarWidth: 'thin',
+          scrollbarColor: isDark ? '#475569 #1A1917' : '#cbd5e1 #f1f5f9',
+        }}
+      >
+        <div className="p-6 pt-4 pb-4 max-w-[1400px] mx-auto w-full">
           {/* Only show error if we're not using static data fallback */}
           {error && !isLoading && (!data?.data || data.data.length === 0) && (
             <Box sx={{ 

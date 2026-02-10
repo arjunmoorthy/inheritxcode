@@ -81,81 +81,115 @@ const PatientsPage: React.FC = () => {
   };
   
   return (
-    <div className={`p-6 max-w-[1400px] mx-auto ${isDark ? 'bg-[#1A1917]' : 'bg-background'} min-h-screen transition-colors duration-200`}>
-      <div className="flex flex-col gap-2 mb-6 md:flex-row md:justify-between md:items-center">
-        <div>
-          <h1 className={`text-2xl md:text-[1.5rem] font-bold ${isDark ? 'text-slate-100' : 'text-primary'} m-0 flex items-center gap-2.5`}>
-            <Users size={24} className={isDark ? 'text-blue-400' : 'text-secondary'} />
-            Patient Management
-          </h1>
-          <p className={`text-sm ${isDark ? 'text-slate-400' : 'text-slate-600'} mt-1 mb-0`}>
-            View and manage your patient roster
-          </p>
-        </div>
-        
-        <Button
-          variant="contained"
-          startIcon={<Plus size={18} />}
-          onClick={handleAddPatient}
-          sx={{
-            bgcolor: colors.primary,
-            borderRadius: 2,
-            px: 3,
-            py: 1,
-            textTransform: 'none',
-            fontWeight: 600,
-            '&:hover': {
-              bgcolor: colors.primaryLight,
-            },
-          }}
-        >
-          Add Patient
-        </Button>
-      </div>
-      
-      <div className="flex gap-3 items-center flex-wrap mb-5">
-        <div className="flex-1 min-w-[280px]">
-          <TextField
-            fullWidth
-            placeholder="Search by name, email, or MRN..."
-            value={search}
-            onChange={handleSearchChange}
-            size="small"
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <Search size={18} className={isDark ? 'text-slate-400' : 'text-slate-500'} />
-                </InputAdornment>
-              ),
-            }}
-            sx={{
-              '& .MuiOutlinedInput-root': {
-                borderRadius: '10px',
-                backgroundColor: isDark ? '#1A1917' : 'white',
-                color: isDark ? '#f1f5f9' : '#0f172a',
-                '& fieldset': {
-                  borderColor: isDark ? '#334155' : '#e2e8f0',
+    <div className={`flex flex-col h-full w-full overflow-hidden ${isDark ? 'bg-[#1A1917]' : 'bg-[rgb(250,248,245)]'} transition-colors duration-200`}>
+      {/* Fixed Header */}
+      <div 
+        className={`flex-shrink-0 ${isDark ? 'bg-[#1A1917] border-b border-slate-800/50' : 'bg-white/95 backdrop-blur-sm border-b border-slate-200/60'} transition-all duration-200 shadow-sm`}
+      >
+        <div className="p-6 pb-5 max-w-[1400px] mx-auto w-full">
+          <div className="flex flex-col gap-4 md:flex-row md:justify-between md:items-center">
+            <div className="flex items-start gap-4">
+              <div className={`p-2.5 rounded-xl ${isDark ? 'bg-blue-500/10' : 'bg-blue-50'}`}>
+                <Users size={22} className={isDark ? 'text-blue-400' : 'text-secondary'} />
+              </div>
+              <div>
+                <h1 className={`text-3xl md:text-[1.75rem] font-bold font-serif ${isDark ? 'text-slate-100' : 'text-slate-900'} m-0 leading-tight`}>
+                  Patient Management
+                </h1>
+                <p className={`text-sm ${isDark ? 'text-slate-400' : 'text-slate-600'} mt-1.5 mb-0 font-medium`}>
+                  View and manage your patient roster
+                </p>
+              </div>
+            </div>
+            <Button
+              variant="contained"
+              startIcon={<Plus size={18} />}
+              onClick={handleAddPatient}
+              sx={{
+                bgcolor: colors.primary,
+                borderRadius: 2,
+                px: 3,
+                py: 1.5,
+                textTransform: 'none',
+                fontWeight: 600,
+                '&:hover': {
+                  bgcolor: colors.primaryLight,
                 },
-                '&:hover fieldset': {
-                  borderColor: isDark ? '#475569' : '#cbd5e1',
-                },
-                '&.Mui-focused fieldset': {
-                  borderColor: '#2563EB',
-                },
-              },
-              '& .MuiInputBase-input': {
-                color: isDark ? '#f1f5f9' : '#0f172a',
-                '&::placeholder': {
-                  color: isDark ? '#94a3b8' : '#64748b',
-                  opacity: 0.6,
-                },
-              },
-            }}
-          />
+              }}
+            >
+              Add Patient
+            </Button>
+          </div>
         </div>
       </div>
       
-      {error && (
+      {/* Fixed Search Bar */}
+      <div
+        className={`flex-shrink-0 ${isDark ? 'bg-[#1A1917]/95 backdrop-blur-sm border-b border-slate-800/50' : 'bg-white/95 backdrop-blur-sm border-b border-slate-200/60'} transition-all duration-200 shadow-md`}
+      >
+        <div className="p-6 py-5 max-w-[1400px] mx-auto w-full">
+          <div className="flex gap-3 items-center flex-wrap">
+            <div className="flex-1 min-w-[280px]">
+              <TextField
+                fullWidth
+                placeholder="Search by name, email, or MRN..."
+                value={search}
+                onChange={handleSearchChange}
+                size="small"
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <Search size={18} className={isDark ? 'text-slate-400' : 'text-slate-500'} />
+                    </InputAdornment>
+                  ),
+                }}
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: '12px',
+                    backgroundColor: isDark ? '#1A1917' : 'white',
+                    color: isDark ? '#f1f5f9' : '#0f172a',
+                    boxShadow: isDark ? '0 1px 3px rgba(0, 0, 0, 0.3)' : '0 1px 3px rgba(0, 0, 0, 0.05)',
+                    transition: 'all 0.2s ease',
+                    '& fieldset': {
+                      borderColor: isDark ? '#334155' : '#e2e8f0',
+                      borderWidth: '1.5px',
+                    },
+                    '&:hover fieldset': {
+                      borderColor: isDark ? '#475569' : '#cbd5e1',
+                    },
+                    '&.Mui-focused': {
+                      boxShadow: isDark ? '0 0 0 3px rgba(37, 99, 235, 0.2)' : '0 0 0 3px rgba(37, 99, 235, 0.1)',
+                    },
+                    '&.Mui-focused fieldset': {
+                      borderColor: '#2563EB',
+                      borderWidth: '2px',
+                    },
+                  },
+                  '& .MuiInputBase-input': {
+                    color: isDark ? '#f1f5f9' : '#0f172a',
+                    padding: '10px 14px',
+                    '&::placeholder': {
+                      color: isDark ? '#94a3b8' : '#64748b',
+                      opacity: 0.7,
+                    },
+                  },
+                }}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      {/* Scrollable Content Area */}
+      <div 
+        className={`flex-1 min-h-0 overflow-y-auto overflow-x-hidden ${isDark ? '[&::-webkit-scrollbar-thumb]:bg-slate-600 [&::-webkit-scrollbar-track]:bg-slate-800' : '[&::-webkit-scrollbar-thumb]:bg-slate-300 [&::-webkit-scrollbar-track]:bg-slate-100'}`}
+        style={{
+          scrollbarWidth: 'thin',
+          scrollbarColor: isDark ? '#475569 #1A1917' : '#cbd5e1 #f1f5f9',
+        }}
+      >
+        <div className="p-6 pt-4 pb-4 max-w-[1400px] mx-auto w-full">
+          {error && (
         <Box sx={{ 
           p: 2, 
           bgcolor: isDark ? '#7f1d1d' : '#FEF2F2', 
@@ -415,7 +449,10 @@ const PatientsPage: React.FC = () => {
           />
         </div>
       )}
+        </div>
+      </div>
       
+      {/* Modals */}
       <AddPatientModal
         open={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}

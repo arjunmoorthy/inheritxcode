@@ -230,17 +230,19 @@ const PatientDetailPage: React.FC = () => {
   };
 
   return (
-    <div className={`flex flex-col h-screen ${isDark ? 'bg-[#1A1917]' : 'bg-[#FAF8F5]'} transition-colors duration-200 overflow-hidden`}>
-      {/* Header */}
-      <PatientDetailHeader
-        isDark={isDark}
-        patientName={patientDetails?.patientName}
-        onBack={handleBack}
-        onProfileClick={() => setIsProfileModalOpen(true)}
-      />
+    <div className={`flex flex-col h-full w-full overflow-hidden ${isDark ? 'bg-[#1A1917]' : 'bg-[rgb(250,248,245)]'} transition-colors duration-200`}>
+      {/* Fixed Header */}
+      <div className="flex-shrink-0">
+        <PatientDetailHeader
+          isDark={isDark}
+          patientName={patientDetails?.patientName}
+          onBack={handleBack}
+          onProfileClick={() => setIsProfileModalOpen(true)}
+        />
+      </div>
 
       {/* Main Content Area */}
-      <div className="flex-1 overflow-hidden flex flex-col md:flex-row relative">
+      <div className="flex-1 min-h-0 overflow-hidden flex flex-col md:flex-row relative">
         {/* Sidebar Toggle Button - Desktop */}
         <button
           onClick={() => setIsSidebarOpen(!isSidebarOpen)}
@@ -303,7 +305,13 @@ const PatientDetailPage: React.FC = () => {
         />
 
         {/* Main Content - Graph and Table */}
-        <div className={`flex-1 overflow-y-auto overflow-x-hidden transition-all duration-300 min-w-0`}>
+        <div 
+          className={`flex-1 min-h-0 overflow-y-auto overflow-x-hidden transition-all duration-300 min-w-0 ${isDark ? '[&::-webkit-scrollbar-thumb]:bg-slate-600 [&::-webkit-scrollbar-track]:bg-slate-800' : '[&::-webkit-scrollbar-thumb]:bg-slate-300 [&::-webkit-scrollbar-track]:bg-slate-100'}`}
+          style={{
+            scrollbarWidth: 'thin',
+            scrollbarColor: isDark ? '#475569 #1A1917' : '#cbd5e1 #f1f5f9',
+          }}
+        >
           <div className="p-3 sm:p-4 md:p-5 space-y-3 md:space-y-4">
             {/* Graph Section */}
             <GraphSection

@@ -53,15 +53,21 @@ const FiltersSidebar: React.FC<FiltersSidebarProps> = ({
 
   return (
     <div
-      className={`flex-shrink-0 transition-all duration-300 ease-in-out overflow-hidden ${
+      className={`flex-shrink-0 transition-all duration-300 ease-in-out ${
         isOpen 
           ? 'w-full md:w-80 opacity-100 z-50 md:z-auto' 
           : 'w-0 md:w-0 opacity-0 md:opacity-0 z-0'
       } ${isDark ? 'bg-[#252320] border-r border-slate-800/50' : 'bg-white border-r border-slate-200/60'} ${
         isOpen ? 'fixed md:relative inset-y-0 left-0 md:left-auto' : ''
-      }`}
+      } flex flex-col overflow-hidden h-full`}
     >
-      <div className={`p-4 md:p-6 space-y-4 md:space-y-6 h-full overflow-y-auto ${isOpen ? 'block' : 'hidden md:hidden'}`}>
+      <div 
+        className={`p-4 md:p-6 space-y-4 md:space-y-6 flex-1 min-h-0 overflow-y-auto overflow-x-hidden ${isOpen ? 'block' : 'hidden md:hidden'} ${isDark ? '[&::-webkit-scrollbar-thumb]:bg-slate-600 [&::-webkit-scrollbar-track]:bg-slate-800' : '[&::-webkit-scrollbar-thumb]:bg-slate-300 [&::-webkit-scrollbar-track]:bg-slate-100'}`}
+        style={{
+          scrollbarWidth: 'thin',
+          scrollbarColor: isDark ? '#475569 #252320' : '#cbd5e1 #ffffff',
+        }}
+      >
         {/* Mobile Close Button */}
         {isMobile && (
           <div className="flex items-center justify-between mb-3 pb-3 border-b border-slate-700/50">
