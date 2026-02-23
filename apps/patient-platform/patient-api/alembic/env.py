@@ -60,9 +60,9 @@ def get_url():
     # Build from components
     host = os.getenv("PATIENT_DB_HOST", os.getenv("POSTGRES_HOST", "localhost"))
     port = os.getenv("PATIENT_DB_PORT", os.getenv("POSTGRES_PORT", "5432"))
-    user = os.getenv("PATIENT_DB_USER", os.getenv("POSTGRES_USER", "oncolife_admin"))
-    password = os.getenv("PATIENT_DB_PASSWORD", os.getenv("POSTGRES_PASSWORD", "oncolife_dev_password"))
-    database = os.getenv("PATIENT_DB_NAME", os.getenv("POSTGRES_PATIENT_DB", "oncolife_patient"))
+    user = os.getenv("PATIENT_DB_USER", os.getenv("POSTGRES_USER", "postgres"))
+    password = os.getenv("PATIENT_DB_PASSWORD", os.getenv("POSTGRES_PASSWORD", "bulbulkj"))
+    database = os.getenv("PATIENT_DB_NAME", os.getenv("POSTGRES_PATIENT_DB", "oncolife_patient_dev"))
     
     return f"postgresql://{user}:{password}@{host}:{port}/{database}"
 

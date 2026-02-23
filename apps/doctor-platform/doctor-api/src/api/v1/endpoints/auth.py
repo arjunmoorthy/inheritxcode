@@ -18,13 +18,16 @@ Rate Limiting:
 """
 
 from fastapi import APIRouter, Depends, HTTPException, status, Request
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field, model_validator
 from sqlalchemy.orm import Session
 from typing import Optional
 from uuid import uuid4, UUID
 import boto3
 from botocore.exceptions import ClientError
 import bcrypt
+import secrets
+from datetime import datetime, timezone, timedelta
+from jose import jwt
 
 # Import models from unified models package
 from db.models import User, Staff, Clinic, StaffClinic
@@ -42,8 +45,12 @@ from core.logging import get_logger
 from core.middleware.rate_limiting import limiter, AUTH_RATE_LIMIT, PASSWORD_RESET_LIMIT
 from google.oauth2 import id_token
 from google.auth.transport import requests
+from helpers.email import send_reset_password_email
+from core.schemas import APIResponse, ErrorResponse
+from core.config import settings
 
 logger = get_logger(__name__)
+now = datetime.now(timezone.utc)
 
 
 # =============================================================================
@@ -129,6 +136,20 @@ class DeleteUserRequest(BaseModel):
 class LogoutResponse(BaseModel):
     """Logout response."""
     message: str
+
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    new_password: str = Field(..., min_length=8)
+    confirm_password: str = Field(..., min_length=8)
+
+    @model_validator(mode="after")
+    def passwords_match(self):
+        if self.new_password != self.confirm_password:
+            raise ValueError("Passwords do not match.")
+        return self
 
 
 # -----------------------------------------------------------------------------
@@ -261,52 +282,52 @@ async def signup_user(
         )
 
 
-@router.post(
-    "/login",
-    response_model=LoginResponse,
-    summary="Login",
-    description="Authenticate a user with email and password. Rate limited to prevent brute force.",
-)
-@limiter.limit(AUTH_RATE_LIMIT)
-async def login(
-    request: LoginRequest,
-    http_request: Request,
-    db: Session = Depends(get_doctor_db_session),
-):
-    """
-    Authenticate a user.
+# @router.post(
+#     "/login",
+#     response_model=LoginResponse,
+#     summary="Login",
+#     description="Authenticate a user with email and password. Rate limited to prevent brute force.",
+# )
+# @limiter.limit(AUTH_RATE_LIMIT)
+# async def login(
+#     request: LoginRequest,
+#     http_request: Request,
+#     db: Session = Depends(get_doctor_db_session),
+# ):
+#     """
+#     Authenticate a user.
     
-    Returns JWT tokens on success, or challenge info if password
-    change is required (for users with temporary passwords).
-    """
-    logger.info(f"Login request: email={request.email}")
+#     Returns JWT tokens on success, or challenge info if password
+#     change is required (for users with temporary passwords).
+#     """
+#     logger.info(f"Login request: email={request.email}")
     
-    auth_service = AuthService(db)
+#     auth_service = AuthService(db)
     
-    try:
-        result = auth_service.login(
-            email=request.email,
-            password=request.password,
-        )
+#     try:
+#         result = auth_service.login(
+#             email=request.email,
+#             password=request.password,
+#         )
         
-        response = LoginResponse(
-            valid=result["valid"],
-            message=result.get("message", ""),
-            user_status=result.get("user_status"),
-            session=result.get("session"),
-        )
+#         response = LoginResponse(
+#             valid=result["valid"],
+#             message=result.get("message", ""),
+#             user_status=result.get("user_status"),
+#             session=result.get("session"),
+#         )
         
-        if result.get("tokens"):
-            response.tokens = AuthTokens(**result["tokens"])
+#         if result.get("tokens"):
+#             response.tokens = AuthTokens(**result["tokens"])
         
-        return response
+#         return response
         
-    except ExternalServiceError as e:
-        logger.error(f"Login failed for {request.email}: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=str(e),
-        )
+#     except ExternalServiceError as e:
+#         logger.error(f"Login failed for {request.email}: {e}")
+#         raise HTTPException(
+#             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+#             detail=str(e),
+#         )
 
 
 @router.post(
@@ -423,111 +444,6 @@ async def delete_user(
             detail=str(e),
         )
 
-
-# @router.post(
-#     "/sso/provision",
-#     response_model=SSOProvisionResponse,
-#     summary="Provision federated SSO user",
-# )
-# async def provision_sso_user(
-#     request: SSOProvisionRequest,
-#     current_user: TokenData = Depends(get_current_user),
-#     db: Session = Depends(get_doctor_db_session),
-# ):
-#     from uuid import UUID, uuid4
-#     from db.models.staff import Staff
-
-#     if not current_user.email:
-#         raise HTTPException(status_code=400, detail="Token missing email")
-
-#     # Parse Cognito sub
-#     try:
-#         staff_uuid = UUID(current_user.sub)
-#     except Exception:
-#         staff_uuid = uuid4()
-
-#     # 1️⃣ Check if staff already exists (idempotent)
-#     staff = (
-#         db.query(Staff)
-#         .filter(
-#             (Staff.uuid == staff_uuid) |
-#             (Staff.email == current_user.email)
-#         )
-#         .first()
-#     )
-
-#     if staff:
-#         return SSOProvisionResponse(
-#             message="User already provisioned",
-#             email=staff.email,
-#             staff_uuid=str(staff.uuid),
-#             created=False,
-#         )
-
-#     # 2️⃣ Create staff entry
-#     staff = Staff(
-#         uuid=staff_uuid,
-#         cognito_sub=current_user.sub,
-#         email=current_user.email,
-#         first_name=request.first_name,
-#         last_name=request.last_name,
-#         role=request.role or "staff",
-#         clinic_id=request.clinic_id,  # optional
-#         is_active=True,
-#     )
-
-#     db.add(staff)
-#     db.commit()
-#     db.refresh(staff)
-
-#     return SSOProvisionResponse(
-#         message="User provisioned successfully",
-#         email=staff.email,
-#         staff_uuid=str(staff.uuid),
-#         created=True,
-#     )
-
-
-# Cognito setup
-# COGNITO_USER_POOL_ID = "eu-north-1_8leC5jZQf"
-# COGNITO_CLIENT_ID = "8is50naib64tgtmtd6kusq8fl"
-# AWS_REGION = "us-east-1"
-
-# cognito_client = boto3.client("cognito-idp", region_name=AWS_REGION)
-
-
-# def create_cognito_user(email: str, first_name: str, last_name: str, password: str = None):
-#     """Create user in Cognito. For SSO, password can be None."""
-#     try:
-#         user_attrs = [
-#             {"Name": "email", "Value": email},
-#             {"Name": "email_verified", "Value": "True"},
-#             {"Name": "given_name", "Value": first_name},
-#             {"Name": "family_name", "Value": last_name},
-#         ]
-#         print("Creating Cognito user with attrs:", user_attrs, 'wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww')
-
-#         params = {
-#             "UserPoolId": COGNITO_USER_POOL_ID,
-#             "Username": email,
-#             "UserAttributes": user_attrs,
-#             "MessageAction": "SUPPRESS",  # Don't send default email
-#         }
-#         print("Cognito create user params:", params, 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx')
-
-#         if password:
-#             params["TemporaryPassword"] = password
-
-#         response = cognito_client.admin_create_user(**params)
-#         print("Cognito create user response:", response, 'yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy')
-#         return response
-
-#     except ClientError as e:
-#         raise HTTPException(status_code=400, detail=f"Cognito error: {e.response['Error']['Message']}")
-
-
-
-
 @router.post(
     "/signup/staff",
     response_model=SSOProvisionResponse,
@@ -564,15 +480,21 @@ async def manual_staff_signup(
 
     # Check if user already exists
     existing_user = db.query(User).filter(User.email == request.email).first()
+
     if existing_user:
-        # Get associated staff profile
-        existing_staff = db.query(Staff).filter(Staff.user_id == existing_user.id).first()
-        return SSOProvisionResponse(
-            message="User already exists",
-            email=existing_user.email,
-            staff_uuid=str(existing_staff.uuid) if existing_staff else None,
-            created=False,
-        )
+        # If user registered via Google → block manual signup
+        if existing_user.auth_provider == "google":
+            raise HTTPException(
+                status_code=400,
+                detail="This email is registered using Google. Please login with Google."
+            )
+
+        # If user registered via local → block duplicate signup
+        if existing_user.auth_provider == "local":
+            raise HTTPException(
+                status_code=400,
+                detail="User with this email already exists."
+            )
     
     try:
         # 1. Create User record (authentication + name)
@@ -742,18 +664,18 @@ def complete_profile(
         department=staff.department,
     )
 
-ALLOWED_CLIENT_IDS = [
-    # "407408718192.apps.googleusercontent.com",
-    # "165026362997-vj3hj108oho22jodhhlp2ab8fi9tja9c.apps.googleusercontent.com",
-    "728521781849-nrcnpe2ac409tsv5d4lghi76tq9btee6.apps.googleusercontent.com"
-]
-
 def verify_google_token(token: str):
+    client_ids = settings.google_allowed_client_ids_list
+    if not client_ids:
+        raise HTTPException(
+            status_code=500,
+            detail="GOOGLE_ALLOWED_CLIENT_IDS not configured"
+        )
     try:
         idinfo = id_token.verify_oauth2_token(
             token,
             requests.Request(),
-            ALLOWED_CLIENT_IDS,   # ✅ audience
+            client_ids,
         )
         return idinfo
     except Exception as e:
@@ -761,33 +683,40 @@ def verify_google_token(token: str):
             status_code=401,
             detail=f"Invalid Google token: {str(e)}"
         )
-    
-from datetime import datetime, timedelta
-from jose import jwt
 
-SECRET_KEY = "9d7d08631a2cc5e54d080e522c5c15c41fd99a1e3615ddb226f465241ec1e3a4"
-ALGORITHM = "HS256"
-
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
-REFRESH_TOKEN_EXPIRE_DAYS = 7
+def _get_jwt_secret() -> str:
+    key = settings.jwt_secret_key
+    if not key:
+        raise HTTPException(
+            status_code=500,
+            detail="JWT_SECRET_KEY not configured. Set it in .env for JWT token creation."
+        )
+    return key
 
 
 def create_access_token(data: dict):
     to_encode = data.copy()
-    expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    expire = datetime.utcnow() + timedelta(minutes=settings.access_token_expire_minutes)
     to_encode.update({"exp": expire, "type": "access"})
-    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    return jwt.encode(to_encode, _get_jwt_secret(), algorithm=settings.jwt_algorithm)
 
 
 def create_refresh_token(data: dict):
     to_encode = data.copy()
-    expire = datetime.utcnow() + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
+    expire = datetime.utcnow() + timedelta(days=settings.refresh_token_expire_days)
     to_encode.update({"exp": expire, "type": "refresh"})
-    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    return jwt.encode(to_encode, _get_jwt_secret(), algorithm=settings.jwt_algorithm)
+
+
+def create_id_token(data: dict):
+    to_encode = data.copy()
+    expire = datetime.now(timezone.utc) + timedelta(minutes=settings.access_token_expire_minutes)
+    to_encode.update({"exp": expire, "type": "id"})
+    return jwt.encode(to_encode, _get_jwt_secret(), algorithm=settings.jwt_algorithm)
 
 @router.post(
-    "/auth/google/signup",
-    response_model=GoogleSignupResponse,
+    "/google/signup",
+    response_model=APIResponse[GoogleSignupResponse],
     summary="Google social signup",
 )
 def google_signup(
@@ -813,41 +742,52 @@ def google_signup(
     if not email:
         raise HTTPException(status_code=400, detail="Email not found from Google")
 
-    # Check if user already exists (by email or Google sub)
-    existing_user = db.query(User).filter(
-        (User.email == email) | 
-        ((User.auth_provider == 'google') & (User.provider_user_id == google_sub))
-    ).first()
-    
+    # 🔍 Step 1: Check if user exists by email
+    existing_user = db.query(User).filter(User.email == email).first()
+
     if existing_user:
+
+        # ✅ If user exists but was local → convert to Google
+        if existing_user.auth_provider == "local":
+            existing_user.auth_provider = "google"
+            existing_user.provider_user_id = google_sub
+            existing_user.is_verified = True
+            db.commit()
+    
+
         # Get associated staff profile
         staff = db.query(Staff).filter(Staff.user_id == existing_user.id).first()
         
-        if staff:
-            payload = {
-                "user_id": existing_user.id,
-                "staff_id": staff.id,
-                "staff_uuid": str(staff.uuid),
-                "email": staff.email,
-                "role": staff.role,
-            }
+        if not staff:
+            raise HTTPException(status_code=400, detail="Staff profile not found")
+        payload = {
+            "user_id": existing_user.id,
+            "staff_id": staff.id,
+            "staff_uuid": str(staff.uuid),
+            "email": staff.email,
+            "role": staff.role,
+        }
 
-            access_token = create_access_token(payload)
-            refresh_token = create_refresh_token(payload)
+        access_token = create_access_token(payload)
+        refresh_token = create_refresh_token(payload)
 
-            is_profile_completed = staff.is_profile_completed
+        is_profile_completed = staff.is_profile_completed
 
-            return GoogleSignupResponse(
-                message="User already exists",
+        return APIResponse(
+            success=True,
+            message="User already exists.",
+            data=GoogleSignupResponse(
+                message="User already exists.",
                 email=staff.email,
-                staff_id=staff.id,
                 first_name=staff.first_name,
                 last_name=staff.last_name,
+                staff_id=staff.id,
                 is_profile_completed=is_profile_completed,
                 access_token=access_token,
                 refresh_token=refresh_token,
                 created=False,
-            )
+            ),
+        )   
     
     try:
         # 1. Create User record (authentication + name - no password for SSO)
@@ -891,16 +831,21 @@ def google_signup(
         access_token = create_access_token(payload)
         refresh_token = create_refresh_token(payload)
         
-        return GoogleSignupResponse(
-            message="User signed up successfully via Google",
-            email=staff.email,
-            first_name=staff.first_name,
-            last_name=staff.last_name,
-            staff_id=staff.id,
-            is_profile_completed=False,
-            access_token=access_token,
-            refresh_token=refresh_token,
-            created=True,
+        return APIResponse(
+            success=True,
+            message="User created successfully.",
+            data=GoogleSignupResponse(
+                message="User created successfully.",
+                email=staff.email,
+                first_name=staff.first_name,
+                last_name=staff.last_name,
+                staff_id=staff.id,
+                is_profile_completed=staff.is_profile_completed,
+                access_token=access_token,
+                refresh_token=refresh_token,
+                created=True,
+            ),
+            status_code=201
         )
         
     except Exception as e:
@@ -910,3 +855,129 @@ def google_signup(
             status_code=500,
             detail=f"Failed to create user: {str(e)}"
         )
+
+def generate_reset_token() -> str:
+    return secrets.token_urlsafe(32)
+
+@router.post("/forgot-password")
+async def forgot_password(request: ForgotPasswordRequest, db: Session = Depends(get_doctor_db_session)):
+    user = db.query(User).filter(User.email == request.email).first()
+    if not user:
+        # Do not reveal whether email exists
+        return ErrorResponse(
+            success=False,
+            message="User with the provided email does not exist.",
+            details=None,
+            status_code=404
+        )
+
+    # Generate secure reset token
+    token = secrets.token_urlsafe(32)
+    user.reset_token = token
+    user.reset_token_expires_at = datetime.utcnow() + timedelta(hours=1)
+    db.commit()
+
+    reset_link = f"http://localhost:5174/reset-password?token={token}"
+
+    # Send email
+    await send_reset_password_email(email=request.email, reset_link=reset_link)
+
+    return APIResponse(
+        success=True,
+        message="Password reset email sent to the provided email address.",
+        data=None,
+        status_code=200
+    )
+
+
+@router.post("/reset-password")
+async def reset_password(
+    request: ResetPasswordRequest,
+    db: Session = Depends(get_doctor_db_session)
+):
+    user = db.query(User).filter(User.reset_token == request.token).first()
+
+    if not user:
+        return ErrorResponse(
+            success=False,
+            message="No user found for the provided reset token.",
+            details=None,
+            status_code=404
+        )
+
+    if (
+        not user.reset_token_expires_at
+        or user.reset_token_expires_at < datetime.now(timezone.utc)
+    ):
+        raise HTTPException(status_code=400, detail="Reset token has expired.")
+    user.password_hash = hash_password(request.new_password)
+    user.reset_token = None
+    user.reset_token_expires_at = None
+
+    db.commit()
+
+    return APIResponse(
+        success=True,
+        message="Password has been reset successfully.",
+        data=None,
+        status_code=200
+    )
+
+
+@router.post("/login", response_model=APIResponse[AuthTokens])
+async def login(
+    request: LoginRequest,
+    db: Session = Depends(get_doctor_db_session)
+):
+    user = db.query(User).filter(User.email == request.email).first()
+
+    # Generic error (avoid user enumeration)
+    if not user or not user.password_hash:
+        return ErrorResponse(
+            success=False,
+            message="Invalid email or password.",
+            details=None,
+            status_code=401
+        )
+
+    if not user.is_active:
+        return ErrorResponse(
+            success=False,
+            message="User account is inactive. Please contact support.",
+            details=None,
+            status_code=403
+        )
+
+    if not verify_password(request.password, user.password_hash):
+        return ErrorResponse(
+            success=False,
+            message="Invalid email or password.",
+            details=None,
+            status_code=401
+        )
+
+    # Update last login
+    user.last_login_at = datetime.now(timezone.utc)
+    db.commit()
+
+    # Token payload
+    token_data = {
+        "sub": str(user.uuid),
+        "email": user.email,
+    }
+
+    access_token = create_access_token(token_data)
+    refresh_token = create_refresh_token(token_data)
+    id_token = create_id_token(token_data)
+
+    return APIResponse(
+        success=True,
+        message="Login successful.",
+        data=AuthTokens(
+            access_token=access_token,
+            refresh_token=refresh_token,
+            id_token=id_token,
+            staff_id=user.staff.id if user.staff else None,
+        ),
+        status_code=200
+    )

@@ -43,6 +43,7 @@ from .endpoints import (
     dashboard,
     registration,
     docs,
+    fax,
 )
 
 # Create the main API router for v1
@@ -99,6 +100,13 @@ api_router.include_router(
     registration.router,
     prefix="/registration",
     tags=["Registration"],
+)
+
+# Fax - inbound webhooks and fax handling
+api_router.include_router(
+    fax.router,
+    prefix="/fax",
+    tags=["Fax"],
 )
 
 # Secured API Documentation (production)

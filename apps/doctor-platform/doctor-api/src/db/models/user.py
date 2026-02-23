@@ -146,6 +146,17 @@ class User(DoctorBase, TimestampMixin):
         nullable=True,
         comment="Last successful login timestamp"
     )
+    reset_token = Column(
+        String(255),
+        nullable=True,
+        index=True,
+        comment="Password reset token"
+    )
+    reset_token_expires_at = Column(
+        DateTime(timezone=True),
+        nullable=True,
+        comment="Reset token expiry time"
+    )
     
     # Relationships
     staff = relationship(
