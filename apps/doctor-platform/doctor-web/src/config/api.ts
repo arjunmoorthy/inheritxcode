@@ -58,6 +58,14 @@ export const API_CONFIG = {
       STATS: (uuid: string) => `/patients/${uuid}/stats`,
     },
 
+    // Fax / Manual Patient
+    FAX: {
+      PATIENTS: {
+        CREATE: '/fax/patients',
+        UPDATE: (id: string) => `/fax/patients/${id}`,
+      },
+    },
+
     // Dashboard & Analytics
     DASHBOARD: {
       LANDING: '/dashboard',

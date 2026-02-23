@@ -52,8 +52,39 @@ import {
   ChevronRight
 } from 'lucide-react';
 import { usePatientSummaries, type PatientSummary } from '../../services/dashboard';
+import { useAddManualPatient, type AddManualPatientPayload } from '../../services/patients';
 import { useThemeMode } from '@oncolife/ui-components';
-import { AddPatientModal } from './components/AddPatientModal';
+import { AddPatientModal, type PatientFormValues } from './components/AddPatientModal';
+
+function computeAge(dateOfBirth: string | undefined): number | undefined {
+  if (!dateOfBirth) return undefined;
+  const dob = new Date(dateOfBirth);
+  const today = new Date();
+  let age = today.getFullYear() - dob.getFullYear();
+  const m = today.getMonth() - dob.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) age--;
+  return age >= 0 ? age : undefined;
+}
+
+function toAddManualPatientPayload(form: PatientFormValues): AddManualPatientPayload {
+  return {
+    first_name: form.firstName,
+    last_name: form.lastName,
+    mrn: form.mrn?.trim() || `MRN${Date.now()}`,
+    date_of_birth: form.dateOfBirth || undefined,
+    age: computeAge(form.dateOfBirth),
+    gender: form.gender || undefined,
+    email: form.email,
+    phone_number: form.phone || undefined,
+    cancer_type: form.diagnosis,
+    oncologist: form.oncologist || undefined,
+    start_date: form.treatmentStartDate || undefined,
+    end_date: form.endDate || undefined,
+    plan_name: form.regimenName || undefined,
+    past_medical_history: form.pastMedicalHistory || undefined,
+    past_surgical_history: form.pastSurgicalHistory || undefined,
+  };
+}
 
 const DashboardPage: React.FC = () => {
   const theme = useTheme();
@@ -80,6 +111,7 @@ const DashboardPage: React.FC = () => {
   }, [search]);
   
   const { data, isLoading, error } = usePatientSummaries(page, debouncedSearch, 'all');
+  const addPatientMutation = useAddManualPatient();
   
   // Helper functions - defined before use
   const formatDOB = (dateString: string) => {
@@ -800,11 +832,9 @@ const DashboardPage: React.FC = () => {
       <AddPatientModal
         isOpen={isAddPatientModalOpen}
         onClose={() => setIsAddPatientModalOpen(false)}
-        onSubmit={async (data) => {
-          // TODO: Implement API call to add patient
-          console.log('Patient data:', data);
-          // You can add the API call here
-          // await addPatient(data);
+        onSubmit={async (formData) => {
+          const payload = toAddManualPatientPayload(formData);
+          await addPatientMutation.mutateAsync(payload);
         }}
       />
     </div>

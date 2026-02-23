@@ -31,7 +31,9 @@ const patientSchema = z.object({
   lastName: z.string().min(1, 'Last name is required').max(50, 'Last name is too long'),
   email: z.string().email('Please enter a valid email address'),
   phone: z.string().optional(),
+  mrn: z.string().optional(),
   dateOfBirth: z.string().optional(),
+  gender: z.string().optional(),
   location: z.string().optional(),
   diagnosis: z.string().min(1, 'Diagnosis is required'),
   patientStatus: z.enum(['active', 'inactive', 'pending']),
@@ -39,9 +41,13 @@ const patientSchema = z.object({
   dayOfChemo: z.string().optional(),
   treatmentStartDate: z.string().optional(),
   nextChemoDate: z.string().optional(),
+  endDate: z.string().optional(),
+  oncologist: z.string().optional(),
+  pastMedicalHistory: z.string().optional(),
+  pastSurgicalHistory: z.string().optional(),
 });
 
-type PatientFormValues = z.infer<typeof patientSchema>;
+export type PatientFormValues = z.infer<typeof patientSchema>;
 
 interface AddPatientModalProps {
   isOpen: boolean;
@@ -67,6 +73,13 @@ const dayOfChemoOptions: SelectOption[] = [
   { value: 'sunday', label: 'Sunday' },
 ];
 
+const genderOptions: SelectOption[] = [
+  { value: '', label: 'Select gender' },
+  { value: 'Male', label: 'Male' },
+  { value: 'Female', label: 'Female' },
+  { value: 'Other', label: 'Other' },
+];
+
 export const AddPatientModal: React.FC<AddPatientModalProps> = ({ 
   isOpen, 
   onClose,
@@ -88,7 +101,9 @@ export const AddPatientModal: React.FC<AddPatientModalProps> = ({
       lastName: '',
       email: '',
       phone: '',
+      mrn: '',
       dateOfBirth: '',
+      gender: '',
       location: '',
       diagnosis: '',
       patientStatus: 'active',
@@ -96,6 +111,10 @@ export const AddPatientModal: React.FC<AddPatientModalProps> = ({
       dayOfChemo: '',
       treatmentStartDate: '',
       nextChemoDate: '',
+      endDate: '',
+      oncologist: '',
+      pastMedicalHistory: '',
+      pastSurgicalHistory: '',
     },
   });
 
@@ -211,6 +230,21 @@ export const AddPatientModal: React.FC<AddPatientModalProps> = ({
                 )}
               />
 
+              {/* MRN */}
+              <Controller
+                name="mrn"
+                control={control}
+                render={({ field }) => (
+                  <Input
+                    {...field}
+                    label="MRN"
+                    placeholder="e.g., MRN123456"
+                    icon={<User size={18} />}
+                    fullWidth
+                  />
+                )}
+              />
+
               {/* Date of Birth */}
               <Controller
                 name="dateOfBirth"
@@ -224,6 +258,28 @@ export const AddPatientModal: React.FC<AddPatientModalProps> = ({
                     fullWidth
                   />
                 )}
+              />
+
+              {/* Gender */}
+              <Controller
+                name="gender"
+                control={control}
+                render={({ field }) => {
+                  const selectedOption = genderOptions.find(opt => opt.value === field.value);
+                  return (
+                    <Select
+                      label="Gender"
+                      options={genderOptions}
+                      value={selectedOption || null}
+                      onChange={(newValue: SingleValue<SelectOption> | MultiValue<SelectOption>) => {
+                        const option = Array.isArray(newValue) ? newValue[0] : newValue;
+                        field.onChange(option?.value as string || '');
+                      }}
+                      placeholder="Select gender"
+                      fullWidth
+                    />
+                  );
+                }}
               />
 
               {/* Location */}
@@ -359,6 +415,68 @@ export const AddPatientModal: React.FC<AddPatientModalProps> = ({
                   />
                 )}
               />
+
+              {/* Treatment End Date */}
+              <Controller
+                name="endDate"
+                control={control}
+                render={({ field }) => (
+                  <Input
+                    {...field}
+                    label="Treatment End Date"
+                    type="date"
+                    icon={<Calendar size={18} />}
+                    fullWidth
+                  />
+                )}
+              />
+
+              {/* Oncologist */}
+              <Controller
+                name="oncologist"
+                control={control}
+                render={({ field }) => (
+                  <Input
+                    {...field}
+                    label="Oncologist"
+                    placeholder="e.g., Dr. Sarah Smith"
+                    icon={<Stethoscope size={18} />}
+                    fullWidth
+                  />
+                )}
+              />
+
+              {/* Past Medical History */}
+              <div className="md:col-span-2">
+                <Controller
+                  name="pastMedicalHistory"
+                  control={control}
+                  render={({ field }) => (
+                    <Input
+                      {...field}
+                      label="Past Medical History"
+                      placeholder="e.g., Hypertension, Type 2 Diabetes"
+                      fullWidth
+                    />
+                  )}
+                />
+              </div>
+
+              {/* Past Surgical History */}
+              <div className="md:col-span-2">
+                <Controller
+                  name="pastSurgicalHistory"
+                  control={control}
+                  render={({ field }) => (
+                    <Input
+                      {...field}
+                      label="Past Surgical History"
+                      placeholder="e.g., Appendectomy (2010)"
+                      fullWidth
+                    />
+                  )}
+                />
+              </div>
             </div>
           </div>
 

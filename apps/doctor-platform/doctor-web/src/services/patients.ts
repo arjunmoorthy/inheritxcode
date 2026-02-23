@@ -204,6 +204,77 @@ export const usePatientDetails = (patientId: string) => {
 };
 
 // =============================================================================
+// Add Manual Patient (FAX / fax_patients)
+// =============================================================================
+
+export interface AddManualPatientPayload {
+  first_name: string;
+  last_name: string;
+  mrn?: string;
+  date_of_birth?: string;
+  age?: number;
+  gender?: string;
+  email: string;
+  phone_number?: string;
+  bmi?: string;
+  cancer_type: string;
+  oncologist?: string;
+  start_date?: string;
+  end_date?: string;
+  plan_name?: string;
+  past_medical_history?: string;
+  past_surgical_history?: string;
+}
+
+const addManualPatient = async (
+  payload: AddManualPatientPayload
+): Promise<unknown> => {
+  const response = await apiClient.post(
+    API_CONFIG.ENDPOINTS.FAX.PATIENTS.CREATE,
+    payload
+  );
+  return response.data;
+};
+
+export const useAddManualPatient = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: addManualPatient,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['patientSummaries'] });
+      queryClient.invalidateQueries({ queryKey: ['patientDetails'] });
+      queryClient.invalidateQueries({ queryKey: ['patients'] });
+    },
+  });
+};
+
+const updateFaxPatient = async (
+  patientId: string,
+  payload: AddManualPatientPayload
+): Promise<unknown> => {
+  const response = await apiClient.put(
+    API_CONFIG.ENDPOINTS.FAX.PATIENTS.UPDATE(patientId),
+    payload
+  );
+  return response.data;
+};
+
+export const useUpdateFaxPatient = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ patientId, payload }: { patientId: string; payload: AddManualPatientPayload }) =>
+      updateFaxPatient(patientId, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['patientSummaries'] });
+      queryClient.invalidateQueries({ queryKey: ['patientDetails'] });
+      queryClient.invalidateQueries({ queryKey: ['patients'] });
+    },
+  });
+};
+
+// =============================================================================
 // Mutation Hooks (for future use when backend supports these)
 // =============================================================================
 
