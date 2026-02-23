@@ -2,219 +2,203 @@
 Analytics Models - Doctor API
 =============================
 
-Models for clinical analytics, time-series data, and reporting.
+Models for audit logging and reporting.
 
 Tables:
-- symptom_time_series: Time-series symptom data for analytics
-- treatment_events: Treatment/chemo events for timeline overlays
-- physician_reports: Weekly report metadata
 - audit_logs: HIPAA-compliant access logging
+- weekly_reports: Physician weekly report metadata
 
-These models power the Doctor Dashboard analytics features.
+These models support compliance and reporting features.
 """
 
 import uuid
 from datetime import datetime, date
 from typing import Optional
 
-from sqlalchemy import Column, String, Text, Boolean, DateTime, Date, Integer, ForeignKey, Index, Numeric
+from sqlalchemy import Column, String, Text, Boolean, DateTime, Date, Integer, ForeignKey, Index, func
 from sqlalchemy.dialects.postgresql import UUID, JSONB
+from sqlalchemy.orm import relationship
 
-from db.base import DoctorBase, TimestampMixin
+from db.base import DoctorBase
 
 
-class SymptomTimeSeries(DoctorBase, TimestampMixin):
+class AuditLog(DoctorBase):
     """
-    Time-series symptom data for clinical analytics.
+    HIPAA-compliant audit logging.
     
-    Stores every symptom event (not just latest values) to power:
-    - Timeline charts
-    - Severity ranking
-    - Trend detection
-    - Weekly analytics
+    Tracks all access to patient data for compliance.
+    Every action that accesses or modifies patient data is logged.
     
     Attributes:
-        id: UUID primary key
-        patient_id: Reference to the patient
-        symptom_id: Identifier for the symptom type
-        severity: mild, moderate, severe, urgent
-        recorded_at: When the symptom was recorded
-        source_session_id: Reference to the chat session
+        id: Auto-increment primary key
+        user_id: Foreign key to users table
+        user_uuid: UUID of the user (for convenience)
+        user_role: Role of the user at time of action
+        action: What action was performed
+        entity_type: Type of data accessed
+        entity_id: ID of the specific record
+        details: Additional context as JSON
+        ip_address: IP address of the request
+        user_agent: Browser/client user agent
+        created_at: When the action was performed
     """
     
-    __tablename__ = 'symptom_time_series'
+    __tablename__ = 'audit_logs'
     __table_args__ = (
-        Index('idx_symptom_patient_time', 'patient_id', 'recorded_at'),
-        Index('idx_symptom_severity', 'severity'),
-        {'comment': 'Time-series symptom data for analytics'}
+        Index('ix_audit_logs_user_id', 'user_id'),
+        Index('ix_audit_logs_user_uuid', 'user_uuid'),
+        Index('ix_audit_logs_action', 'action'),
+        Index('ix_audit_logs_entity', 'entity_type', 'entity_id'),
+        Index('ix_audit_logs_created_at', 'created_at'),
+        {'comment': 'HIPAA-compliant access audit logs'}
     )
     
     # Primary key
     id = Column(
-        UUID(as_uuid=True),
+        Integer,
         primary_key=True,
-        default=uuid.uuid4,
-        comment="Unique record identifier"
+        autoincrement=True,
+        comment="Auto-increment primary key"
     )
     
-    # Patient reference
-    patient_id = Column(
-        UUID(as_uuid=True),
-        nullable=False,
-        index=True,
-        comment="UUID of the patient"
+    # User information
+    user_id = Column(
+        Integer,
+        ForeignKey('users.id'),
+        nullable=True,
+        comment="Foreign key to users table"
     )
-    
-    # Symptom data
-    symptom_id = Column(
-        String(100),
-        nullable=False,
-        comment="Symptom identifier (e.g., 'fever', 'nausea')"
-    )
-    
-    severity = Column(
-        String(20),
-        nullable=False,
-        comment="Severity level: mild, moderate, severe, urgent"
-    )
-    
-    # Timing
-    recorded_at = Column(
-        DateTime(timezone=True),
-        nullable=False,
-        comment="When the symptom was recorded"
-    )
-    
-    # Source tracking
-    source_session_id = Column(
+    user_uuid = Column(
         UUID(as_uuid=True),
         nullable=True,
-        comment="Reference to the chat session that generated this record"
+        comment="UUID of the user"
+    )
+    user_role = Column(
+        String(50),
+        nullable=True,
+        comment="Role of the user: physician, nurse, staff, admin"
+    )
+    
+    # Action details
+    action = Column(
+        String(100),
+        nullable=False,
+        comment="Action performed: login, view_patient, view_dashboard, etc."
+    )
+    
+    entity_type = Column(
+        String(100),
+        nullable=True,
+        comment="Type of entity accessed: patient, conversation, diary, report"
+    )
+    
+    entity_id = Column(
+        UUID(as_uuid=True),
+        nullable=True,
+        comment="ID of the specific entity accessed"
     )
     
     # Additional context
-    notes = Column(
-        Text,
-        nullable=True,
-        comment="Additional notes about the symptom"
-    )
-    
-    def __repr__(self) -> str:
-        return (
-            f"<SymptomTimeSeries(patient={self.patient_id}, "
-            f"symptom={self.symptom_id}, severity={self.severity})>"
-        )
-    
-    @property
-    def severity_numeric(self) -> int:
-        """Convert severity to numeric for charting."""
-        mapping = {'mild': 1, 'moderate': 2, 'severe': 3, 'urgent': 4}
-        return mapping.get(self.severity, 0)
-
-
-class TreatmentEvent(DoctorBase, TimestampMixin):
-    """
-    Treatment and chemotherapy events for timeline overlays.
-    
-    Used to correlate symptom patterns with treatment events:
-    - Chemo start/end
-    - Cycle start/end
-    - Regimen changes
-    
-    Attributes:
-        id: UUID primary key
-        patient_id: Reference to the patient
-        event_type: Type of treatment event
-        event_date: When the event occurred
-        metadata: Additional event details (drug name, cycle number, etc.)
-    """
-    
-    __tablename__ = 'treatment_events'
-    __table_args__ = (
-        Index('idx_treatment_patient_date', 'patient_id', 'event_date'),
-        {'comment': 'Treatment events for timeline overlays'}
-    )
-    
-    # Primary key
-    id = Column(
-        UUID(as_uuid=True),
-        primary_key=True,
-        default=uuid.uuid4,
-        comment="Unique event identifier"
-    )
-    
-    # Patient reference
-    patient_id = Column(
-        UUID(as_uuid=True),
-        nullable=False,
-        index=True,
-        comment="UUID of the patient"
-    )
-    
-    # Event details
-    event_type = Column(
-        String(50),
-        nullable=False,
-        comment="Event type: chemo_start, chemo_end, cycle_start, cycle_end, regimen_change"
-    )
-    
-    event_date = Column(
-        Date,
-        nullable=False,
-        comment="Date of the event"
-    )
-    
-    # Additional metadata (named event_metadata to avoid SQLAlchemy reserved name)
-    event_metadata = Column(
+    details = Column(
         JSONB,
         nullable=True,
-        default=dict,
-        comment="Additional event details (drug name, cycle number, etc.)"
+        comment="Additional context about the action"
+    )
+    
+    # Request metadata
+    ip_address = Column(
+        String(45),
+        nullable=True,
+        comment="IP address of the request"
+    )
+    
+    user_agent = Column(
+        String(500),
+        nullable=True,
+        comment="Browser/client user agent"
+    )
+    
+    # Timestamp
+    created_at = Column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+        comment="When the action was performed"
     )
     
     def __repr__(self) -> str:
         return (
-            f"<TreatmentEvent(patient={self.patient_id}, "
-            f"type={self.event_type}, date={self.event_date})>"
+            f"<AuditLog(id={self.id}, user_id={self.user_id}, "
+            f"action={self.action})>"
         )
+    
+    def to_dict(self) -> dict:
+        """Convert to dictionary."""
+        return {
+            "id": self.id,
+            "user_id": self.user_id,
+            "user_uuid": str(self.user_uuid) if self.user_uuid else None,
+            "user_role": self.user_role,
+            "action": self.action,
+            "entity_type": self.entity_type,
+            "entity_id": str(self.entity_id) if self.entity_id else None,
+            "details": self.details,
+            "ip_address": self.ip_address,
+            "user_agent": self.user_agent,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
 
 
-class PhysicianReport(DoctorBase, TimestampMixin):
+class WeeklyReport(DoctorBase):
     """
-    Weekly physician report metadata.
+    Physician weekly report metadata.
     
     Stores metadata about generated weekly reports.
-    The actual PDF is stored in S3.
+    The actual report content can be stored as JSON or in S3.
     
     Attributes:
-        id: UUID primary key
-        physician_id: Reference to the physician
+        id: Auto-increment primary key
+        uuid: Unique identifier for external use
+        physician_id: Foreign key to staff table
         report_week_start: Start of the report week
         report_week_end: End of the report week
+        report_data: Report content as JSON
+        s3_path: Path to PDF in S3 (if generated)
+        patient_count: Number of patients in report
+        total_alerts: Number of alerts in report
+        total_questions: Number of questions in report
         generated_at: When the report was generated
-        report_s3_path: S3 path to the PDF
     """
     
-    __tablename__ = 'physician_reports'
+    __tablename__ = 'weekly_reports'
     __table_args__ = (
-        Index('idx_report_physician_week', 'physician_id', 'report_week_start'),
-        {'comment': 'Weekly physician report metadata'}
+        Index('ix_weekly_reports_uuid', 'uuid'),
+        Index('ix_weekly_reports_physician_id', 'physician_id'),
+        Index('ix_weekly_reports_week', 'report_week_start', 'report_week_end'),
+        {'comment': 'Physician weekly reports'}
     )
     
-    # Primary key
+    # Primary identifiers
     id = Column(
-        UUID(as_uuid=True),
+        Integer,
         primary_key=True,
+        autoincrement=True,
+        comment="Auto-increment primary key"
+    )
+    uuid = Column(
+        UUID(as_uuid=True),
+        unique=True,
+        nullable=False,
         default=uuid.uuid4,
-        comment="Unique report identifier"
+        comment="Unique identifier for external use"
     )
     
     # Physician reference
     physician_id = Column(
-        UUID(as_uuid=True),
+        Integer,
+        ForeignKey('staff.id', ondelete='CASCADE'),
         nullable=False,
-        index=True,
-        comment="UUID of the physician"
+        comment="Foreign key to staff table (physician)"
     )
     
     # Report period
@@ -230,139 +214,72 @@ class PhysicianReport(DoctorBase, TimestampMixin):
         comment="End of the report week"
     )
     
-    # Generation details
+    # Report content
+    report_data = Column(
+        JSONB,
+        nullable=True,
+        comment="Report content as JSON"
+    )
+    
+    s3_path = Column(
+        String(500),
+        nullable=True,
+        comment="Path to PDF in S3"
+    )
+    
+    # Summary metrics
+    patient_count = Column(
+        Integer,
+        nullable=False,
+        default=0,
+        comment="Number of patients in report"
+    )
+    
+    total_alerts = Column(
+        Integer,
+        nullable=False,
+        default=0,
+        comment="Number of alerts in report"
+    )
+    
+    total_questions = Column(
+        Integer,
+        nullable=False,
+        default=0,
+        comment="Number of questions in report"
+    )
+    
+    # Timestamp
     generated_at = Column(
         DateTime(timezone=True),
-        default=datetime.utcnow,
+        server_default=func.now(),
         nullable=False,
         comment="When the report was generated"
     )
     
-    # Storage
-    report_s3_path = Column(
-        Text,
-        nullable=False,
-        comment="S3 path to the PDF report"
-    )
-    
-    # Report contents summary
-    patient_count = Column(
-        Integer,
-        nullable=True,
-        comment="Number of patients in the report"
-    )
-    
-    alert_count = Column(
-        Integer,
-        nullable=True,
-        comment="Number of alerts in the report"
+    # Relationships
+    physician = relationship(
+        "Staff",
+        back_populates="weekly_reports"
     )
     
     def __repr__(self) -> str:
         return (
-            f"<PhysicianReport(physician={self.physician_id}, "
+            f"<WeeklyReport(id={self.id}, physician_id={self.physician_id}, "
             f"week={self.report_week_start} to {self.report_week_end})>"
         )
-
-
-class AuditLog(DoctorBase):
-    """
-    HIPAA-compliant audit logging.
     
-    Tracks all access to patient data for compliance.
-    
-    Attributes:
-        id: UUID primary key
-        user_id: Who accessed the data
-        user_role: Role of the user (physician, staff)
-        action: What action was performed
-        entity_type: Type of data accessed
-        entity_id: ID of the specific record
-        accessed_at: When the access occurred
-    """
-    
-    __tablename__ = 'audit_logs'
-    __table_args__ = (
-        Index('idx_audit_user_time', 'user_id', 'accessed_at'),
-        Index('idx_audit_entity', 'entity_type', 'entity_id'),
-        {'comment': 'HIPAA-compliant access audit logs'}
-    )
-    
-    # Primary key
-    id = Column(
-        UUID(as_uuid=True),
-        primary_key=True,
-        default=uuid.uuid4,
-        comment="Unique log entry identifier"
-    )
-    
-    # User information
-    user_id = Column(
-        UUID(as_uuid=True),
-        nullable=False,
-        index=True,
-        comment="UUID of the user who performed the action"
-    )
-    
-    user_role = Column(
-        String(50),
-        nullable=False,
-        comment="Role of the user: physician, staff, admin"
-    )
-    
-    # Action details
-    action = Column(
-        String(100),
-        nullable=False,
-        comment="Action performed: view_patient, view_dashboard, download_report, etc."
-    )
-    
-    entity_type = Column(
-        String(50),
-        nullable=True,
-        comment="Type of entity accessed: patient, conversation, diary, report"
-    )
-    
-    entity_id = Column(
-        UUID(as_uuid=True),
-        nullable=True,
-        comment="ID of the specific entity accessed"
-    )
-    
-    # Metadata
-    ip_address = Column(
-        String(50),
-        nullable=True,
-        comment="IP address of the request"
-    )
-    
-    user_agent = Column(
-        Text,
-        nullable=True,
-        comment="User agent string"
-    )
-    
-    # Additional context (named audit_metadata to avoid SQLAlchemy reserved name)
-    audit_metadata = Column(
-        JSONB,
-        nullable=True,
-        default=dict,
-        comment="Additional context about the action"
-    )
-    
-    # Timing
-    accessed_at = Column(
-        DateTime(timezone=True),
-        default=datetime.utcnow,
-        nullable=False,
-        comment="When the action was performed"
-    )
-    
-    def __repr__(self) -> str:
-        return (
-            f"<AuditLog(user={self.user_id}, action={self.action}, "
-            f"entity={self.entity_type}/{self.entity_id})>"
-        )
-
-
-
+    def to_dict(self) -> dict:
+        """Convert to dictionary."""
+        return {
+            "id": self.id,
+            "uuid": str(self.uuid),
+            "physician_id": self.physician_id,
+            "report_week_start": self.report_week_start.isoformat() if self.report_week_start else None,
+            "report_week_end": self.report_week_end.isoformat() if self.report_week_end else None,
+            "s3_path": self.s3_path,
+            "patient_count": self.patient_count,
+            "total_alerts": self.total_alerts,
+            "total_questions": self.total_questions,
+            "generated_at": self.generated_at.isoformat() if self.generated_at else None,
+        }

@@ -5,3 +5,15 @@ dist/
 .env.*
 !.env.example
 .vscode/
+
+# Python
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+*.egg
+.mypy_cache/
+.pytest_cache/
+.coverage
+htmlcov/

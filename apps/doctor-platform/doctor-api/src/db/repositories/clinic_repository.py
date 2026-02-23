@@ -16,11 +16,11 @@ Usage:
 from typing import List, Optional
 from uuid import UUID
 from sqlalchemy.orm import Session
-from sqlalchemy import or_
 
 from .base import BaseRepository
 from db.models import Clinic
 from core.logging import get_logger
+from core.exceptions import NotFoundError, ConflictError
 
 logger = get_logger(__name__)
 
@@ -34,63 +34,41 @@ class ClinicRepository(BaseRepository[Clinic]):
     """
     
     def __init__(self, db: Session):
-        """
-        Initialize the clinic repository.
-        
-        Args:
-            db: The database session
-        """
+        """Initialize the clinic repository."""
         super().__init__(Clinic, db)
     
     # =========================================================================
-    # Clinic-Specific Queries
+    # Clinic Queries
     # =========================================================================
     
     def get_by_uuid(self, clinic_uuid: UUID) -> Optional[Clinic]:
-        """
-        Get a clinic by its UUID.
-        
-        Args:
-            clinic_uuid: The clinic's unique identifier
-            
-        Returns:
-            The Clinic instance, or None if not found
-        """
-        return self.db.query(Clinic).filter(
-            Clinic.uuid == clinic_uuid
-        ).first()
+        """Get a clinic by its UUID."""
+        return self.db.query(Clinic).filter(Clinic.uuid == clinic_uuid).first()
     
-    def get_by_name(self, clinic_name: str) -> Optional[Clinic]:
-        """
-        Get a clinic by its exact name.
-        
-        Args:
-            clinic_name: The clinic's name
-            
-        Returns:
-            The Clinic instance, or None if not found
-        """
-        return self.db.query(Clinic).filter(
-            Clinic.clinic_name == clinic_name
-        ).first()
+    def get_by_uuid_or_fail(self, clinic_uuid: UUID) -> Clinic:
+        """Get a clinic by UUID, raising error if not found."""
+        clinic = self.get_by_uuid(clinic_uuid)
+        if not clinic:
+            raise NotFoundError(
+                message="Clinic not found",
+                resource_type="Clinic",
+                resource_id=str(clinic_uuid)
+            )
+        return clinic
+    
+    def get_by_name(self, name: str) -> Optional[Clinic]:
+        """Get a clinic by its exact name."""
+        return self.db.query(Clinic).filter(Clinic.name == name).first()
     
     def search_by_name(
         self,
         search_term: str,
         limit: int = 20
     ) -> List[Clinic]:
-        """
-        Search clinics by name (case-insensitive partial match).
-        
-        Args:
-            search_term: The search term to match
-            limit: Maximum number of results
-            
-        Returns:
-            List of matching clinics
-        """
+        """Search clinics by name (case-insensitive partial match)."""
         return self.db.query(Clinic).filter(
-            Clinic.clinic_name.ilike(f"%{search_term}%")
+            Clinic.name.ilike(f"%{search_term}%"),
+            Clinic.is_active == True
         ).limit(limit).all()
     
     def get_all_active(
@@ -98,94 +76,110 @@ class ClinicRepository(BaseRepository[Clinic]):
         skip: int = 0,
         limit: int = 100
     ) -> List[Clinic]:
-        """
-        Get all active clinics with pagination.
-        
-        Args:
-            skip: Number of records to skip
-            limit: Maximum number of records to return
-            
-        Returns:
-            List of clinic instances
-        """
-        return self.db.query(Clinic).order_by(
-            Clinic.clinic_name
+        """Get all active clinics with pagination."""
+        return self.db.query(Clinic).filter(
+            Clinic.is_active == True
+        ).order_by(
+            Clinic.name
         ).offset(skip).limit(limit).all()
+    
+    def count_active(self) -> int:
+        """Count total active clinics."""
+        return self.db.query(Clinic).filter(Clinic.is_active == True).count()
+    
+    def name_exists(self, name: str) -> bool:
+        """Check if a clinic with the given name already exists."""
+        return self.exists(name=name)
+    
+    # =========================================================================
+    # Clinic Creation
+    # =========================================================================
     
     def create_clinic(
         self,
-        clinic_name: str,
+        name: str,
         address: Optional[str] = None,
-        phone_number: Optional[str] = None,
-        fax_number: Optional[str] = None,
+        city: Optional[str] = None,
+        state: Optional[str] = None,
+        zip_code: Optional[str] = None,
+        phone: Optional[str] = None,
+        fax: Optional[str] = None,
     ) -> Clinic:
         """
         Create a new clinic.
         
         Args:
-            clinic_name: Name of the clinic
-            address: Physical address (optional)
-            phone_number: Contact phone (optional)
-            fax_number: Fax number (optional)
+            name: Name of the clinic
+            address: Street address
+            city: City
+            state: State/Province
+            zip_code: Postal code
+            phone: Contact phone
+            fax: Fax number
             
         Returns:
             The created Clinic instance
         """
-        return self.create(
-            clinic_name=clinic_name,
+        if self.name_exists(name):
+            raise ConflictError(
+                message="A clinic with this name already exists",
+                details={"name": name}
+            )
+        
+        clinic = self.create(
+            name=name,
             address=address,
-            phone_number=phone_number,
-            fax_number=fax_number,
+            city=city,
+            state=state,
+            zip_code=zip_code,
+            phone=phone,
+            fax=fax,
+            is_active=True,
         )
+        
+        logger.info(f"Created clinic: {name}")
+        return clinic
+    
+    # =========================================================================
+    # Clinic Updates
+    # =========================================================================
     
     def update_clinic(
         self,
         clinic: Clinic,
-        clinic_name: Optional[str] = None,
+        name: Optional[str] = None,
         address: Optional[str] = None,
-        phone_number: Optional[str] = None,
-        fax_number: Optional[str] = None,
+        city: Optional[str] = None,
+        state: Optional[str] = None,
+        zip_code: Optional[str] = None,
+        phone: Optional[str] = None,
+        fax: Optional[str] = None,
     ) -> Clinic:
-        """
-        Update a clinic's information.
-        
-        Args:
-            clinic: The clinic to update
-            clinic_name: New name (optional)
-            address: New address (optional)
-            phone_number: New phone (optional)
-            fax_number: New fax (optional)
-            
-        Returns:
-            The updated Clinic instance
-        """
+        """Update a clinic's information."""
         update_data = {}
-        if clinic_name is not None:
-            update_data["clinic_name"] = clinic_name
+        if name is not None:
+            update_data["name"] = name
         if address is not None:
             update_data["address"] = address
-        if phone_number is not None:
-            update_data["phone_number"] = phone_number
-        if fax_number is not None:
-            update_data["fax_number"] = fax_number
+        if city is not None:
+            update_data["city"] = city
+        if state is not None:
+            update_data["state"] = state
+        if zip_code is not None:
+            update_data["zip_code"] = zip_code
+        if phone is not None:
+            update_data["phone"] = phone
+        if fax is not None:
+            update_data["fax"] = fax
         
         if update_data:
             return self.update(clinic, **update_data)
         return clinic
     
-    def name_exists(self, clinic_name: str) -> bool:
-        """
-        Check if a clinic with the given name already exists.
-        
-        Args:
-            clinic_name: The name to check
-            
-        Returns:
-            True if a clinic with this name exists
-        """
-        return self.exists(clinic_name=clinic_name)
-
-
-
-
-
+    def deactivate_clinic(self, clinic: Clinic) -> Clinic:
+        """Deactivate a clinic."""
+        return self.update(clinic, is_active=False)
+    
+    def activate_clinic(self, clinic: Clinic) -> Clinic:
+        """Activate a clinic."""
+        return self.update(clinic, is_active=True)

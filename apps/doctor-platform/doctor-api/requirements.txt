@@ -3,6 +3,7 @@
 # =============================================================================
 # Core Framework
 fastapi>=0.109.0
+google-auth>=2.48.0
 uvicorn[standard]>=0.27.0
 pydantic>=2.5.0
 pydantic-settings>=2.1.0
@@ -21,6 +22,7 @@ requests>=2.31.0
 python-dotenv>=1.0.0
 pytz>=2024.1
 email-validator>=2.1.0
+bcrypt>=4.1.0
 
 # Rate Limiting
 slowapi>=0.1.9

@@ -1,0 +1,287 @@
+from datetime import datetime
+import json
+from typing import Optional
+
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status, UploadFile
+from pydantic import BaseModel, EmailStr, Field, HttpUrl
+from sqlalchemy.orm import Session
+
+from api.deps import get_doctor_db_session
+from db.models.fax_models import FaxRecord, Patient
+from services.fax_patient_service import create_or_update_fax_patient, parse_date
+from services.structured_extractor import extract_structured_fields, flatten_structured_data
+from utils.s3 import upload_file_to_s3
+
+router = APIRouter()
+
+
+# -----------------------------------------------------------------------------
+# Manual Add Patient - same fields as structured_extractor / fax_patients table
+# -----------------------------------------------------------------------------
+
+class AddManualPatientRequest(BaseModel):
+    """Request body for manually adding a patient to fax_patients. All fields optional."""
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    mrn: Optional[str] = None
+    date_of_birth: Optional[str] = None  # e.g. "2/1/1990", "1990-02-01"
+    age: Optional[int] = None
+    gender: Optional[str] = None
+    email: Optional[EmailStr] = None
+    phone_number: Optional[str] = None
+    bmi: Optional[str] = None
+    cancer_type: Optional[str] = None
+    oncologist: Optional[str] = None
+    start_date: Optional[str] = None     # e.g. "6/30/2025"
+    end_date: Optional[str] = None
+    plan_name: Optional[str] = None
+    past_medical_history: Optional[str] = None
+    past_surgical_history: Optional[str] = None
+
+
+@router.post("/patients", status_code=201)
+async def add_manual_patient(
+    request: AddManualPatientRequest,
+    db: Session = Depends(get_doctor_db_session),
+):
+    """
+    Add a patient manually to fax_patients table.
+    Uses the same fields as extracted by structured_extractor from OCR.
+    """
+    if not any([request.first_name, request.last_name, request.phone_number, request.email]):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Provide at least one of: first_name, last_name, phone_number, or email",
+        )
+
+    first_name = request.first_name
+    last_name = request.last_name
+
+    patient = Patient(
+        mrn=request.mrn,
+        first_name=first_name,
+        last_name=last_name,
+        date_of_birth=parse_date(request.date_of_birth),
+        gender=request.gender,
+        phone_number=request.phone_number,
+        email=str(request.email) if request.email else None,
+        age=request.age,
+        bmi=request.bmi,
+        cancer_type=request.cancer_type,
+        oncologist=request.oncologist,
+        start_date=parse_date(request.start_date),
+        end_date=parse_date(request.end_date),
+        plan_name=request.plan_name,
+        past_medical_history=request.past_medical_history,
+        past_surgical_history=request.past_surgical_history,
+    )
+    db.add(patient)
+    db.commit()
+    db.refresh(patient)
+
+    return {
+        "status": "success",
+        "patient_id": patient.id,
+        "message": "Patient added to fax_patients",
+    }
+
+
+class Price(BaseModel):
+    currency_code: str
+    amount: str
+
+
+class FaxDetails(BaseModel):
+    id: str
+    direction: str
+    from_: str = Field(alias="from")   # ✅ FIXED HERE
+    to: str
+    numberOfPages: int
+    status: str
+    headerTimeZone: Optional[str] = None
+    retryDelaySeconds: Optional[int] = None
+    resolution: Optional[str] = None
+    callbackUrl: Optional[HttpUrl] = None
+    callbackUrlContentType: Optional[str] = None
+    pricePerPage: Optional[str] = None
+    projectId: Optional[str] = None
+    serviceId: Optional[str] = None
+    price: Optional[Price] = None
+    maxRetries: Optional[int] = None
+    createTime: Optional[datetime] = None
+    headerText: Optional[str] = None
+    completedTime: Optional[datetime] = None
+    headerPageNumbers: Optional[bool] = None
+    hasFile: Optional[bool] = None
+    currencyCode: Optional[str] = None
+    amount: Optional[str] = None
+
+    model_config = {
+        "populate_by_name": True
+    }
+
+
+class InboundFaxWebhook(BaseModel):
+    event: str
+    eventTime: datetime
+    fax: FaxDetails
+
+@router.post("/inbound-webhook")
+async def inbound_fax_webhook(request: Request, background_tasks: BackgroundTasks, db: Session = Depends(get_doctor_db_session)):
+    content_type = request.headers.get("content-type", "")
+    s3_file_url: Optional[str] = None
+
+    if "application/json" in content_type:
+        # JSON payload has no file attachment - we need a file for OCR
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Fax webhook with JSON cannot process files. Use multipart/form-data with a file attachment.",
+        )
+
+    elif "multipart/form-data" in content_type:
+        form = await request.form()
+        fax_data = form.get("fax")
+        fax = json.loads(fax_data) if fax_data else {}
+
+        fax_id = fax.get("id")
+        from_number = fax.get("from")
+        to_number = fax.get("to")
+        received_at = fax.get("completedTime")
+
+        file: Optional[UploadFile] = form.get("file")
+        if file and file.filename:
+            contents = await file.read()
+            s3_file_url = upload_file_to_s3(contents, file.filename)
+
+        if not s3_file_url:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="File attachment required. Provide a PDF file in the 'file' field.",
+            )
+
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+            detail="Unsupported content type. Use multipart/form-data with fax metadata and file.",
+        )
+
+
+    # ============================
+    # Convert datetime
+    # ============================
+
+    if isinstance(received_at, str):
+
+        received_at = datetime.fromisoformat(
+            received_at.replace("Z", "+00:00")
+        )
+
+    else:
+
+        received_at = datetime.utcnow()
+
+
+    # ============================
+    # Store in Database
+    # ============================
+
+    fax_record = FaxRecord(
+
+        fax_id=fax_id,
+
+        from_number=from_number,
+
+        to_number=to_number,
+
+        file_url=s3_file_url,
+
+        stored_file_path=s3_file_url,
+
+        raw_ocr_text=None,
+
+        ocr_status="pending",
+
+        received_at=received_at
+
+    )
+
+
+    db.add(fax_record)
+
+    db.commit()
+
+    db.refresh(fax_record)
+
+
+    print("Fax stored in DB:", fax_record.id)
+
+    # 🔥 TRIGGER OCR AUTOMATICALLY (NON-BLOCKING)
+    background_tasks.add_task(run_fax_ocr_task, fax_record.id)
+
+
+    return {
+        "status": "success",
+        "fax_db_id": fax_record.id,
+        "file_url": s3_file_url
+    }
+
+def run_fax_ocr_task(fax_record_id: int):
+    from db.models.fax_models import FaxRecord
+    from utils.textract import run_textract_from_s3
+    from urllib.parse import urlparse
+    from db.session import DoctorSessionLocal
+
+    db = DoctorSessionLocal()
+    fax = None  # ✅ IMPORTANT
+
+    print(f"Starting OCR task for fax_record_id={fax_record_id}")
+
+    try:
+        fax = db.query(FaxRecord).get(fax_record_id)
+        if not fax:
+            return
+
+        # 🔹 Parse S3 URL stored in DB
+        parsed = urlparse(fax.file_url)
+
+        bucket = parsed.netloc.replace(".s3.us-east-1.amazonaws.com", "")
+        key = parsed.path.lstrip("/")
+
+        print("OCR BUCKET:", bucket)
+        print("OCR KEY:", key)
+
+        fax.ocr_status = "processing"
+        db.commit()
+
+        # 🔹 PASS HERE
+        text = run_textract_from_s3(bucket, key)
+
+        structured_data = extract_structured_fields(text["lines"])
+        structured_data = flatten_structured_data(structured_data)
+        fax.structured_ocr_data = structured_data
+
+
+        try:
+            fax.raw_ocr_text = text["text"]
+            fax.ocr_confidence = text["avg_confidence"]
+            fax.structured_ocr_data = structured_data
+            fax.ocr_status = "success"
+            db.commit()
+
+            create_or_update_fax_patient(db, fax, structured_data)
+
+        except Exception as e:
+            db.rollback()
+            fax.ocr_status = "failed"
+            db.commit()
+            raise e
+
+
+    except Exception as e:
+        print("OCR failed:", str(e))
+        if fax:
+            fax.ocr_status = "failed"
+            db.commit()
+
+    finally:
+        db.close()

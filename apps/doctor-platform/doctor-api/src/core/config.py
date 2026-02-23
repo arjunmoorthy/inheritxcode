@@ -19,9 +19,17 @@ Usage:
 """
 
 from functools import lru_cache
+from pathlib import Path
 from typing import Optional, List
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import Field, computed_field
+
+# Resolve .env from project root (doctor-api/), not from current working directory.
+# This way the app loads .env correctly whether run as "uvicorn main:app" from
+# doctor-api/ or "cd src && uvicorn main:app" from doctor-api/src/.
+_CONFIG_DIR = Path(__file__).resolve().parent
+_PROJECT_ROOT = _CONFIG_DIR.parent.parent  # core/ -> src/ -> doctor-api/
+_ENV_FILE = _PROJECT_ROOT / ".env"
 
 
 class Settings(BaseSettings):
@@ -33,7 +41,7 @@ class Settings(BaseSettings):
     """
     
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=_ENV_FILE,
         env_file_encoding="utf-8",
         case_sensitive=False,
         extra="ignore",  # Ignore extra environment variables
@@ -138,6 +146,10 @@ class Settings(BaseSettings):
         default=None,
         description="AWS secret access key"
     )
+    s3_bucket_name: str = Field(
+        default="oncolife.ai-fax-storage",
+        description="S3 bucket name for fax storage (env: S3_BUCKET_NAME)"
+    )
     cognito_user_pool_id: Optional[str] = Field(
         default=None,
         description="Cognito User Pool ID"
@@ -149,6 +161,79 @@ class Settings(BaseSettings):
     cognito_client_secret: Optional[str] = Field(
         default=None,
         description="Cognito App Client Secret"
+    )
+    
+    # ==========================================================================
+    # JWT (for app-issued tokens: access, refresh, id)
+    # ==========================================================================
+    jwt_secret_key: Optional[str] = Field(
+        default=None,
+        description="Secret key for signing JWT tokens (HS256). Required for local auth / password reset tokens."
+    )
+    jwt_algorithm: str = Field(
+        default="HS256",
+        description="JWT signing algorithm (HS256 recommended)"
+    )
+    access_token_expire_minutes: int = Field(
+        default=30,
+        description="Access token expiry in minutes"
+    )
+    refresh_token_expire_days: int = Field(
+        default=7,
+        description="Refresh token expiry in days"
+    )
+    
+    # ==========================================================================
+    # Google OAuth (for Google SSO signup)
+    # ==========================================================================
+    google_allowed_client_ids: str = Field(
+        default="",
+        description="Comma-separated Google OAuth client IDs allowed for signup (audience validation)"
+    )
+    
+    @computed_field
+    @property
+    def google_allowed_client_ids_list(self) -> List[str]:
+        """Parse comma-separated Google client IDs into a list."""
+        if not self.google_allowed_client_ids:
+            return []
+        return [x.strip() for x in self.google_allowed_client_ids.split(",") if x.strip()]
+    
+    # ==========================================================================
+    # Email (SMTP for password reset, etc.)
+    # ==========================================================================
+    mail_username: Optional[str] = Field(
+        default=None,
+        description="SMTP username (e.g. Gmail address)",
+        validation_alias="MAIL_USERNAME",
+    )
+    mail_password: Optional[str] = Field(
+        default=None,
+        description="SMTP password or app password",
+        validation_alias="MAIL_PASSWORD",
+    )
+    mail_from: Optional[str] = Field(
+        default=None,
+        description="From address for outgoing emails",
+        validation_alias="MAIL_FROM",
+    )
+    mail_server: str = Field(
+        default="smtp.gmail.com",
+        description="SMTP server hostname",
+        validation_alias="MAIL_SERVER",
+    )
+    mail_port: int = Field(
+        default=587,
+        description="SMTP port (587 for STARTTLS, 465 for SSL)",
+        validation_alias="MAIL_PORT",
+    )
+    mail_starttls: bool = Field(
+        default=True,
+        description="Use STARTTLS"
+    )
+    mail_ssl_tls: bool = Field(
+        default=False,
+        description="Use SSL/TLS"
     )
     
     # ==========================================================================

@@ -13,18 +13,21 @@ Benefits:
 - Centralized data access logic
 
 Usage:
-    from db.repositories import StaffRepository, ClinicRepository
+    from db.repositories import UserRepository, StaffRepository, ClinicRepository
     
+    user_repo = UserRepository(db_session)
     staff_repo = StaffRepository(db_session)
-    staff = staff_repo.get_by_uuid(staff_uuid)
+    clinic_repo = ClinicRepository(db_session)
 """
 
 from .base import BaseRepository
+from .user_repository import UserRepository
 from .clinic_repository import ClinicRepository
 from .staff_repository import StaffRepository
 
 __all__ = [
     "BaseRepository",
+    "UserRepository",
     "ClinicRepository",
     "StaffRepository",
 ]
