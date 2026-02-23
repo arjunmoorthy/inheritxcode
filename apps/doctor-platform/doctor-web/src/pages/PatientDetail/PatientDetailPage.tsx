@@ -230,8 +230,8 @@ const PatientDetailPage: React.FC = () => {
   };
 
   return (
-    <div className={`flex flex-col h-full w-full overflow-hidden ${isDark ? 'bg-[#1A1917]' : 'bg-[rgb(250,248,245)]'} transition-colors duration-200`}>
-      {/* Fixed Header */}
+    <div className={`flex flex-col flex-1 min-h-0 min-w-0 w-full overflow-hidden ${isDark ? 'bg-[#1A1917]' : 'bg-[rgb(250,248,245)]'} transition-colors duration-200`}>
+      {/* Fixed Header - always visible, outside scroll container */}
       <div className="flex-shrink-0">
         <PatientDetailHeader
           isDark={isDark}
@@ -240,8 +240,7 @@ const PatientDetailPage: React.FC = () => {
           onProfileClick={() => setIsProfileModalOpen(true)}
         />
       </div>
-
-      {/* Main Content Area */}
+      {/* Main Content Area - scroll happens only here, header stays on top */}
       <div className="flex-1 min-h-0 overflow-hidden flex flex-col md:flex-row relative">
         {/* Sidebar Toggle Button - Desktop */}
         <button
@@ -304,9 +303,11 @@ const PatientDetailPage: React.FC = () => {
           onResetFilters={handleResetFilters}
         />
 
-        {/* Main Content - Graph and Table */}
+        {/* Main Content - Graph and Table (scrollable) */}
         <div 
-          className={`flex-1 min-h-0 overflow-y-auto overflow-x-hidden transition-all duration-300 min-w-0 ${isDark ? '[&::-webkit-scrollbar-thumb]:bg-slate-600 [&::-webkit-scrollbar-track]:bg-slate-800' : '[&::-webkit-scrollbar-thumb]:bg-slate-300 [&::-webkit-scrollbar-track]:bg-slate-100'}`}
+          className={`flex-1 min-h-0 overflow-y-auto overflow-x-hidden transition-all duration-300 min-w-0 ${
+            isDark ? '[&::-webkit-scrollbar-thumb]:bg-slate-600 [&::-webkit-scrollbar-track]:bg-slate-800' : '[&::-webkit-scrollbar-thumb]:bg-slate-300 [&::-webkit-scrollbar-track]:bg-slate-100'
+          }`}
           style={{
             scrollbarWidth: 'thin',
             scrollbarColor: isDark ? '#475569 #1A1917' : '#cbd5e1 #f1f5f9',

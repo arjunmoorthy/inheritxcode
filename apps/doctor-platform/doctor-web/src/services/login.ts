@@ -23,6 +23,7 @@ interface VerifyResetTokenData {
 interface ResetPasswordData {
   token: string;
   new_password: string;
+  confirm_password: string;
 }
 
 interface SignupData {
@@ -59,6 +60,13 @@ export interface LoginResponse {
     message?: string;
     session?: string;
     requiresPasswordChange?: boolean;
+    // New response structure: tokens directly in data
+    access_token?: string;
+    refresh_token?: string;
+    id_token?: string;
+    token_type?: string;
+    user?: any;
+    // Old response structure: tokens nested in tokens object (backward compatibility)
     tokens?: {
       access_token: string;
       refresh_token: string;
@@ -77,12 +85,36 @@ export const useLogin = () => {
   return useMutation({
     mutationFn: loginUser,
     onSuccess: (data) => {
-
+      // Handle session token (legacy)
       if (data.data?.session) {
         localStorage.setItem('authToken', data.data.session);
       }
+      
+      // Handle new response structure: tokens directly in data
+      if (data.data?.access_token) {
+        localStorage.setItem('authToken', data.data.access_token);
+      }
+      if (data.data?.refresh_token) {
+        localStorage.setItem('refreshToken', data.data.refresh_token);
+      }
+      if (data.data?.id_token) {
+        localStorage.setItem('idToken', data.data.id_token);
+      }
+      
+      // Handle old response structure: tokens nested in tokens object (backward compatibility)
       if (data.data?.tokens) {
         localStorage.setItem('authToken', data.data.tokens.access_token);
+        if (data.data.tokens.refresh_token) {
+          localStorage.setItem('refreshToken', data.data.tokens.refresh_token);
+        }
+        if (data.data.tokens.id_token) {
+          localStorage.setItem('idToken', data.data.tokens.id_token);
+        }
+      }
+      
+      // Store user data if available
+      if (data.data?.user) {
+        localStorage.setItem('userProfile', JSON.stringify(data.data.user));
       }
     },
     onError: (error) => {
@@ -167,6 +199,24 @@ export interface GoogleSSOSignupData {
 }
 
 export interface GoogleSSOSignupResponse {
+  success: boolean;
+  message: string;
+  data: {
+    message: string;
+    email: string;
+    staff_id: number;
+    first_name?: string | null;
+    last_name?: string | null;
+    access_token?: string;
+    refresh_token?: string;
+    is_profile_completed: boolean;
+    created: boolean;
+    staff_uuid?: string;
+  };
+}
+
+// Flattened response type for easier use in components
+export interface GoogleSSOSignupResponseData {
   message: string;
   email: string;
   staff_id: number;
@@ -179,11 +229,18 @@ export interface GoogleSSOSignupResponse {
   staff_uuid?: string;
 }
 
-const googleSSOSignup = async (data: GoogleSSOSignupData): Promise<GoogleSSOSignupResponse> => {
+const googleSSOSignup = async (data: GoogleSSOSignupData): Promise<GoogleSSOSignupResponseData> => {
   try {
     const response = await apiClient.post<GoogleSSOSignupResponse>(API_CONFIG.ENDPOINTS.AUTH.GOOGLE_SSO_SIGNUP, data);
     console.log('Google SSO Signup API Response:', response);
-    return response.data;
+    
+    // Extract data from nested structure
+    if (response.data.success && response.data.data) {
+      return response.data.data;
+    }
+    
+    // Fallback for old format (backward compatibility)
+    return response.data as any;
   } catch (error: any) {
     console.error('Google SSO Signup API Error:', error);
     // Re-throw to let the mutation handle it
@@ -195,11 +252,12 @@ export const useGoogleSSOSignup = () => {
   return useMutation({
     mutationFn: googleSSOSignup,
     onSuccess: (data) => {
-      // Store tokens if provided in response
-      if (data.access_token) {
+      // Store tokens if provided in response (only if profile is completed)
+      // If profile is not completed, tokens will be stored after profile completion
+      if (data.is_profile_completed && data.access_token) {
         localStorage.setItem('authToken', data.access_token);
       }
-      if (data.refresh_token) {
+      if (data.is_profile_completed && data.refresh_token) {
         localStorage.setItem('refreshToken', data.refresh_token);
       }
     },

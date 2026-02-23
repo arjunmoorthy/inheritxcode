@@ -14,6 +14,9 @@ export default defineConfig({
     host: true,
     port: 5174, // Different port from patient-web (5173)
     cors: true,
+    allowedHosts: [
+      'isidra-nonpapal-georgine.ngrok-free.dev'
+    ],
     proxy: {
       '/api': {
         target: 'http://localhost:8001', // Assuming doctor-api runs on different port

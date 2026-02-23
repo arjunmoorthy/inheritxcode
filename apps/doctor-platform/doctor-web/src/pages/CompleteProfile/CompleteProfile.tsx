@@ -8,6 +8,7 @@ import { useCompleteProfile, fetchStaffProfile } from '../../services/login';
 import { Button, Input, Select } from '@/components/ui';
 import { useThemeMode } from '@oncolife/ui-components';
 import { useAuth } from '../../contexts/AuthContext';
+import { useUser } from '../../contexts/UserContext';
 
 const completeProfileSchema = z.object({
     role: z.string().min(1, 'Role is required'),
@@ -25,7 +26,7 @@ const roleOptions = [
 
 const CompleteProfile: React.FC = () => {
     const [searchParams] = useSearchParams();
-    const { user, isAuthenticated } = useAuth();
+    const { user, isAuthenticated, updateUserProfile, setAuthToken } = useAuth();
     
     // Get data from URL params (fallback)
     const urlStaffId = searchParams.get('staff_id');
@@ -117,8 +118,52 @@ const CompleteProfile: React.FC = () => {
 
             // Backend returns the established profile on success
             if (result.staff_uuid) {
+                // Store the complete profile data from API response
+                const profileData = {
+                    staff_id: result.staff_id,
+                    staff_uuid: result.staff_uuid,
+                    email: userData.email,
+                    first_name: userData.firstName,
+                    last_name: userData.lastName,
+                    role: result.role,
+                    clinic_uuid: result.clinic_uuid,
+                    clinic_name: result.clinic_name,
+                    clinic_address: result.clinic_address,
+                    department: result.department,
+                    clinic_department: result.department, // Also store as clinic_department for compatibility
+                };
+
+                // Update user profile in AuthContext (this also stores in localStorage)
+                updateUserProfile(profileData);
+                
+                // Mark profile as completed
+                localStorage.setItem('profileCompleted', 'true');
+
+                // Check if we have tokens from Google SSO signup (stored in sessionStorage)
+                const googleSSOData = sessionStorage.getItem('googleSSOResponse');
+                if (googleSSOData) {
+                    try {
+                        const ssoData = JSON.parse(googleSSOData);
+                        if (ssoData.access_token) {
+                            setAuthToken(ssoData.access_token);
+                            localStorage.setItem('authToken', ssoData.access_token);
+                        }
+                        if (ssoData.refresh_token) {
+                            localStorage.setItem('refreshToken', ssoData.refresh_token);
+                        }
+                        // Clear the temporary SSO data
+                        sessionStorage.removeItem('googleSSOResponse');
+                    } catch (e) {
+                        console.error('Failed to parse Google SSO data:', e);
+                    }
+                }
+
                 setIsSuccess(true);
-                setTimeout(() => navigate('/dashboard'), 2000);
+                setTimeout(() => {
+                    navigate('/dashboard');
+                    // Reload to refresh the app state
+                    window.location.reload();
+                }, 2000);
             } else {
                 setServerError('Failed to complete profile.');
             }

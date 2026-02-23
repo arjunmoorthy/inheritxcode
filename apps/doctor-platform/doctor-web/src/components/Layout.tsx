@@ -363,7 +363,7 @@ const Layout: React.FC = () => {
   );
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
       {/* Top Header Navigation */}
       <AppBar
         position="sticky"
@@ -621,6 +621,7 @@ const Layout: React.FC = () => {
         component="main"
         sx={{
           flex: 1,
+          minHeight: 0,
           display: 'flex',
           flexDirection: 'column',
           bgcolor: 'background.default',
@@ -633,10 +634,10 @@ const Layout: React.FC = () => {
         <Box
           sx={{
             flex: 1,
+            minHeight: 0,
             display: 'flex',
             flexDirection: 'column',
             overflow: 'hidden',
-            minHeight: 0,
             animation: 'fadeIn 0.3s ease-out',
             '@keyframes fadeIn': {
               '0%': { opacity: 0 },

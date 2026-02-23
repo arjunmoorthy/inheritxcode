@@ -27,7 +27,7 @@
  * =============================================================================
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTheme, useMediaQuery } from '@mui/material';
 import Box from '@mui/material/Box';
@@ -66,8 +66,20 @@ const DashboardPage: React.FC = () => {
   const [severityFilter, setSeverityFilter] = useState('all');
   const [checkInFilter, setCheckInFilter] = useState('all');
   const [isAddPatientModalOpen, setIsAddPatientModalOpen] = useState(false);
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   
-  const { data, isLoading, error } = usePatientSummaries(page, search, 'all');
+  // Debounce search: wait 400ms after typing stops; clear triggers API immediately
+  useEffect(() => {
+    const trimmed = typeof search === 'string' ? search.trim() : '';
+    if (trimmed === '') {
+      setDebouncedSearch('');
+      return;
+    }
+    const timer = setTimeout(() => setDebouncedSearch(trimmed), 400);
+    return () => clearTimeout(timer);
+  }, [search]);
+  
+  const { data, isLoading, error } = usePatientSummaries(page, debouncedSearch, 'all');
   
   // Helper functions - defined before use
   const formatDOB = (dateString: string) => {
@@ -78,13 +90,6 @@ const DashboardPage: React.FC = () => {
     } catch {
       return dateString;
     }
-  };
-
-  const getSymptoms = (patient: PatientSummary): string => {
-    if (patient.symptoms && patient.symptoms.trim()) {
-      return patient.symptoms;
-    }
-    return 'No symptoms reported';
   };
 
   const getSummary = (patient: PatientSummary): string => {
@@ -109,15 +114,8 @@ const DashboardPage: React.FC = () => {
     }
   };
 
-  const getLastChemo = (patient: PatientSummary): string => {
-    // This would come from API - for now using static data
-    const staticChemoDates: Record<string, string> = {
-      '1': '2026-01-01',
-      '2': '2025-12-30',
-      '3': '2026-01-02',
-      '4': 'None',
-    };
-    return staticChemoDates[patient.id] || 'None';
+  const getLastChemo = (_patient: PatientSummary): string => {
+    return 'N/A';
   };
 
   const getDiagnosis = (patient: PatientSummary): string => {
@@ -216,19 +214,26 @@ const DashboardPage: React.FC = () => {
     ? staticPatients 
     : (data?.data || []);
   
-  // Filter patients based on search and selected filters
+  // Filter patients: search via API for live data; client-side for static fallback
+  const isUsingStaticFallback = !isLoading && (error || !data?.data || data.data.length === 0);
+  const searchTrimmed = debouncedSearch;
   const filteredPatients = displayData.filter((patient) => {
-    // Search filter
-    if (search) {
-      const searchLower = search.toLowerCase();
-      const matchesSearch = 
-        patient.patientName.toLowerCase().includes(searchLower) ||
-        patient.mrn.toLowerCase().includes(searchLower) ||
-        patient.summary.toLowerCase().includes(searchLower) ||
+    // Client-side search only when using static fallback (API handles search for live data)
+    if (isUsingStaticFallback && searchTrimmed) {
+      const searchLower = searchTrimmed.toLowerCase();
+      const fullName = patient.patientName.toLowerCase();
+      const parts = patient.patientName.toLowerCase().split(/\s+/);
+      const firstName = parts[0] || '';
+      const lastName = parts.slice(1).join(' ') || '';
+      const matchesSearch =
+        fullName.includes(searchLower) ||
+        firstName.includes(searchLower) ||
+        lastName.includes(searchLower) ||
+        (patient.mrn || '').toLowerCase().includes(searchLower) ||
+        (patient.summary || '').toLowerCase().includes(searchLower) ||
         getDiagnosis(patient).toLowerCase().includes(searchLower);
       if (!matchesSearch) return false;
     }
-    
     // Severity filter
     if (severityFilter !== 'all') {
       const patientSeverity = getSeverity(patient);
@@ -326,7 +331,7 @@ const DashboardPage: React.FC = () => {
           <div className="flex-1 min-w-[200px] w-full lg:w-auto">
             <TextField
               fullWidth
-              placeholder="Name, ID, or diagnosis..."
+              placeholder="Search by first name, last name, or full name..."
               value={search}
               onChange={handleSearchChange}
               size="small"
@@ -628,7 +633,6 @@ const DashboardPage: React.FC = () => {
             <div className="flex flex-col gap-4">
               {paginatedPatients.map((patient) => {
                 const severity = getSeverity(patient);
-                const symptoms = getSymptoms(patient);
                 const summary = getSummary(patient);
                 const dob = patient.dateOfBirth || (patient as any).dateOfBirth || '';
                 const lastChemo = getLastChemo(patient);
@@ -694,30 +698,30 @@ const DashboardPage: React.FC = () => {
                       {/* Middle Section: SYMPTOMS, SUMMARY, Last Chatbot, Last Chemo */}
                       <div className={`mb-2 pb-4 border-b ${isDark ? 'border-slate-700' : 'border-slate-200'}`}>
                         <div className="grid grid-cols-2 gap-x-4 gap-y-3">
-                          {/* SYMPTOMS */}
+                          {/* TREATMENT PLAN */}
                           <div>
                             <div className={`text-xs font-semibold uppercase tracking-wide mb-1 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                              SYMPTOMS
-                            </div>
-                            <div className={`text-sm ${isDark ? 'text-[#F5F3EE]' : 'text-slate-900'}`}>
-                              {symptoms}
-                            </div>
-                          </div>
-                          
-                          {/* SUMMARY */}
-                          <div>
-                            <div className={`text-xs font-semibold uppercase tracking-wide mb-1 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                              SUMMARY
+                              TREATMENT PLAN
                             </div>
                             <div className={`text-sm ${isDark ? 'text-[#F5F3EE]' : 'text-slate-900'}`}>
                               {summary}
                             </div>
                           </div>
                           
-                          {/* Last Chatbot */}
+                          {/* EMAIL */}
                           <div>
                             <div className={`text-xs font-semibold uppercase tracking-wide mb-1 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                              LAST CHATBOT
+                              EMAIL
+                            </div>
+                            <div className={`text-sm ${isDark ? 'text-[#F5F3EE]' : 'text-slate-900'}`}>
+                              {patient.email || '—'}
+                            </div>
+                          </div>
+                          
+                          {/* Last Updated */}
+                          <div>
+                            <div className={`text-xs font-semibold uppercase tracking-wide mb-1 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                              LAST UPDATED
                             </div>
                             <div className={`text-sm ${isDark ? 'text-[#F5F3EE]' : 'text-slate-900'}`}>
                               {lastChatbot ? formatDateShort(lastChatbot) : 'N/A'}

@@ -22,13 +22,34 @@
  * =============================================================================
  */
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { apiClient } from '../utils/apiClient';
 import { API_CONFIG } from '../config/api';
 
 // =============================================================================
 // Types
 // =============================================================================
+
+// API response from /dashboard/patient-listing-dashboard
+export interface PatientListingApiItem {
+  patient_id: number;
+  first_name: string;
+  last_name: string;
+  gender: string;
+  date_of_birth: string;
+  age: number;
+  phone_number: string;
+  email: string;
+  plan_name: string;
+  start_date: string | null;
+  end_date: string | null;
+  created_at: string;
+}
+
+export interface PatientListingApiResponse {
+  status: string;
+  data: PatientListingApiItem[];
+}
 
 export interface PatientSummary {
   id: string;
@@ -40,10 +61,10 @@ export interface PatientSummary {
   lastUpdated: string;
   status: 'active' | 'inactive' | 'pending';
   priority: 'high' | 'medium' | 'low';
-  // Added for severity display
   maxSeverity: 'mild' | 'moderate' | 'severe' | 'urgent' | null;
   hasEscalation: boolean;
   severityBadge: string;
+  email?: string;
 }
 
 export interface PatientRanking {
@@ -163,6 +184,35 @@ const transformPatientRankingToSummary = (ranking: PatientRanking): PatientSumma
 // API Functions
 // =============================================================================
 
+// Fetch patient listing from dashboard endpoint (search is passed as API query param)
+const fetchPatientListingDashboard = async (
+  search?: string | null
+): Promise<PatientListingApiResponse> => {
+  const searchTrimmed = typeof search === 'string' ? search.trim() : '';
+  const url = searchTrimmed
+    ? `${API_CONFIG.ENDPOINTS.DASHBOARD.PATIENT_LISTING_DASHBOARD}?search=${encodeURIComponent(searchTrimmed)}`
+    : API_CONFIG.ENDPOINTS.DASHBOARD.PATIENT_LISTING_DASHBOARD;
+  const response = await apiClient.get<PatientListingApiResponse>(url);
+  return response.data;
+};
+
+// Transform API item to PatientSummary for dashboard display
+const transformListingToSummary = (item: PatientListingApiItem): PatientSummary => ({
+  id: String(item.patient_id),
+  patientName: `${item.first_name || ''} ${item.last_name || ''}`.trim() || 'Unknown',
+  dateOfBirth: item.date_of_birth || '',
+  mrn: String(item.patient_id),
+  symptoms: '—',
+  summary: item.plan_name || '—',
+  lastUpdated: item.created_at || '',
+  status: 'active',
+  priority: 'medium',
+  maxSeverity: null,
+  hasEscalation: false,
+  severityBadge: '',
+  email: item.email || undefined,
+});
+
 // Fetch dashboard landing (ranked patient list)
 const fetchDashboardLanding = async (days: number = 7): Promise<DashboardLanding> => {
   try {
@@ -180,25 +230,16 @@ const fetchDashboardLanding = async (days: number = 7): Promise<DashboardLanding
   }
 };
 
-// Fetch patient summaries (transformed from dashboard landing)
+// Fetch patient summaries from patient-listing-dashboard endpoint (search via API param)
 const fetchPatientSummaries = async (
   page: number = 1, 
   search: string = '', 
   filter: string = 'all'
 ): Promise<DashboardResponse> => {
   try {
-    const dashboardData = await fetchDashboardLanding(30);
-    
-    let patients = dashboardData.patients.map(transformPatientRankingToSummary);
-    
-    // Apply search filter
-    if (search) {
-      const searchLower = search.toLowerCase();
-      patients = patients.filter(patient => 
-        patient.patientName.toLowerCase().includes(searchLower) ||
-        patient.mrn.toLowerCase().includes(searchLower)
-      );
-    }
+    const listingResponse = await fetchPatientListingDashboard(search);
+    const apiData = listingResponse?.data || [];
+    let patients = apiData.map(transformListingToSummary);
     
     // Apply status filter
     if (filter && filter !== 'all') {
@@ -331,6 +372,7 @@ export const usePatientSummaries = (
   return useQuery({
     queryKey: ['patientSummaries', page, search, filter],
     queryFn: () => fetchPatientSummaries(page, search, filter),
+    placeholderData: keepPreviousData,
   });
 };
 

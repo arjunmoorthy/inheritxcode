@@ -6,9 +6,10 @@
  * Connects to doctor-api backend endpoints.
  */
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { apiClient } from '../utils/apiClient';
 import { API_CONFIG } from '../config/api';
+import type { PatientListingApiItem } from './dashboard';
 
 // =============================================================================
 // Types
@@ -68,6 +69,27 @@ interface BackendPatientListResponse {
   limit: number;
 }
 
+interface PatientListingApiResponse {
+  status: string;
+  data: PatientListingApiItem[];
+}
+
+const transformListingToPatient = (item: PatientListingApiItem): Patient => ({
+  id: String(item.patient_id),
+  firstName: item.first_name || '',
+  lastName: item.last_name || '',
+  email: item.email || '',
+  mrn: String(item.patient_id),
+  dateOfBirth: item.date_of_birth || '',
+  sex: (item.gender === 'Male' ? 'Male' : item.gender === 'Female' ? 'Female' : 'Other') as 'Male' | 'Female' | 'Other',
+  race: '',
+  phoneNumber: item.phone_number || '',
+  physician: '',
+  diseaseType: '',
+  associateClinic: '',
+  treatmentType: item.plan_name || '',
+});
+
 // =============================================================================
 // Transform Functions (Backend → Frontend)
 // =============================================================================
@@ -108,37 +130,38 @@ const transformPatientDetail = (backend: BackendPatientDetail): Patient => ({
 // API Functions
 // =============================================================================
 
+const fetchPatientListing = async (
+  search?: string | null
+): Promise<PatientListingApiResponse> => {
+  const searchTrimmed = typeof search === 'string' ? search.trim() : '';
+  const url = searchTrimmed
+    ? `${API_CONFIG.ENDPOINTS.DASHBOARD.PATIENT_LISTING_DASHBOARD}?search=${encodeURIComponent(searchTrimmed)}`
+    : API_CONFIG.ENDPOINTS.DASHBOARD.PATIENT_LISTING_DASHBOARD;
+  const response = await apiClient.get<PatientListingApiResponse>(url);
+  return response.data;
+};
+
 const fetchPatients = async (
   page: number = 1, 
   search: string = '',
   rowsPerPage: number = 10
 ): Promise<PatientsResponse> => {
   try {
-    const skip = (page - 1) * rowsPerPage;
-    const params = new URLSearchParams({
-      skip: skip.toString(),
-      limit: rowsPerPage.toString(),
-    });
-    
-    if (search && search.length >= 2) {
-      params.append('search', search);
-    }
-    
-    const response = await apiClient.get<BackendPatientListResponse>(
-      `${API_CONFIG.ENDPOINTS.PATIENTS.LIST}?${params.toString()}`
-    );
-    
-    const patients = response.data.patients.map(transformPatientSummary);
-    
+    const listingResponse = await fetchPatientListing(search);
+    const apiData = listingResponse?.data || [];
+    const patients = apiData.map(transformListingToPatient);
+    const total = patients.length;
+    const startIndex = (page - 1) * rowsPerPage;
+    const paginatedData = patients.slice(startIndex, startIndex + rowsPerPage);
+
     return {
-      data: patients,
-      total: response.data.total,
+      data: paginatedData,
+      total,
       page,
-      totalPages: Math.ceil(response.data.total / rowsPerPage),
+      totalPages: Math.ceil(total / rowsPerPage) || 1,
     };
   } catch (error) {
     console.error('Error fetching patients:', error);
-    // Return empty response on error
     return {
       data: [],
       total: 0,
@@ -168,6 +191,7 @@ export const usePatients = (
   return useQuery({
     queryKey: ['patients', page, search, rowsPerPage],
     queryFn: () => fetchPatients(page, search, rowsPerPage),
+    placeholderData: keepPreviousData,
   });
 };
 

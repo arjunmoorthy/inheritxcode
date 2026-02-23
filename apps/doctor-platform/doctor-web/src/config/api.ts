@@ -26,7 +26,7 @@ export const API_CONFIG = {
       LOGOUT: '/auth/logout',
       COMPLETE_NEW_PASSWORD: '/auth/complete-new-password',
       GOOGLE_LOGIN: '/auth/google',
-      GOOGLE_SSO_SIGNUP: '/auth/auth/google/signup',
+      GOOGLE_SSO_SIGNUP: '/auth/google/signup',
       PROFILE_COMPLETE: '/auth/profile/complete',
       FORGOT_PASSWORD: '/auth/forgot-password',
       VERIFY_RESET_TOKEN: '/auth/verify-reset-token',
@@ -61,6 +61,7 @@ export const API_CONFIG = {
     // Dashboard & Analytics
     DASHBOARD: {
       LANDING: '/dashboard',
+      PATIENT_LISTING_DASHBOARD: '/dashboard/patient-listing-dashboard',
       PATIENT_TIMELINE: (uuid: string) => `/dashboard/patient/${uuid}`,
       PATIENT_QUESTIONS: (uuid: string) => `/dashboard/patient/${uuid}/questions`,
       REPORTS_LIST: '/dashboard/reports',

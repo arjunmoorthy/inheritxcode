@@ -76,13 +76,41 @@ const LoginPage: React.FC = () => {
     setError(null);
     try {
       const result = await authenticateLogin(values.email, values.password);
+      navigate('/dashboard');
+
+      
+      // Store tokens if available in the response (service already stores, but ensure they're set)
+      if (result?.success && result?.data) {
+        // Handle new response structure: tokens directly in data
+        if (result.data.access_token) {
+          localStorage.setItem('authToken', result.data.access_token);
+        }
+        if (result.data.refresh_token) {
+          localStorage.setItem('refreshToken', result.data.refresh_token);
+        }
+        if (result.data.id_token) {
+          localStorage.setItem('idToken', result.data.id_token);
+        }
+        
+        // Store user details if available
+        if (result.data.user) {
+          localStorage.setItem('userProfile', JSON.stringify(result.data.user));
+        }
+      }
+      navigate('/dashboard');
+      // Handle navigation based on user status
       if (result?.data?.requiresPasswordChange) {
         navigate('/reset-password');
-      } else if (result?.data?.user_status === 'CONFIRMED') {
-        navigate('/dashboard');
+      } else if (result?.success) {
+        // Redirect to dashboard on successful login
+        // Use window.location.href for a full page navigation to ensure auth state is properly initialized
+        window.location.href = '/dashboard';
       }
     } catch (err: any) {
-      setError('Invalid credentials. Please check your email and password.');
+      const errorMessage = err?.response?.data?.message 
+        || err?.message 
+        || 'Invalid credentials. Please check your email and password.';
+      setError(errorMessage);
     }
   };
 
@@ -90,10 +118,11 @@ const LoginPage: React.FC = () => {
     setError(null);
     try {
       const result = await forgotPasswordMutation.mutateAsync({ email: values.email });
-      if (result.success) {
+      // API returns a string for 200 response, or an object with success property
+      if (typeof result === 'string' || result?.success) {
         setForgotSuccess(true);
       } else {
-        setError(result.message || 'Unable to process request. Please try again.');
+        setError(result?.message || 'Unable to process request. Please try again.');
       }
     } catch (err: any) {
       setError('An error occurred. Please verify your email and try again.');
@@ -291,7 +320,19 @@ const LoginPage: React.FC = () => {
                             console.log('Google SSO Login Response:', result);
 
                             // Handle both new user creation and existing user login
-                            if (result && (result.created || (result.message && (result.message.includes('exists') || result.message.includes('already'))))) {
+                            if (result && (result.created || result.staff_id)) {
+                              // Store Google SSO response data (tokens, etc.) for later use
+                              // Always store in sessionStorage for profile completion flow
+                              sessionStorage.setItem('googleSSOResponse', JSON.stringify({
+                                access_token: result.access_token,
+                                refresh_token: result.refresh_token,
+                                staff_id: result.staff_id,
+                                email: result.email,
+                                first_name: result.first_name,
+                                last_name: result.last_name,
+                                staff_uuid: result.staff_uuid,
+                              }));
+
                               // Check if profile needs to be completed
                               if (result.is_profile_completed === false) {
                                 // Build query params with all available data
@@ -303,7 +344,14 @@ const LoginPage: React.FC = () => {
                                 }).toString();
                                 navigate(`/complete-profile?${queryParams}`);
                               } else {
-                                // Profile already completed - redirect to dashboard
+                                // Profile already completed - store tokens and redirect
+                                if (result.access_token) {
+                                  localStorage.setItem('authToken', result.access_token);
+                                }
+                                if (result.refresh_token) {
+                                  localStorage.setItem('refreshToken', result.refresh_token);
+                                }
+                                // Redirect to dashboard
                                 window.location.href = '/dashboard';
                               }
                             } else {

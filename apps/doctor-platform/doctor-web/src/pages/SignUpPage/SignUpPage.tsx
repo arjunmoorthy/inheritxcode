@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -51,6 +51,7 @@ const SignUpPage: React.FC = () => {
         handleSubmit,
         control,
         formState: { errors, isSubmitting },
+        watch,
     } = useForm<SignupFormValues>({
         resolver: zodResolver(signupSchema),
         defaultValues: {
@@ -58,9 +59,21 @@ const SignUpPage: React.FC = () => {
         }
     });
 
+    // Clear server error when user starts typing
+    const watchedFields = watch();
+    useEffect(() => {
+        if (serverError) {
+            setServerError(null);
+        }
+    }, [watchedFields.email, watchedFields.first_name, watchedFields.last_name]);
+
     const onSignupSubmit = async (values: SignupFormValues) => {
         setServerError(null);
         setSuccessMessage(null);
+        // Prevent duplicate submissions
+        if (isSubmitting || isSuccess) {
+            return;
+        }
         try {
             const signupData = {
                 ...values,
@@ -74,7 +87,12 @@ const SignUpPage: React.FC = () => {
                 setServerError(result.message || 'Registration failed. Please try again.');
             }
         } catch (err: any) {
-            setServerError(err.message || 'An error occurred during registration.');
+            // Handle error response structure: { error: true, error_code: "BAD_REQUEST", message: "...", details: {} }
+            const errorMessage = err?.response?.data?.message 
+                || err?.response?.data?.error?.message 
+                || err?.message 
+                || 'An error occurred during registration.';
+            setServerError(errorMessage);
         }
     };
 

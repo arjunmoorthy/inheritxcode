@@ -1,6 +1,6 @@
 /**
  * OncoLife - Reset Password Page
- * Password reset with token verification
+ * Password reset with token validation on submit
  * Enhanced with premium dark/light mode UI
  */
 
@@ -10,7 +10,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { AlertCircle, Activity, CheckCircle } from 'lucide-react';
-import { useVerifyResetToken, useResetPassword } from '../../services/login';
+import { useResetPassword } from '../../services/login';
 import { Input } from '@/components/ui';
 
 import { useThemeMode } from '@oncolife/ui-components';
@@ -32,11 +32,9 @@ const ResetPasswordPage: React.FC = () => {
 
     const [error, setError] = useState<string | null>(null);
     const [isSuccess, setIsSuccess] = useState(false);
-    const [isVerifying, setIsVerifying] = useState(true);
-    const [tokenValid, setTokenValid] = useState(false);
+    const [isTokenError, setIsTokenError] = useState(false);
     const { isDark } = useThemeMode();
 
-    const verifyTokenMutation = useVerifyResetToken();
     const resetPasswordMutation = useResetPassword();
     const navigate = useNavigate();
 
@@ -48,49 +46,81 @@ const ResetPasswordPage: React.FC = () => {
         resolver: zodResolver(resetPasswordSchema),
     });
 
-    // Verify token on mount
+    // Auto-redirect to login page after successful password reset
     useEffect(() => {
-        const verifyToken = async () => {
-            if (!token) {
-                setError('Invalid or missing reset token');
-                setIsVerifying(false);
-                return;
-            }
+        if (isSuccess) {
+            const timer = setTimeout(() => {
+                navigate('/login');
+            }, 2000); // Redirect after 2 seconds
 
-            try {
-                const result = await verifyTokenMutation.mutateAsync({ token });
-                if (result.success) {
-                    setTokenValid(true);
-                } else {
-                    setError('Invalid or expired reset token');
-                }
-            } catch (err: any) {
-                setError('Unable to verify reset token');
-            } finally {
-                setIsVerifying(false);
-            }
-        };
-
-        verifyToken();
-    }, [token]);
+            return () => clearTimeout(timer);
+        }
+    }, [isSuccess, navigate]);
 
     const onResetSubmit = async (values: ResetPasswordFormValues) => {
-        if (!token) return;
+        if (!token) {
+            setError('Invalid or missing reset token');
+            return;
+        }
 
         setError(null);
+        setIsTokenError(false);
         try {
             const result = await resetPasswordMutation.mutateAsync({
                 token,
                 new_password: values.password,
+                confirm_password: values.confirmPassword,
             });
 
-            if (result.success) {
+            // API returns a string for 200 response, or an object with success property
+            if (typeof result === 'string' || result?.success) {
                 setIsSuccess(true);
             } else {
-                setError(result.message || 'Failed to reset password');
+                setError(result?.message || 'Failed to reset password');
             }
         } catch (err: any) {
-            setError('An error occurred while resetting your password');
+            // Handle API error responses (422 validation errors, 400 bad requests, etc.)
+            let errorMessage = 'An error occurred while resetting your password';
+            let tokenError = false;
+            
+            if (err?.response?.data) {
+                const errorData = err.response.data;
+                
+                // Handle error format: { error: true, error_code: "BAD_REQUEST", message: "...", details: {} }
+                if (errorData.message) {
+                    errorMessage = errorData.message;
+                    // Check if it's a token-related error
+                    const messageLower = errorData.message.toLowerCase();
+                    if (messageLower.includes('token') || 
+                        messageLower.includes('invalid') || 
+                        messageLower.includes('expired')) {
+                        tokenError = true;
+                    }
+                }
+                // Handle 422 validation errors (FastAPI format)
+                else if (errorData.detail && Array.isArray(errorData.detail)) {
+                    // Extract error messages from validation errors
+                    const errorMessages = errorData.detail.map((detail: any) => {
+                        const field = detail.loc?.join('.') || '';
+                        const msg = detail.msg || '';
+                        return field ? `${field}: ${msg}` : msg;
+                    });
+                    errorMessage = errorMessages.join('. ') || errorMessage;
+                } 
+                // Handle string detail
+                else if (errorData.detail && typeof errorData.detail === 'string') {
+                    errorMessage = errorData.detail;
+                } 
+                // Handle direct string response
+                else if (typeof errorData === 'string') {
+                    errorMessage = errorData;
+                }
+            } else if (err?.message) {
+                errorMessage = err.message;
+            }
+            
+            setError(errorMessage);
+            setIsTokenError(tokenError);
         }
     };
 
@@ -149,22 +179,34 @@ const ResetPasswordPage: React.FC = () => {
                                 </p>
                             </div>
 
-                            {/* Verifying State */}
-                            {isVerifying ? (
-                                <div className="flex flex-col items-center justify-center py-12 text-center">
-                                    <div className="w-12 h-12 border-4 border-secondary/20 border-t-secondary rounded-full animate-spin mb-4" />
-                                    <p className={`font-bold text-sm tracking-wide ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
-                                        Verifying Reset Token...
-                                    </p>
-                                </div>
-                            ) : !tokenValid ? (
+                            {/* No Token State */}
+                            {!token ? (
                                 <div className="text-center py-8 animate-fade-in">
                                     <div className={`inline-flex items-center justify-center w-20 h-20 rounded-full mb-6 ${isDark ? 'bg-red-900/20 text-red-400' : 'bg-red-50 text-red-600'}`}>
                                         <AlertCircle size={48} />
                                     </div>
                                     <h3 className={`text-xl font-bold mb-3 ${isDark ? 'text-white' : 'text-slate-900'}`}>Invalid Link</h3>
                                     <p className={`text-sm mb-8 leading-relaxed ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                                        This password reset link is invalid or has expired. Please request a new one.
+                                        This password reset link is missing a token. Please request a new password reset link.
+                                    </p>
+                                    <button
+                                        onClick={() => navigate('/login')}
+                                        className="w-full bg-[#1E3A5F] text-white rounded-xl font-bold text-[15px] py-3.5 px-6 flex items-center justify-center gap-2 transition-all duration-300 hover:bg-[#1a4a7f] hover:shadow-xl shadow-lg"
+                                    >
+                                        Return to Sign In
+                                    </button>
+                                </div>
+                            ) : isTokenError ? (
+                                <div className="text-center py-8 animate-fade-in">
+                                    <div className={`inline-flex items-center justify-center w-20 h-20 rounded-full mb-6 ${isDark ? 'bg-red-900/20 text-red-400' : 'bg-red-50 text-red-600'}`}>
+                                        <AlertCircle size={48} />
+                                    </div>
+                                    <h3 className={`text-xl font-bold mb-3 ${isDark ? 'text-white' : 'text-slate-900'}`}>Invalid or Expired Token</h3>
+                                    <p className={`text-sm mb-4 leading-relaxed ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                                        {error || 'This password reset link is invalid or has expired.'}
+                                    </p>
+                                    <p className={`text-xs mb-8 leading-relaxed ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
+                                        Please request a new password reset link from the login page.
                                     </p>
                                     <button
                                         onClick={() => navigate('/login')}
@@ -179,8 +221,11 @@ const ResetPasswordPage: React.FC = () => {
                                         <CheckCircle size={48} />
                                     </div>
                                     <h3 className={`text-xl font-bold mb-3 ${isDark ? 'text-white' : 'text-slate-900'}`}>Password Reset!</h3>
-                                    <p className={`text-sm mb-8 leading-relaxed ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                                    <p className={`text-sm mb-4 leading-relaxed ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
                                         Your password has been successfully updated. You can now sign in with your new credentials.
+                                    </p>
+                                    <p className={`text-xs mb-8 leading-relaxed ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
+                                        Redirecting to login page...
                                     </p>
                                     <button
                                         onClick={() => navigate('/login')}

@@ -3,7 +3,7 @@
  * Patient list with search and management capabilities
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTheme, useMediaQuery } from '@mui/material';
 import Box from '@mui/material/Box';
 import TextField from '@mui/material/TextField';
@@ -50,8 +50,20 @@ const PatientsPage: React.FC = () => {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   
-  const { data, isLoading, error } = usePatients(page + 1, search, rowsPerPage);
+  // Debounce search: wait 400ms after typing stops; clear triggers API immediately
+  useEffect(() => {
+    const trimmed = typeof search === 'string' ? search.trim() : '';
+    if (trimmed === '') {
+      setDebouncedSearch('');
+      return;
+    }
+    const timer = setTimeout(() => setDebouncedSearch(trimmed), 400);
+    return () => clearTimeout(timer);
+  }, [search]);
+  
+  const { data, isLoading, error } = usePatients(page + 1, debouncedSearch, rowsPerPage);
   
   const handleChangePage = (_: unknown, newPage: number) => {
     setPage(newPage);
@@ -132,7 +144,7 @@ const PatientsPage: React.FC = () => {
             <div className="flex-1 min-w-[280px]">
               <TextField
                 fullWidth
-                placeholder="Search by name, email, or MRN..."
+                placeholder="Search by first name, last name, or full name..."
                 value={search}
                 onChange={handleSearchChange}
                 size="small"
