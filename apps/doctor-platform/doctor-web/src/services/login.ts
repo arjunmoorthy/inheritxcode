@@ -6,7 +6,6 @@ interface LoginData {
   email: string;
   password: string;
 }
-
 interface CompleteNewPasswordData {
   email: string;
   newPassword: string;
