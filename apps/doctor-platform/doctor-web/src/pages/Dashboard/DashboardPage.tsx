@@ -49,7 +49,10 @@ import {
   Activity,
   Calendar,
   FileText,
-  ChevronRight
+  ChevronRight,
+  Stethoscope,
+  MessageCircle,
+  Pill
 } from 'lucide-react';
 import { usePatientSummaries, type PatientSummary } from '../../services/dashboard';
 import { useAddManualPatient, type AddManualPatientPayload } from '../../services/patients';
@@ -124,18 +127,6 @@ const DashboardPage: React.FC = () => {
     }
   };
 
-  const getSummary = (patient: PatientSummary): string => {
-    if (patient.summary && patient.summary.trim()) {
-      // Extract key phrase or use first part of summary
-      const summary = patient.summary;
-      if (summary.toLowerCase().includes('urgent') || patient.hasEscalation) {
-        return 'urgent escalation';
-      }
-      return summary.split('.')[0].toLowerCase() || summary.substring(0, 50).toLowerCase();
-    }
-    return 'No summary available';
-  };
-
   const formatDateShort = (dateString: string) => {
     if (!dateString || dateString === 'None') return 'N/A';
     try {
@@ -151,13 +142,10 @@ const DashboardPage: React.FC = () => {
   };
 
   const getDiagnosis = (patient: PatientSummary): string => {
-    // Extract diagnosis from summary or use a default
-    const summary = patient.summary || '';
-    if (summary.includes('Lung Cancer')) return 'Non-Small Cell Lung Cancer';
-    if (summary.includes('Breast Cancer')) return 'Breast Cancer Stage II';
-    if (summary.includes('Colorectal')) return 'Colorectal Cancer';
-    if (summary.includes('Ovarian')) return 'Ovarian Cancer';
-    return 'Cancer Treatment';
+    const p = patient as PatientSummary & { diagnosis?: string | null; cancer_type?: string | null; diseaseType?: string | null };
+    const fromApi = p.diagnosis ?? p.cancer_type ?? p.diseaseType;
+    if (fromApi && String(fromApi).trim()) return String(fromApi).trim();
+    return 'N/A';
   };
 
 
@@ -195,6 +183,7 @@ const DashboardPage: React.FC = () => {
       maxSeverity: 'severe',
       hasEscalation: false,
       severityBadge: 'severe',
+      diagnosis: 'Non-Small Cell Lung Cancer',
     },
     {
       id: '2',
@@ -209,6 +198,7 @@ const DashboardPage: React.FC = () => {
       maxSeverity: 'severe',
       hasEscalation: false,
       severityBadge: 'severe',
+      diagnosis: 'Breast Cancer Stage II',
     },
     {
       id: '3',
@@ -223,6 +213,7 @@ const DashboardPage: React.FC = () => {
       maxSeverity: 'severe',
       hasEscalation: false,
       severityBadge: 'severe',
+      diagnosis: 'Colorectal Cancer',
     },
     {
       id: '4',
@@ -237,13 +228,14 @@ const DashboardPage: React.FC = () => {
       maxSeverity: 'mild',
       hasEscalation: false,
       severityBadge: 'mild',
+      diagnosis: 'Ovarian Cancer',
     },
   ];
 
   // Use static data only if API fails or returns no data (not when loading)
   // Only use static data when we're not loading and there's no current data
   const displayData = (!isLoading && (error || !data?.data || data.data.length === 0)) 
-    ? staticPatients 
+    ? [] 
     : (data?.data || []);
   
   // Filter patients: search via API for live data; client-side for static fallback
@@ -665,10 +657,9 @@ const DashboardPage: React.FC = () => {
             <div className="flex flex-col gap-4">
               {paginatedPatients.map((patient) => {
                 const severity = getSeverity(patient);
-                const summary = getSummary(patient);
-                const dob = patient.dateOfBirth || (patient as any).dateOfBirth || '';
                 const lastChemo = getLastChemo(patient);
                 const lastChatbot = patient.lastUpdated || '';
+                const dob = patient.dateOfBirth || (patient as any).date_of_birth || '';
                 
                 return (
                   <div
@@ -678,102 +669,65 @@ const DashboardPage: React.FC = () => {
                   >
                     {/* Patient Card Content */}
                     <div className="p-5">
-                      {/* Top Section: Patient Header */}
-                      <div className={`flex items-center justify-between mb-4 pb-4 border-b ${isDark ? 'border-slate-700' : 'border-slate-200'}`}>
-                        <div className="flex items-center gap-3 flex-1">
-                          {/* Avatar */}
-                          <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-sm ${isDark ? 'bg-[#1e3a5f] text-white' : 'bg-[#1e3a5f] text-white'}`}>
-                            {patient.patientName.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        {/* Left: Patient Name & MRN */}
+                        <div className="flex-1 min-w-0 flex flex-col justify-center">
+                          <div className={`font-bold ${isDark ? 'text-[#F5F3EE]' : 'text-slate-900'} text-base leading-tight`}>
+                            {patient.patientName}
                           </div>
-                          
-                          {/* Patient Name */}
-                          <div className="flex-1">
-                            <span className={`font-bold ${isDark ? 'text-[#F5F3EE]' : 'text-slate-900'} text-base leading-tight mb-1`}>
-                              {patient.patientName}
+                          <div className={`text-xs mt-0.5 flex items-center gap-4 flex-wrap ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                            <span className="flex items-center justify-center gap-2">
+                              <FileText size={14} className="flex-shrink-0 self-center" />
+                              <span className="leading-none">MRN: {patient.mrn || 'N/A'}</span>
                             </span>
-                            
-                            {/* DOB and MRN */}
-                            <div className="flex items-center gap-4 flex-wrap">
-                              {/* DOB */}
-                              <div className="flex items-center gap-1.5">
-                                <Calendar size={14} className={`${isDark ? 'text-slate-400' : 'text-slate-500'}`} />
-                                <span className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                                  DOB: {dob ? formatDOB(dob) : 'N/A'}
-                                </span>
-                              </div>
-                              
-                              {/* MRN */}
-                              <div className="flex items-center gap-1.5">
-                                <FileText size={14} className={`${isDark ? 'text-slate-400' : 'text-slate-500'}`} />
-                                <span className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                                  MRN: {patient.mrn || 'N/A'}
-                                </span>
-                              </div>
+                            <span className="flex items-center justify-center gap-2">
+                              <Calendar size={14} className="flex-shrink-0 self-center" />
+                              <span className="leading-none">DOB: {dob ? formatDOB(dob) : 'N/A'}</span>
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Middle: Diagnosis, Last Chatbot, Last Chemo (with light blue icons) */}
+                        <div className="flex flex-wrap items-center gap-x-6 gap-y-2 flex-1 sm:flex-initial sm:flex-nowrap sm:justify-center">
+                          <div className="flex items-center justify-center gap-2">
+                            <Stethoscope size={14} className={`flex-shrink-0 self-center ${isDark ? 'text-sky-400' : 'text-sky-600'}`} />
+                            <div className="flex items-center gap-1">
+                              <span className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Diagnosis: </span>
+                              <span className={`text-sm ${isDark ? 'text-[#F5F3EE]' : 'text-slate-900'}`}>{getDiagnosis(patient)}</span>
+                            </div>
+                          </div>
+                          <div className="flex items-center justify-center gap-2">
+                            <MessageCircle size={14} className={`flex-shrink-0 self-center ${isDark ? 'text-sky-400' : 'text-sky-600'}`} />
+                            <div className="flex items-center gap-1">
+                              <span className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Last Chatbot: </span>
+                              <span className={`text-sm ${isDark ? 'text-[#F5F3EE]' : 'text-slate-900'}`}>{lastChatbot ? formatDateShort(lastChatbot) : 'N/A'}</span>
+                            </div>
+                          </div>
+                          <div className="flex items-center justify-center gap-2">
+                            <Pill size={14} className={`flex-shrink-0 self-center ${isDark ? 'text-sky-400' : 'text-sky-600'}`} />
+                            <div className="flex items-center gap-1">
+                              <span className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Last Chemo: </span>
+                              <span className={`text-sm ${isDark ? 'text-[#F5F3EE]' : 'text-slate-900'}`}>{lastChemo && lastChemo !== 'None' ? formatDateShort(lastChemo) : 'N/A'}</span>
                             </div>
                           </div>
                         </div>
-                        
-                        {/* Urgency Badge */}
-                        <span className={`inline-flex items-center px-3 py-1 rounded-md text-xs font-bold uppercase tracking-wider ${
+
+                        {/* Right: Severity Badge (pill-shaped) */}
+                        <span className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider flex-shrink-0 ${
                           severity === 'urgent'
-                            ? isDark ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 'bg-red-50 text-red-600 border border-red-200'
+                            ? isDark ? 'bg-red-500/20 text-red-400' : 'bg-red-500 text-white'
                             : severity === 'severe'
-                            ? isDark ? 'bg-orange-500/20 text-orange-400 border border-orange-500/30' : 'bg-orange-50 text-orange-600 border border-orange-200'
+                            ? isDark ? 'bg-orange-500/20 text-orange-400' : 'bg-orange-500 text-white'
                             : severity === 'moderate'
-                            ? isDark ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30' : 'bg-yellow-50 text-yellow-600 border border-yellow-200'
-                            : isDark ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-emerald-50 text-emerald-600 border border-emerald-200'
+                            ? isDark ? 'bg-yellow-500/20 text-yellow-400' : 'bg-yellow-500 text-white'
+                            : isDark ? 'bg-emerald-500/20 text-emerald-400' : 'bg-emerald-500 text-white'
                         }`}>
                           {severity}
                         </span>
                       </div>
-                      
-                      {/* Middle Section: SYMPTOMS, SUMMARY, Last Chatbot, Last Chemo */}
-                      <div className={`mb-2 pb-4 border-b ${isDark ? 'border-slate-700' : 'border-slate-200'}`}>
-                        <div className="grid grid-cols-2 gap-x-4 gap-y-3">
-                          {/* TREATMENT PLAN */}
-                          <div>
-                            <div className={`text-xs font-semibold uppercase tracking-wide mb-1 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                              TREATMENT PLAN
-                            </div>
-                            <div className={`text-sm ${isDark ? 'text-[#F5F3EE]' : 'text-slate-900'}`}>
-                              {summary}
-                            </div>
-                          </div>
-                          
-                          {/* EMAIL */}
-                          <div>
-                            <div className={`text-xs font-semibold uppercase tracking-wide mb-1 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                              EMAIL
-                            </div>
-                            <div className={`text-sm ${isDark ? 'text-[#F5F3EE]' : 'text-slate-900'}`}>
-                              {patient.email || '—'}
-                            </div>
-                          </div>
-                          
-                          {/* Last Updated */}
-                          <div>
-                            <div className={`text-xs font-semibold uppercase tracking-wide mb-1 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                              LAST UPDATED
-                            </div>
-                            <div className={`text-sm ${isDark ? 'text-[#F5F3EE]' : 'text-slate-900'}`}>
-                              {lastChatbot ? formatDateShort(lastChatbot) : 'N/A'}
-                            </div>
-                          </div>
-                          
-                          {/* Last Chemo */}
-                          <div>
-                            <div className={`text-xs font-semibold uppercase tracking-wide mb-1 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                              LAST CHEMO
-                            </div>
-                            <div className={`text-sm ${isDark ? 'text-[#F5F3EE]' : 'text-slate-900'}`}>
-                              {lastChemo && lastChemo !== 'None' ? formatDateShort(lastChemo) : 'N/A'}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                      
-                      {/* Bottom Section: View Details */}
-                      <div className="flex justify-end">
+
+                      {/* View Details link */}
+                      <div className={`flex justify-end mt-3 border-t ${isDark ? 'border-slate-700' : 'border-slate-200'}`}>
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
