@@ -24,7 +24,6 @@ export const CalendarModal: React.FC<CalendarModalProps> = ({
     }
   };
 
-
   const getMaxDate = () => {
     const today = new Date();
     return today.toISOString().split('T')[0];
