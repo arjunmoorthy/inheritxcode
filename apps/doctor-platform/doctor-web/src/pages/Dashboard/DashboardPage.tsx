@@ -102,6 +102,8 @@ const DashboardPage: React.FC = () => {
   const [isAddPatientModalOpen, setIsAddPatientModalOpen] = useState(false);
   const [debouncedSearch, setDebouncedSearch] = useState('');
   console.log("first---------------------------------->")
+  console.log("first222222222---------------------------------->")
+
   // Debounce search: wait 400ms after typing stops; clear triggers API immediately
   useEffect(() => {
     const trimmed = typeof search === 'string' ? search.trim() : '';
