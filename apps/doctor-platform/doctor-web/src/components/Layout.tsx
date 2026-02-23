@@ -56,6 +56,7 @@ const navItems = [
   { id: 'reports', label: 'Weekly Reports', icon: FileText, path: '/reports' },
 ];
 
+
 const Layout: React.FC = () => {
   const theme = useTheme();
   const navigate = useNavigate();

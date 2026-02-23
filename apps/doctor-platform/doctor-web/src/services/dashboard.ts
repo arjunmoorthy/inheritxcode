@@ -44,6 +44,10 @@ export interface PatientListingApiItem {
   start_date: string | null;
   end_date: string | null;
   created_at: string;
+  /** Diagnosis/cancer type from API when available */
+  diagnosis?: string | null;
+  cancer_type?: string | null;
+  disease_type?: string | null;
 }
 
 export interface PatientListingApiResponse {
@@ -65,6 +69,8 @@ export interface PatientSummary {
   hasEscalation: boolean;
   severityBadge: string;
   email?: string;
+  /** Diagnosis/cancer type from API when available */
+  diagnosis?: string | null;
 }
 
 export interface PatientRanking {
@@ -211,6 +217,7 @@ const transformListingToSummary = (item: PatientListingApiItem): PatientSummary 
   hasEscalation: false,
   severityBadge: '',
   email: item.email || undefined,
+  diagnosis: item.diagnosis ?? item.cancer_type ?? item.disease_type ?? undefined,
 });
 
 // Fetch dashboard landing (ranked patient list)
