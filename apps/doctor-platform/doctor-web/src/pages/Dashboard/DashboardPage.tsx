@@ -781,7 +781,6 @@ const DashboardPage: React.FC = () => {
           )}
         </div>
       </div>
-
       {/* Add Patient Modal */}
       <AddPatientModal
         isOpen={isAddPatientModalOpen}
