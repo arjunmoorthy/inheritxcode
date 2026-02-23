@@ -44,7 +44,6 @@ import {
 import { useUser } from '../contexts/UserContext';
 // import { useAuth } from '../contexts/AuthContext';
 import { useThemeMode } from '@oncolife/ui-components';
-
 // Sidebar width (commented out - kept for reference)
 // const DRAWER_WIDTH = 260;
 // const DRAWER_WIDTH_COLLAPSED = 72;
