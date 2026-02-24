@@ -37,6 +37,7 @@ import { useAuth } from './contexts/AuthContext';
 // Shared login from ui-components
 import LoginPage from './pages/LoginPage';
 import ResetPassword from './pages/LoginPage/ResetPassword';
+import SetPasswordPage from './pages/LoginPage/SetPasswordPage';
 import ForgotPasswordPage from './pages/LoginPage/ForgotPasswordPage';
 import Acknowledgement from './pages/LoginPage/Acknowledgement';
 
@@ -68,6 +69,7 @@ function App() {
               <Route path="/login" element={<LoginPage />} />
               <Route path="/forgot-password" element={<ForgotPasswordPage />} />
               <Route path="/reset-password" element={<ResetPassword />} />
+              <Route path="/set-password" element={<SetPasswordPage />} />
               <Route path="/acknowledgement" element={<Acknowledgement />} />
               <Route path="/signup" element={<SignUpPage />} />
               <Route element={<Layout />}>

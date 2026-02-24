@@ -9,6 +9,7 @@ interface LoginData {
 
 interface CompleteNewPasswordData {
   email: string;
+  currentPassword?: string;
   newPassword: string;
 }
 
@@ -79,10 +80,13 @@ export const useLogin = () => {
 };
 
 const completeNewPassword = async (data: CompleteNewPasswordData): Promise<CompleteNewPasswordResponse> => {
-  const newData = {
+  const newData: Record<string, string | null> = {
     email: data?.email,
     new_password: data?.newPassword,
     session: localStorage.getItem('authToken'),
+  };
+  if (data?.currentPassword) {
+    newData.current_password = data.currentPassword;
   }
   const response = await apiClient.post<CompleteNewPasswordResponse>(API_CONFIG.ENDPOINTS.AUTH.COMPLETE_NEW_PASSWORD, newData);
   return response.data;
