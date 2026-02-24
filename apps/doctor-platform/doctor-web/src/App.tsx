@@ -5,6 +5,7 @@ import { UserProvider } from './contexts/UserContext';
 import LoginPage from './pages/LoginPage/LoginPage';
 import SignUpPage from './pages/SignUpPage/SignUpPage';
 import ResetPasswordPage from './pages/ResetPasswordPage/ResetPasswordPage';
+import SetPasswordPage from './pages/SetPasswordPage/SetPasswordPage';
 import AuthCallback from './pages/AuthCallback/AuthCallback';
 import CompleteProfile from './pages/CompleteProfile/CompleteProfile';
 import DashboardPage from './pages/Dashboard/DashboardPage';
@@ -43,6 +44,7 @@ const App: React.FC = () => {
                         <Route path="/login" element={<LoginPage />} />
                         <Route path="/signup" element={<SignUpPage />} />
                         <Route path="/reset-password" element={<ResetPasswordPage />} />
+                        <Route path="/set-password" element={<SetPasswordPage />} />
                         <Route path="/auth/callback" element={<AuthCallback />} />
                         <Route path="/complete-profile" element={<CompleteProfile />} />
 
