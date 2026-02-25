@@ -78,7 +78,8 @@ const LoginPage: React.FC = () => {
       const result = await authenticateLogin(values.email, values.password);
       if (result?.data?.requiresPasswordChange) {
         navigate('/set-password', { state: { email: values.email } });
-      } else if (result?.data?.user_status === 'CONFIRMED') {
+      } else if (result?.success) {
+        // Successful login: tokens (access_token) are stored in login service; header uses Bearer access_token
         navigate('/chat');
       }
     } catch (err: any) {

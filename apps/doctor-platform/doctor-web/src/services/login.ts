@@ -41,7 +41,8 @@ interface SignupData {
 }
 
 export interface CompleteNewPasswordResponse {
-  success: boolean;
+  success?: boolean;
+  status?: string;
   message: string;
   data?: {
     tokens?: {

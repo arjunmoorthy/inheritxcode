@@ -7,7 +7,7 @@
  * Enhanced with Tailwind CSS and dark mode support.
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -45,6 +45,7 @@ const SetPasswordPage: React.FC = () => {
 
   const [error, setError] = useState<string | null>(null);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [redirectCountdown, setRedirectCountdown] = useState(3);
   const { isDark } = useThemeMode();
 
   const changePasswordMutation = useChangePassword();
@@ -70,7 +71,9 @@ const SetPasswordPage: React.FC = () => {
         confirmPassword: values.confirmPassword,
       });
 
-      if (result.success) {
+      const isSuccessResponse = result.success === true || result.status === 'success';
+      if (isSuccessResponse) {
+        setError(null);
         setIsSuccess(true);
       } else {
         setError(result.message || 'Failed to set password');
@@ -80,8 +83,24 @@ const SetPasswordPage: React.FC = () => {
     }
   };
 
-  const handleContinue = () => {
-    navigate('/chat');
+  // After success: show green message, then redirect to login after 3 seconds
+  useEffect(() => {
+    if (!isSuccess) return;
+    const timer = setInterval(() => {
+      setRedirectCountdown((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          navigate('/login');
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [isSuccess, navigate]);
+
+  const handleContinueToLogin = () => {
+    navigate('/login');
   };
 
   // No email: show loader briefly, then invalid-link message (e.g. direct /set-password with no ?email=)
@@ -191,16 +210,22 @@ const SetPasswordPage: React.FC = () => {
                     You&apos;re All Set!
                   </h3>
                   <p
-                    className={`text-sm mb-8 leading-relaxed ${isDark ? 'text-slate-400' : 'text-slate-500'}`}
+                    className={`text-sm mb-4 leading-relaxed ${isDark ? 'text-slate-400' : 'text-slate-500'}`}
                   >
-                    Your password has been updated. You can now access your
-                    personalized care resources.
+                    Your password has been updated. Please sign in with your new password.
+                  </p>
+                  <p
+                    className={`text-sm mb-6 font-medium ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`}
+                  >
+                    {redirectCountdown > 0
+                      ? `Redirecting to login in ${redirectCountdown} second${redirectCountdown !== 1 ? 's' : ''}...`
+                      : 'Redirecting...'}
                   </p>
                   <button
-                    onClick={handleContinue}
+                    onClick={handleContinueToLogin}
                     className="w-full bg-primary text-white rounded-xl font-bold text-[15px] py-3.5 px-6 flex items-center justify-center gap-2 transition-all duration-300 hover:bg-primary-dark hover:shadow-xl shadow-lg"
                   >
-                    Continue to Dashboard
+                    Continue to Login
                   </button>
                 </div>
               ) : (
