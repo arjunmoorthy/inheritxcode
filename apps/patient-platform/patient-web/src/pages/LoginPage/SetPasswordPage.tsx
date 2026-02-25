@@ -8,12 +8,12 @@
  */
 
 import React, { useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { AlertCircle, Activity, CheckCircle, Info } from 'lucide-react';
-import { useCompleteNewPassword } from '../../services/login';
+import { useChangePassword } from '../../services/login';
 import { Input } from '../../components/ui';
 import { useThemeMode } from '@oncolife/ui-components';
 
@@ -38,13 +38,16 @@ interface LocationState {
 const SetPasswordPage: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const email = (location.state as LocationState)?.email;
+  const [searchParams] = useSearchParams();
+  const emailFromState = (location.state as LocationState)?.email;
+  const emailFromQuery = searchParams.get('email');
+  const email = emailFromState ?? emailFromQuery ?? undefined;
 
   const [error, setError] = useState<string | null>(null);
   const [isSuccess, setIsSuccess] = useState(false);
   const { isDark } = useThemeMode();
 
-  const completeNewPasswordMutation = useCompleteNewPassword();
+  const changePasswordMutation = useChangePassword();
 
   const {
     register,
@@ -54,23 +57,17 @@ const SetPasswordPage: React.FC = () => {
     resolver: zodResolver(setPasswordSchema),
   });
 
-  // Redirect to login if no email or no session (user must log in with temp password first)
-  // useEffect(() => {
-  //   const hasSession = !!localStorage.getItem('authToken');
-  //   if (!email || !hasSession) {
-  //     navigate('/login', { replace: true });
-  //   }
-  // }, [email, navigate]);
 
   const onSubmit = async (values: SetPasswordFormValues) => {
     if (!email) return;
 
     setError(null);
     try {
-      const result = await completeNewPasswordMutation.mutateAsync({
+      const result = await changePasswordMutation.mutateAsync({
         email,
         currentPassword: values.currentPassword,
         newPassword: values.password,
+        confirmPassword: values.confirmPassword,
       });
 
       if (result.success) {
@@ -87,10 +84,32 @@ const SetPasswordPage: React.FC = () => {
     navigate('/chat');
   };
 
-  // Don't render form if we're redirecting
-  // if (!email) {
-  //   return null;
-  // }
+  // No email: show loader briefly, then invalid-link message (e.g. direct /set-password with no ?email=)
+  if (!email) {
+    return (
+      <div
+        className={`min-h-screen flex flex-col md:flex-row items-center justify-center transition-colors duration-500 ${isDark ? 'bg-[#1A1917]' : 'bg-[#F8FAFC]'}`}
+      >
+        <div className="flex flex-col items-center gap-4 px-6">
+          <div
+            className={`inline-flex items-center justify-center w-16 h-16 rounded-full ${isDark ? 'bg-amber-900/20 text-amber-400' : 'bg-amber-50 text-amber-600'}`}
+          >
+            <AlertCircle size={32} />
+          </div>
+          <p className={`text-center text-sm ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+            Invalid or incomplete link. Use the set-password link from your email, or sign in from the login page.
+          </p>
+          <button
+            type="button"
+            onClick={() => navigate('/login')}
+            className="mt-2 bg-primary text-white rounded-xl font-medium text-sm py-2.5 px-5 hover:bg-primary-dark transition-colors"
+          >
+            Back to login
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div

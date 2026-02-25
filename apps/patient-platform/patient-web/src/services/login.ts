@@ -13,6 +13,14 @@ interface CompleteNewPasswordData {
   newPassword: string;
 }
 
+/** Payload for POST /api/v1/fax/change-password (set password page) */
+interface ChangePasswordData {
+  email: string;
+  currentPassword: string;
+  newPassword: string;
+  confirmPassword: string;
+}
+
 interface ForgotPasswordData {
   email: string;
 }
@@ -88,7 +96,24 @@ const completeNewPassword = async (data: CompleteNewPasswordData): Promise<Compl
   if (data?.currentPassword) {
     newData.current_password = data.currentPassword;
   }
-  const response = await apiClient.post<CompleteNewPasswordResponse>(API_CONFIG.ENDPOINTS.AUTH.COMPLETE_NEW_PASSWORD, newData);
+  const response = await apiClient.post<CompleteNewPasswordResponse>(
+    API_CONFIG.ENDPOINTS.AUTH.COMPLETE_NEW_PASSWORD,
+    newData
+  );
+  return response.data;
+};
+
+const changePassword = async (data: ChangePasswordData): Promise<CompleteNewPasswordResponse> => {
+  const payload = {
+    email: data.email,
+    current_password: data.currentPassword,
+    new_password: data.newPassword,
+    confirm_password: data.confirmPassword,
+  };
+  const response = await apiClient.post<CompleteNewPasswordResponse>(
+    API_CONFIG.ENDPOINTS.AUTH.CHANGE_PASSWORD,
+    payload
+  );
   return response.data;
 };
 
@@ -103,6 +128,21 @@ export const useCompleteNewPassword = () => {
     },
     onError: (error) => {
       console.error('New password reset error:', error);
+    },
+  });
+};
+
+export const useChangePassword = () => {
+  return useMutation({
+    mutationFn: changePassword,
+    onSuccess: (data) => {
+      if (data.data?.tokens) {
+        localStorage.setItem('authToken', data.data.tokens.access_token);
+        localStorage.setItem('refreshToken', data.data.tokens.refresh_token);
+      }
+    },
+    onError: (error) => {
+      console.error('Change password error:', error);
     },
   });
 };
