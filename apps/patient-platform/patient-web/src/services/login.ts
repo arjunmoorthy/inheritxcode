@@ -35,10 +35,11 @@ interface ResetPasswordData {
 }
 
 export interface CompleteNewPasswordResponse {
-  success: boolean;
+  success?: boolean;
+  status?: string;
   message: string;
   data?: {
-  tokens?: {
+    tokens?: {
       access_token: string;
       refresh_token: string;
       id_token: string;
@@ -61,6 +62,17 @@ export interface LoginResponse {
       id_token: string;
       token_type: string;
     };
+    user?: {
+      id: number;
+      uuid: string;
+      email: string;
+      first_name?: string;
+      last_name?: string;
+      full_name?: string;
+      role?: string;
+      is_active?: boolean;
+      patient_id?: number;
+    };
   };
 }
 
@@ -73,12 +85,14 @@ export const useLogin = () => {
   return useMutation({
     mutationFn: loginUser,
     onSuccess: (data) => {
-
       if (data.data?.session) {
         localStorage.setItem('authToken', data.data.session);
       }
       if (data.data?.tokens) {
         localStorage.setItem('authToken', data.data.tokens.access_token);
+        if (data.data.tokens.refresh_token) {
+          localStorage.setItem('refreshToken', data.data.tokens.refresh_token);
+        }
       }
     },
     onError: (error) => {

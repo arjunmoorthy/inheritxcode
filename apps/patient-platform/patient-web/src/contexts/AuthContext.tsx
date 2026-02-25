@@ -65,8 +65,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       const result = await loginMutation.mutateAsync({ email, password });
       
       if (result.success) {
-        setUser({email: email});
-        // Ensure token state is updated from localStorage set in useLogin onSuccess
+        const userData = result.data?.user;
+        setUser({
+          email: userData?.email ?? email,
+          name: (userData?.full_name ?? [userData?.first_name, userData?.last_name].filter(Boolean).join(' ')) || undefined,
+          role: userData?.role,
+        });
+        // Token is stored by useLogin onSuccess; sync to state so headers use Bearer immediately
         const stored = localStorage.getItem('authToken');
         if (stored) setToken(stored);
         sessionStorage.setItem(SESSION_START_KEY, Date.now().toString());
