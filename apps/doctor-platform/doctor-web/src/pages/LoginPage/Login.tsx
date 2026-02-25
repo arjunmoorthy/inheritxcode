@@ -27,8 +27,7 @@ const Login: React.FC = () => {
     try {
       const result = await authenticateLogin(email, password);
       if (result?.data?.requiresPasswordChange) {
-        // Doctor portal might have different password reset flow
-        navigate('/reset-password');
+        navigate('/set-password', { state: { email } });
       }
       if (result?.data?.user_status === 'CONFIRMED') {
         // Navigate to doctor dashboard instead of chat
