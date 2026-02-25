@@ -40,7 +40,6 @@ const LoginPage: React.FC = () => {
   const [isForgotPassword, setIsForgotPassword] = useState(false);
   const [forgotSuccess, setForgotSuccess] = useState(false);
   const { isDark, toggleTheme } = useThemeMode();
-  
   const { authenticateLogin } = useAuth();
   const forgotPasswordMutation = useForgotPassword();
   const navigate = useNavigate();
