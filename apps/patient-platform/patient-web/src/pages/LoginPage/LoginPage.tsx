@@ -77,7 +77,7 @@ const LoginPage: React.FC = () => {
     try {
       const result = await authenticateLogin(values.email, values.password);
       if (result?.data?.requiresPasswordChange) {
-        navigate('/reset-password');
+        navigate('/set-password', { state: { email: values.email } });
       } else if (result?.data?.user_status === 'CONFIRMED') {
         navigate('/chat');
       }

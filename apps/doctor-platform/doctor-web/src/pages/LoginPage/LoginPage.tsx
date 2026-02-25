@@ -76,9 +76,13 @@ const LoginPage: React.FC = () => {
     setError(null);
     try {
       const result = await authenticateLogin(values.email, values.password);
-      navigate('/dashboard');
 
-      
+      // Handle navigation based on user status
+      if (result?.data?.requiresPasswordChange) {
+        navigate('/set-password', { state: { email: values.email } });
+        return;
+      }
+
       // Store tokens if available in the response (service already stores, but ensure they're set)
       if (result?.success && result?.data) {
         // Handle new response structure: tokens directly in data
@@ -91,19 +95,14 @@ const LoginPage: React.FC = () => {
         if (result.data.id_token) {
           localStorage.setItem('idToken', result.data.id_token);
         }
-        
+
         // Store user details if available
         if (result.data.user) {
           localStorage.setItem('userProfile', JSON.stringify(result.data.user));
         }
       }
-      navigate('/dashboard');
-      // Handle navigation based on user status
-      if (result?.data?.requiresPasswordChange) {
-        navigate('/reset-password');
-      } else if (result?.success) {
-        // Redirect to dashboard on successful login
-        // Use window.location.href for a full page navigation to ensure auth state is properly initialized
+
+      if (result?.success) {
         window.location.href = '/dashboard';
       }
     } catch (err: any) {
