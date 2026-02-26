@@ -1,6 +1,7 @@
 import { useMutation } from '@tanstack/react-query';
 import { apiClient } from '../utils/apiClient';
 import { API_CONFIG } from '../config/api';
+import { setPatientUuid, clearPatientUuid } from '../utils/patientUuid';
 
 interface LoginData {
   email: string;
@@ -94,6 +95,9 @@ export const useLogin = () => {
           localStorage.setItem('refreshToken', data.data.tokens.refresh_token);
         }
       }
+      if (data.data?.user?.uuid) {
+        setPatientUuid(data.data.user.uuid);
+      }
     },
     onError: (error) => {
       console.error('Login error:', error);
@@ -178,6 +182,7 @@ export const useLogout = () => {
     onSuccess: () => {
       localStorage.removeItem('authToken');
       localStorage.removeItem('refreshToken');
+      clearPatientUuid();
     },
     onError: (error) => {
       console.error('Logout error:', error);

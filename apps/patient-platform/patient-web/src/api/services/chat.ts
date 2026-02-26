@@ -17,6 +17,13 @@ import type {
 
 const { ENDPOINTS } = API_CONFIG;
 
+function requirePatientUuid(patientUuid: string | null | undefined): string {
+  if (!patientUuid || typeof patientUuid !== 'string' || !patientUuid.trim()) {
+    throw new Error('Patient UUID is required. Please sign in.');
+  }
+  return patientUuid.trim();
+}
+
 // =============================================================================
 // WebSocket Types
 // =============================================================================
@@ -44,8 +51,9 @@ export const chatApi = {
     patientUuid: string,
     timezone: string = 'America/Los_Angeles'
   ): Promise<ChatSession> => {
+    const uuid = requirePatientUuid(patientUuid);
     return api.get<ChatSession>(
-      `${ENDPOINTS.CHAT.SESSION_TODAY}?patient_uuid=${patientUuid}&timezone=${timezone}`
+      `${ENDPOINTS.CHAT.SESSION_TODAY}?patient_uuid=${encodeURIComponent(uuid)}&timezone=${encodeURIComponent(timezone)}`
     );
   },
 
@@ -56,8 +64,9 @@ export const chatApi = {
     patientUuid: string,
     timezone: string = 'America/Los_Angeles'
   ): Promise<ChatSession> => {
+    const uuid = requirePatientUuid(patientUuid);
     return api.post<ChatSession>(
-      `${ENDPOINTS.CHAT.SESSION_NEW}?patient_uuid=${patientUuid}&timezone=${timezone}`
+      `${ENDPOINTS.CHAT.SESSION_NEW}?patient_uuid=${encodeURIComponent(uuid)}&timezone=${encodeURIComponent(timezone)}`
     );
   },
 
@@ -68,8 +77,9 @@ export const chatApi = {
     chatUuid: string,
     patientUuid: string
   ): Promise<ChatSession> => {
+    const uuid = requirePatientUuid(patientUuid);
     return api.get<ChatSession>(
-      `${ENDPOINTS.CHAT.FULL(chatUuid)}?patient_uuid=${patientUuid}`
+      `${ENDPOINTS.CHAT.FULL(chatUuid)}?patient_uuid=${encodeURIComponent(uuid)}`
     );
   },
 
@@ -80,8 +90,9 @@ export const chatApi = {
     chatUuid: string,
     patientUuid: string
   ): Promise<ChatStateResponse> => {
+    const uuid = requirePatientUuid(patientUuid);
     return api.get<ChatStateResponse>(
-      `${ENDPOINTS.CHAT.STATE(chatUuid)}?patient_uuid=${patientUuid}`
+      `${ENDPOINTS.CHAT.STATE(chatUuid)}?patient_uuid=${encodeURIComponent(uuid)}`
     );
   },
 
@@ -93,8 +104,9 @@ export const chatApi = {
     patientUuid: string,
     feeling: OverallFeeling
   ): Promise<void> => {
+    const uuid = requirePatientUuid(patientUuid);
     return api.post(
-      `${ENDPOINTS.CHAT.FEELING(chatUuid)}?patient_uuid=${patientUuid}`,
+      `${ENDPOINTS.CHAT.FEELING(chatUuid)}?patient_uuid=${encodeURIComponent(uuid)}`,
       { feeling }
     );
   },
@@ -103,8 +115,9 @@ export const chatApi = {
    * Delete a chat session
    */
   deleteChat: async (chatUuid: string, patientUuid: string): Promise<void> => {
+    const uuid = requirePatientUuid(patientUuid);
     return api.delete(
-      `${ENDPOINTS.CHAT.DELETE(chatUuid)}?patient_uuid=${patientUuid}`
+      `${ENDPOINTS.CHAT.DELETE(chatUuid)}?patient_uuid=${encodeURIComponent(uuid)}`
     );
   },
 };

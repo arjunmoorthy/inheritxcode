@@ -1,21 +1,14 @@
 import { apiClient } from '../utils/apiClient';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { ProfileFormData } from '../pages/ProfilePage/types';
-
-// Extract patient UUID from auth token
-const getPatientUuid = (): string => {
-  const token = localStorage.getItem('authToken');
-  if (token && token.startsWith('dev-mode-token-')) {
-    // Token format: dev-mode-token-UUID
-    return token.replace('dev-mode-token-', '');
-  }
-  // Default test user UUID for local dev
-  return '11111111-1111-1111-1111-111111111111';
-};
+import { getPatientUuid } from '../utils/patientUuid';
 
 export const fetchProfile = async () => {
   const patientUuid = getPatientUuid();
-  const response = await apiClient.get(`/profile?patient_uuid=${patientUuid}`);
+  if (!patientUuid) {
+    throw new Error('Not authenticated. Please sign in.');
+  }
+  const response = await apiClient.get(`/profile?patient_uuid=${encodeURIComponent(patientUuid)}`);
   return response.data;
 };
 

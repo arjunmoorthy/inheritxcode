@@ -1,6 +1,10 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { API_CONFIG } from '../config/api';
 
+// Optional dev-only fallback from env (e.g. VITE_WS_AUTH_TOKEN). Production uses only authToken from login.
+const getWsToken = () =>
+  localStorage.getItem('authToken') || (import.meta.env.DEV ? import.meta.env.VITE_WS_AUTH_TOKEN ?? null : null);
+
 export const useWebSocket = (
   chatUuid: string | null,
   onMessage: (message: unknown) => void
@@ -10,49 +14,56 @@ export const useWebSocket = (
   const wsRef = useRef<WebSocket | null>(null);
   const retryTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const retryCountRef = useRef(0);
+  const cancelledRef = useRef(false);
   const maxRetries = 3;
 
-  // Keep the latest onMessage in a ref so we don't recreate the socket on every re-render
   const onMessageRef = useRef(onMessage);
   useEffect(() => {
     onMessageRef.current = onMessage;
   }, [onMessage]);
 
-  const connectWebSocket = useCallback(() => {
+  const connectWebSocket = useCallback(async () => {
     if (!chatUuid) return;
 
-    // Guard: do not create another socket if one already exists
     if (wsRef.current && (wsRef.current.readyState === WebSocket.OPEN || wsRef.current.readyState === WebSocket.CONNECTING)) {
       return;
     }
 
-    const token = localStorage.getItem('authToken');
+    const token = getWsToken();
     if (!token) {
       setConnectionError("Authentication token not found.");
       return;
     }
 
-    // Prefer explicit WS_BASE if provided (absolute URL supported), else base URL
     const base = API_CONFIG.WS_BASE || API_CONFIG.BASE_URL;
-    let wsUrl: string;
-
-    // Always include /api/v1 prefix for WebSocket
     const apiVersion = API_CONFIG.API_VERSION || '/api/v1';
-    
+    let wsBase: string;
     if (/^wss?:\/\//i.test(base)) {
-      // Absolute ws(s) base provided directly
-      wsUrl = `${base.replace(/\/$/, '')}${apiVersion}/chat/ws/${chatUuid}?token=${token}`;
+      wsBase = base.replace(/\/$/, '');
     } else if (/^https?:\/\//i.test(base)) {
-      // Absolute API/WS base → convert http(s) → ws(s)
-      const wsBase = base.replace(/^http:/i, 'ws:').replace(/^https:/i, 'wss:');
-      wsUrl = `${wsBase.replace(/\/$/, '')}${apiVersion}/chat/ws/${chatUuid}?token=${token}`;
+      wsBase = base.replace(/^http:/i, 'ws:').replace(/^https:/i, 'wss:').replace(/\/$/, '');
     } else {
-      // Relative base → same-origin
-      const { protocol, host } = window.location as any;
+      const { protocol, host } = window.location;
       const wsProtocol = protocol === 'https:' ? 'wss:' : 'ws:';
       const prefix = base === '/' ? '' : base.replace(/\/$/, '');
-      wsUrl = `${wsProtocol}//${host}${prefix}${apiVersion}/chat/ws/${chatUuid}?token=${token}`;
+      wsBase = `${wsProtocol}//${host}${prefix}`;
     }
+
+    const wsUrl = `${wsBase}${apiVersion}/chat/ws/${chatUuid}?token=${encodeURIComponent(token)}`;
+
+    // ngrok free tier shows a browser warning; WebSocket can't send custom headers.
+    // Warm the origin with a fetch that sends ngrok-skip-browser-warning so subsequent WS may succeed.
+    const isNgrok = /ngrok-free\.app|ngrok\.io|ngrok-free\.dev/i.test(wsBase);
+    if (isNgrok && typeof fetch === 'function') {
+      const httpsUrl = wsBase.replace(/^wss:\/\//i, 'https://').replace(/^ws:\/\//i, 'http://');
+      try {
+        await fetch(httpsUrl, { method: 'GET', headers: { 'ngrok-skip-browser-warning': 'true' } });
+      } catch {
+        // ignore
+      }
+    }
+
+    if (cancelledRef.current) return;
 
     console.log('Connecting to WebSocket:', wsUrl);
     wsRef.current = new WebSocket(wsUrl);
@@ -61,13 +72,12 @@ export const useWebSocket = (
       console.log('WebSocket connection established.');
       setIsConnected(true);
       setConnectionError(null);
-      retryCountRef.current = 0; // Reset retry count on successful connection
+      retryCountRef.current = 0;
     };
 
     wsRef.current.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
-        // Always use the latest handler without forcing a reconnect
         onMessageRef.current?.(data);
       } catch (e) {
         console.error('Failed to parse WS message', e);
@@ -78,13 +88,23 @@ export const useWebSocket = (
       setConnectionError('WebSocket error occurred.');
     };
 
-    wsRef.current.onclose = () => {
+    wsRef.current.onclose = (event: CloseEvent) => {
       setIsConnected(false);
+      console.warn('WebSocket closed:', event.code, event.reason);
+      if (event.code === 1008 || event.code === 4401) {
+        setConnectionError('Session expired or unauthorized. Please sign in again.');
+      } else if (event.code !== 1000 && event.reason) {
+        setConnectionError(event.reason);
+      }
       if (retryCountRef.current < maxRetries) {
         retryCountRef.current += 1;
         retryTimeoutRef.current = setTimeout(connectWebSocket, 1000 * retryCountRef.current);
       } else {
-        setConnectionError('Failed to connect to chat.');
+        setConnectionError((prev) =>
+          prev || (isNgrok
+            ? 'Failed to connect. If using ngrok, open your API URL in a new tab, click "Visit Site", then retry.'
+            : 'Failed to connect to chat. Check your connection and try again.')
+        );
       }
     };
   }, [chatUuid]);
@@ -106,8 +126,10 @@ export const useWebSocket = (
   }, []);
 
   useEffect(() => {
+    cancelledRef.current = false;
     connectWebSocket();
     return () => {
+      cancelledRef.current = true;
       if (wsRef.current) {
         wsRef.current.onopen = null;
         wsRef.current.onmessage = null;

@@ -83,10 +83,12 @@ const LoginPage: React.FC = () => {
         navigate('/chat');
       }
     } catch (err: any) {
-      let message = 'Unable to sign in. Please try again.';
-      if (err.message === 'AUTHENTICATION_FAILED' || err.message === 'INVALID_CREDENTIALS') {
-        message = 'Invalid email or password. Please check your credentials.';
-      }
+      // Use API message when present (e.g. {"success":false,"message":"Invalid email or password.","data":null})
+      const apiMessage = err?.response?.data?.message ?? err?.message;
+      const message =
+        typeof apiMessage === 'string' && apiMessage.trim()
+          ? apiMessage
+          : 'Unable to sign in. Please try again.';
       setError(message);
     }
   };

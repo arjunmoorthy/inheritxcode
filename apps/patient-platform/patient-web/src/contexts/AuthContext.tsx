@@ -4,6 +4,7 @@ import { useLogin, useCompleteNewPassword } from '../services/login';
 import type { CompleteNewPasswordResponse, LoginResponse } from '../services/login';
 import { SESSION_START_KEY } from '@oncolife/ui-components';
 import { useQueryClient } from '@tanstack/react-query';
+import { clearPatientUuid } from '../utils/patientUuid';
 
 interface User {
   email: string;
@@ -82,8 +83,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         await queryClient.invalidateQueries({ queryKey: ['profile'] });
         return result;
       } else {
-        // Include error code in thrown error for UI to parse
-        throw new Error(result.error);
+        // API returns { success: false, message: "Invalid email or password.", data: null }
+        throw new Error(result.message || result.error || 'Login failed');
       }
     } catch (error: any) {
       // If error from backend, try to include error code
@@ -105,6 +106,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const logout = () => {
     localStorage.removeItem('authToken');
+    localStorage.removeItem('refreshToken');
+    clearPatientUuid();
     sessionStorage.removeItem(SESSION_START_KEY);
     setToken(null);
     setUser(null);
