@@ -1,12 +1,15 @@
 import { getUserTimezone } from '@oncolife/shared-utils';
 import { apiClient } from '../utils/apiClient';
 import { API_CONFIG } from '../config/api';
+import { getPatientUuid } from '../utils/patientUuid';
 
 export const chatService = {
   getTodaySession: async () => {
+    const patientUuid = getPatientUuid();
+    if (!patientUuid) throw new Error('Not authenticated. Please sign in.');
     const timezone = getUserTimezone();
     const response = await apiClient.get(
-      `${API_CONFIG.ENDPOINTS.CHAT.SESSION_TODAY}?timezone=${encodeURIComponent(timezone)}`
+      `${API_CONFIG.ENDPOINTS.CHAT.SESSION_TODAY}?patient_uuid=${encodeURIComponent(patientUuid)}&timezone=${encodeURIComponent(timezone)}`
     );
     return { success: true, status: response.status, data: response.data };
   },
@@ -21,9 +24,11 @@ export const chatService = {
   },
 
   startNewSession: async () => {
+    const patientUuid = getPatientUuid();
+    if (!patientUuid) throw new Error('Not authenticated. Please sign in.');
     const timezone = getUserTimezone();
     const response = await apiClient.post(
-      `${API_CONFIG.ENDPOINTS.CHAT.SESSION_NEW}?timezone=${encodeURIComponent(timezone)}`
+      `${API_CONFIG.ENDPOINTS.CHAT.SESSION_NEW}?patient_uuid=${encodeURIComponent(patientUuid)}&timezone=${encodeURIComponent(timezone)}`
     );
     return response.data;
   },

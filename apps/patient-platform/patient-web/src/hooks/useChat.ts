@@ -13,6 +13,7 @@
 
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { chatApi, chatWebSocket } from '../api';
+import { getPatientUuid } from '../utils/patientUuid';
 import type { ChatSession, ChatMessage, WebSocketMessage, OverallFeeling } from '../api/types';
 
 interface ChatState {
@@ -25,7 +26,7 @@ interface ChatState {
 }
 
 interface UseChatOptions {
-  patientUuid: string;
+  patientUuid?: string;
   timezone?: string;
   autoConnect?: boolean;
 }
@@ -41,7 +42,8 @@ interface UseChatReturn extends ChatState {
 }
 
 export function useChat(options: UseChatOptions): UseChatReturn {
-  const { patientUuid, timezone = 'America/Los_Angeles', autoConnect = true } = options;
+  const { patientUuid: optionPatientUuid, timezone = 'America/Los_Angeles', autoConnect = true } = options;
+  const patientUuid = optionPatientUuid ?? getPatientUuid() ?? undefined;
   
   const [state, setState] = useState<ChatState>({
     session: null,
@@ -56,6 +58,10 @@ export function useChat(options: UseChatOptions): UseChatReturn {
 
   // Load or create today's session
   const loadSession = useCallback(async () => {
+    if (!patientUuid) {
+      setState(prev => ({ ...prev, isLoading: false, error: 'Please sign in to use chat.' }));
+      return null;
+    }
     setState(prev => ({ ...prev, isLoading: true, error: null }));
 
     try {
@@ -80,6 +86,10 @@ export function useChat(options: UseChatOptions): UseChatReturn {
 
   // Create a fresh session
   const createNewSession = useCallback(async () => {
+    if (!patientUuid) {
+      setState(prev => ({ ...prev, isLoading: false, error: 'Please sign in to use chat.' }));
+      return null;
+    }
     setState(prev => ({ ...prev, isLoading: true, error: null }));
 
     try {
@@ -96,6 +106,7 @@ export function useChat(options: UseChatOptions): UseChatReturn {
         disconnect();
         setTimeout(() => connect(), 100);
       }
+      return session;
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to create session';
       setState(prev => ({
@@ -103,6 +114,7 @@ export function useChat(options: UseChatOptions): UseChatReturn {
         isLoading: false,
         error: message,
       }));
+      return null;
     }
   }, [patientUuid, timezone, state.isConnected]);
 
@@ -176,7 +188,7 @@ export function useChat(options: UseChatOptions): UseChatReturn {
 
   // Update overall feeling
   const updateFeeling = useCallback(async (feeling: OverallFeeling) => {
-    if (!state.session?.chat_uuid) return;
+    if (!state.session?.chat_uuid || !patientUuid) return;
 
     try {
       await chatApi.updateOverallFeeling(

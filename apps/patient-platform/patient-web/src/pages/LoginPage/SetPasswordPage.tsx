@@ -255,8 +255,8 @@ const SetPasswordPage: React.FC = () => {
                       <div
                         className={`mb-6 px-4 py-3 rounded-xl text-sm flex items-center gap-3 animate-fade-in border ${isDark ? 'bg-red-900/20 border-red-800/40 text-red-400' : 'bg-red-50 border-red-200 text-red-600'}`}
                       >
-                        <AlertCircle size={18} className="shrink-0" />
-                        <p>{error}</p>
+                        <AlertCircle size={18} className="shrink-0 mt-0.5" aria-hidden />
+                        <p className="m-0 leading-snug">{error}</p>
                       </div>
                     )}
 

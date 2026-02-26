@@ -9,9 +9,15 @@
 // Base URLs from environment variables
 // In dev mode, default to localhost:8000 for direct API access
 const API_BASE = import.meta.env.VITE_API_BASE || '';
-const WS_BASE = import.meta.env.VITE_WS_BASE || (
-  import.meta.env.DEV ? 'ws://localhost:8000' : API_BASE.replace('http', 'ws')
-);
+const _wsEnv = import.meta.env.VITE_WS_BASE;
+const WS_BASE =
+  (typeof _wsEnv === 'string' && _wsEnv.trim() !== '')
+    ? _wsEnv.trim()
+    : import.meta.env.DEV
+      ? 'ws://localhost:8000'
+      : API_BASE
+        ? API_BASE.replace(/^http:/i, 'ws:').replace(/^https:/i, 'wss:')
+        : 'ws://localhost:8000';
 
 // API Version prefix
 const API_VERSION = '/api/v1';
@@ -117,10 +123,14 @@ export const buildUrl = (endpoint: string): string => {
   return `${API_CONFIG.BASE_URL}${endpoint}`;
 };
 
-// Helper to build WebSocket URL
+// Helper to build WebSocket URL (always uses absolute ws(s) URL, never same-origin)
 export const buildWsUrl = (endpoint: string, token: string): string => {
-  const wsBase = API_CONFIG.WS_BASE || API_CONFIG.BASE_URL.replace('http', 'ws');
-  return `${wsBase}${API_VERSION}${endpoint}?token=${token}`;
+  let wsBase = API_CONFIG.WS_BASE;
+  if (!wsBase || !/^wss?:\/\//i.test(wsBase)) {
+    wsBase = import.meta.env.DEV ? 'ws://localhost:8000' : (API_BASE ? API_BASE.replace(/^http:/i, 'ws:').replace(/^https:/i, 'wss:') : 'ws://localhost:8000');
+  }
+  const base = wsBase.replace(/\/$/, '');
+  return `${base}${API_VERSION}${endpoint}?token=${encodeURIComponent(token)}`;
 };
 
 export default API_CONFIG;
