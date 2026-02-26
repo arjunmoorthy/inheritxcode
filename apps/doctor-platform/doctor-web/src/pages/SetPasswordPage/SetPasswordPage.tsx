@@ -72,8 +72,12 @@ const SetPasswordPage: React.FC = () => {
       } else {
         setError(result.message || 'Failed to set password');
       }
-    } catch {
-      setError('An error occurred while setting your password');
+    } catch (err: unknown) {
+      const apiMessage =
+        err && typeof err === 'object' && 'response' in err
+          ? (err as { response?: { data?: { message?: string } } }).response?.data?.message
+          : undefined;
+      setError(apiMessage || 'An error occurred while setting your password');
     }
   };
 
