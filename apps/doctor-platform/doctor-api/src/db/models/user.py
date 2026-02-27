@@ -103,6 +103,15 @@ class User(DoctorBase, TimestampMixin):
         comment="Bcrypt hash of password (NULL for SSO users)"
     )
     
+    # Role: staff, physician, admin (doctor portal) | patient (patient portal)
+    role = Column(
+        String(50),
+        nullable=False,
+        default='staff',
+        index=True,
+        comment="User role: staff, physician, admin, patient"
+    )
+
     # Auth provider tracking
     auth_provider = Column(
         String(50),
@@ -146,6 +155,12 @@ class User(DoctorBase, TimestampMixin):
         nullable=True,
         comment="Last successful login timestamp"
     )
+    is_first_login = Column(
+        Boolean,
+        nullable=False,
+        default=False,
+        comment="Force password change on first login (e.g. patient with temp password)"
+    )
     reset_token = Column(
         String(255),
         nullable=True,
@@ -164,6 +179,12 @@ class User(DoctorBase, TimestampMixin):
         back_populates="user",
         uselist=False,
         cascade="all, delete-orphan"
+    )
+    patient_profile = relationship(
+        "Patient",
+        back_populates="user",
+        uselist=False,
+        foreign_keys="Patient.user_id",
     )
     
     def __repr__(self) -> str:

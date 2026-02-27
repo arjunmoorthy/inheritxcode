@@ -36,9 +36,20 @@ class FaxRecord(DoctorBase, TimestampMixin):
 
 
 class Patient(DoctorBase, TimestampMixin):
-    __tablename__ = "fax_patients"   # ✅ renamed
+    __tablename__ = "fax_patients"
 
     id = Column(Integer, primary_key=True, autoincrement=True, index=True)
+
+    # Link to users table (when patient logs in via patient portal).
+    # user.uuid is the identity used in patient-api for chat (chat_patients.uuid / conversations.patient_uuid).
+    user_id = Column(
+        Integer,
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+        unique=True,
+        index=True,
+    )
+    user = relationship("User", back_populates="patient_profile", uselist=False)
 
     # Identity
     mrn = Column(String(100), unique=True, index=True, nullable=True)
@@ -60,10 +71,13 @@ class Patient(DoctorBase, TimestampMixin):
     start_date = Column(Date, nullable=True)
     end_date = Column(Date, nullable=True)
     plan_name = Column(Text, nullable=True)
+    regimen_name = Column(String(255), nullable=True)
 
     # History (latest known)
     past_medical_history = Column(Text)
     past_surgical_history = Column(Text)
+
+    password_hash = Column(String, nullable=False)
 
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())

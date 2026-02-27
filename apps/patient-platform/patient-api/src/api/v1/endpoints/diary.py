@@ -31,10 +31,22 @@ router = APIRouter()
 # Local dev mode test patient UUID
 LOCAL_DEV_PATIENT_UUID = "11111111-1111-1111-1111-111111111111"
 
+def _validate_uuid(value: str) -> str:
+    """Validate UUID format; raise 400 if invalid."""
+    try:
+        UUID(value)
+        return value
+    except (ValueError, TypeError):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="patient_uuid must be a valid UUID (e.g. 11111111-1111-1111-1111-111111111111)"
+        )
+
+
 def get_patient_uuid_with_fallback(patient_uuid: Optional[str]) -> str:
     """Get patient UUID, falling back to test UUID in local dev mode."""
     if patient_uuid:
-        return patient_uuid
+        return _validate_uuid(patient_uuid)
     if settings.local_dev_mode:
         return LOCAL_DEV_PATIENT_UUID
     # For local testing without LOCAL_DEV_MODE set, still use fallback

@@ -104,6 +104,32 @@ class AuthTokens(BaseModel):
     token_type: str = "Bearer"
 
 
+class UserDetail(BaseModel):
+    """User details returned in login response (no password)."""
+    id: int
+    uuid: str
+    email: str
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    full_name: Optional[str] = None
+    role: str
+    auth_provider: str
+    is_active: bool
+    is_verified: bool
+    is_first_login: bool
+    last_login_at: Optional[str] = None
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
+    staff_id: Optional[int] = None
+    patient_id: Optional[int] = None
+
+
+class LoginData(BaseModel):
+    """Login response data: tokens + user details."""
+    tokens: AuthTokens
+    user: UserDetail
+
+
 class LoginResponse(BaseModel):
     """Login response with success status and optional tokens."""
     valid: bool
@@ -924,7 +950,7 @@ async def reset_password(
     )
 
 
-@router.post("/login", response_model=APIResponse[AuthTokens])
+@router.post("/login", response_model=APIResponse[LoginData])
 async def login(
     request: LoginRequest,
     db: Session = Depends(get_doctor_db_session)
@@ -970,14 +996,36 @@ async def login(
     refresh_token = create_refresh_token(token_data)
     id_token = create_id_token(token_data)
 
+    # Build user details (exclude password_hash)
+    user_detail = UserDetail(
+        id=user.id,
+        uuid=str(user.uuid),
+        email=user.email,
+        first_name=user.first_name,
+        last_name=user.last_name,
+        full_name=user.full_name,
+        role=user.role,
+        auth_provider=user.auth_provider,
+        is_active=user.is_active,
+        is_verified=user.is_verified,
+        is_first_login=user.is_first_login,
+        last_login_at=user.last_login_at.isoformat() if user.last_login_at else None,
+        created_at=user.created_at.isoformat() if user.created_at else None,
+        updated_at=user.updated_at.isoformat() if user.updated_at else None,
+        staff_id=user.staff.id if user.staff else None,
+        patient_id=user.patient_profile.id if user.patient_profile else None,
+    )
+
     return APIResponse(
         success=True,
         message="Login successful.",
-        data=AuthTokens(
-            access_token=access_token,
-            refresh_token=refresh_token,
-            id_token=id_token,
-            staff_id=user.staff.id if user.staff else None,
+        data=LoginData(
+            tokens=AuthTokens(
+                access_token=access_token,
+                refresh_token=refresh_token,
+                id_token=id_token,
+            ),
+            user=user_detail,
         ),
         status_code=200
     )

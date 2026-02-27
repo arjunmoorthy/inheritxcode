@@ -17,13 +17,39 @@ import uuid
 # A single Base for all models in this file to inherit from.
 Base = declarative_base()
 
+
+class ChatPatient(Base):
+    """
+    Registry of patients who can use chat in patient-api.
+    Links to doctor-api fax_patients (Patient model, table fax_patients):
+      - This uuid = doctor-api User.uuid (users table).
+      - In doctor-api, fax_patients.user_id -> users.id, so User.uuid identifies that fax_patient.
+    So chat_patients.uuid is the same identity as the fax_patient's User in doctor-api.
+    """
+    __tablename__ = "chat_patients"
+    uuid = Column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        comment="Same as doctor-api users.uuid for the user linked to fax_patients (Patient.user_id)",
+    )
+    source = Column(String(50), nullable=True, default="fax")  # 'fax' = from doctor-api fax_patients
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    conversations = relationship("Conversations", back_populates="chat_patient")
+
+
 class Conversations(Base):
     __tablename__ = 'conversations'
     uuid = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
-    patient_uuid = Column(UUID(as_uuid=True), nullable=False, index=True)
-    
+    patient_uuid = Column(
+        UUID(as_uuid=True),
+        ForeignKey("chat_patients.uuid", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    chat_patient = relationship("ChatPatient", back_populates="conversations")
+
     conversation_state = Column(String)
     symptom_list = Column(JSONB, nullable=True)
     severity_list = Column(JSONB, nullable=True)

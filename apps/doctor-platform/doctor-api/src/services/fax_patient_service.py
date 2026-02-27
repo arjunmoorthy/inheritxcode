@@ -1,7 +1,15 @@
-from utils.name_spilt import split_name
-from db.models.fax_models import Patient
-from datetime import datetime
+import asyncio
 import re
+from datetime import datetime
+
+from fastapi import BackgroundTasks
+
+from core.config import settings
+from db.models.fax_models import Patient
+from db.models.user import User
+from helpers.email import send_welcome_email
+from utils.name_spilt import split_name
+from utils.security import generate_random_password, hash_password
 
 # Multiple date formats (order can matter: more specific first)
 _DATE_FORMATS = [
@@ -56,15 +64,13 @@ def parse_date(value: str):
 
     return None
 
-def create_or_update_fax_patient(db, fax, structured):
-    print("Structured OCR Data:", structured)
+def create_or_update_fax_patient(db, fax, structured, background_tasks: BackgroundTasks):
 
     def v(key):
         return structured.get(key)
-
-    # 🔹 Split name
+    login_link = f"{settings.patient_set_password_base_url}?email={v('email')}"
+ 
     first_name, last_name = split_name(v("name"))
-
     phone = v("phone_number")
     email = v("email")
 
@@ -73,45 +79,74 @@ def create_or_update_fax_patient(db, fax, structured):
     end_date = parse_date(v("end_date"))
 
     patient = None
+    if email:
+        patient = db.query(Patient).filter(Patient.email == email).first()
 
-    # 🔍 Try matching existing patient
-    if phone and dob:
-        patient = db.query(Patient).filter(
-            Patient.phone_number == phone,
-            Patient.date_of_birth == dob
-        ).first()
+    is_new_patient = patient is None
 
-    if not patient and email:
-        patient = db.query(Patient).filter(
-            Patient.email == email
-        ).first()
+    if is_new_patient:
+        temp_password = generate_random_password()
 
-    # ➕ Create if not exists
-    if not patient:
-        patient = Patient()
+        # Create User for patient portal auth (single auth table; role=patient)
+        user = User(
+            email=email,
+            password_hash=hash_password(temp_password),
+            role="patient",
+            auth_provider="local",
+            first_name=first_name,
+            last_name=last_name,
+            is_active=True,
+            is_verified=False,
+            is_first_login=True,
+        )
+        db.add(user)
+        db.flush()
+
+        patient = Patient(
+            user_id=user.id,
+            first_name=first_name,
+            last_name=last_name,
+            gender=v("gender"),
+            date_of_birth=dob,
+            age=int(v("age")) if v("age") else None,
+            phone_number=phone,
+            email=email,
+            bmi=v("bmi"),
+            plan_name=v("plan_name"),
+            start_date=start_date,
+            end_date=end_date,
+            past_medical_history=v("past_medical_history"),
+            past_surgical_history=v("past_surgical_history"),
+            regimen_name=v("start_on_pathway_regimen") or v("regimen_name"),
+            password_hash="",  # auth in users table
+        )
+
         db.add(patient)
-        db.flush()   # 🔥 assigns ID
+        print("New patient created with email:", email)
 
-    # ✍️ Assign values (SAFE)
-    patient.first_name = first_name
-    patient.last_name = last_name
-    patient.gender = v("gender")
-    patient.date_of_birth = dob
-    patient.age = int(v("age")) if v("age") else None
-    patient.phone_number = phone
-    patient.email = email
-    patient.bmi = v("bmi")
-    patient.plan_name = v("plan_name")
-    patient.start_date = start_date
-    patient.end_date = end_date
-    patient.past_medical_history = v("past_medical_history")
-    patient.past_surgical_history = v("past_surgical_history")
+        if email:
+            print("📧 About to send welcome email...")
+            asyncio.run(send_welcome_email(email, temp_password, login_link))
+            print("✅ Email send function executed")
 
-    # 💾 Commit patient FIRST
+    else:
+        patient.first_name = first_name
+        patient.last_name = last_name
+        patient.gender = v("gender")
+        patient.date_of_birth = dob
+        patient.age = int(v("age")) if v("age") else None
+        patient.phone_number = phone
+        patient.bmi = v("bmi")
+        patient.plan_name = v("plan_name")
+        patient.start_date = start_date
+        patient.end_date = end_date
+        patient.past_medical_history = v("past_medical_history")
+        patient.past_surgical_history = v("past_surgical_history")
+        patient.regimen_name = v("start_on_pathway_regimen") or v("regimen_name")
+
     db.commit()
     db.refresh(patient)
 
-    # 🔗 Link fax → patient
     fax.patient_id = patient.id
     db.commit()
 

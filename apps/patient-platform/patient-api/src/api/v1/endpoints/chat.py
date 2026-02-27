@@ -24,7 +24,7 @@ from pydantic import BaseModel
 from jose import jwt, JWTError
 import pytz
 
-from api.deps import get_patient_db
+from api.deps import get_patient_db, get_optional_patient_uuid
 from services import ChatService
 from db.patient_models import Conversations as ChatModel
 from routers.auth.dependencies import _get_jwks, TokenData
@@ -45,16 +45,47 @@ router = APIRouter()
 LOCAL_DEV_PATIENT_UUID = "11111111-1111-1111-1111-111111111111"
 
 
+def _validate_uuid(value: str) -> str:
+    """Validate UUID format; raise 400 if invalid."""
+    try:
+        UUID(value)
+        return value
+    except (ValueError, TypeError):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="patient_uuid must be a valid UUID (e.g. 11111111-1111-1111-1111-111111111111)"
+        )
+
+
 def get_patient_uuid_with_fallback(patient_uuid: Optional[str]) -> str:
-    """Get patient UUID, falling back to test UUID in local dev mode."""
+    """Get patient UUID from query param, falling back to test UUID in local dev mode."""
     if patient_uuid:
-        return patient_uuid
+        return _validate_uuid(patient_uuid)
     if settings.local_dev_mode:
         return LOCAL_DEV_PATIENT_UUID
     raise HTTPException(
         status_code=status.HTTP_400_BAD_REQUEST,
         detail="patient_uuid is required"
     )
+
+
+def resolve_patient_uuid(
+    patient_uuid: Optional[str],
+    auth_uuid: Optional[UUID],
+) -> str:
+    """
+    Resolve patient_uuid for chat: prefer JWT sub (e.g. from doctor-api login)
+    so fax patients can use chat after logging in. Fall back to query param or local dev default.
+    """
+    if auth_uuid is not None:
+        logger.info("Chat patient_uuid from Bearer token (sub): %s", auth_uuid)
+        return str(auth_uuid)
+    resolved = get_patient_uuid_with_fallback(patient_uuid)
+    logger.info(
+        "Chat patient_uuid from fallback (query param or local dev default): %s",
+        resolved,
+    )
+    return resolved
 
 
 # =============================================================================
@@ -92,58 +123,70 @@ def convert_chat_to_user_timezone(chat, messages, user_timezone: str = "America/
 
 
 async def get_user_from_token(token: str) -> Optional[TokenData]:
-    """Validate JWT token from WebSocket."""
+    """Validate JWT token from WebSocket (Cognito or doctor-api symmetric JWT)."""
     if not token:
         return None
     
     # Local dev mode bypass - accept fake dev tokens
     if settings.local_dev_mode:
         if token.startswith("dev-mode-token-"):
-            # Extract UUID from dev token or use default
             return TokenData(sub=LOCAL_DEV_PATIENT_UUID, email="dev@oncolife.local")
     
+    # Try symmetric JWT first (doctor-api / fax patient token) so we don't hit Cognito when not configured
     try:
-        jwks = _get_jwks()
-        unverified_header = jwt.get_unverified_header(token)
-        rsa_key = {}
-        
-        for key in jwks["keys"]:
-            if key["kid"] == unverified_header["kid"]:
-                rsa_key = {
-                    "kty": key["kty"], "kid": key["kid"], "use": key["use"],
-                    "n": key["n"], "e": key["e"]
-                }
-        
-        if not rsa_key:
-            return None
-        
-        issuer = f"https://cognito-idp.{os.getenv('AWS_REGION')}.amazonaws.com/{os.getenv('COGNITO_USER_POOL_ID')}"
-        client_id = os.getenv("COGNITO_CLIENT_ID")
-        
-        claims = jwt.get_unverified_claims(token)
-        token_use = claims.get("token_use")
-        
-        if token_use == "access":
-            payload = jwt.decode(
-                token, rsa_key, algorithms=["RS256"],
-                issuer=issuer, options={"verify_aud": False}
-            )
-            if client_id and payload.get("client_id") != client_id:
-                return None
-        else:
-            payload = jwt.decode(
-                token, rsa_key, algorithms=["RS256"],
-                audience=client_id, issuer=issuer
-            )
-        
+        payload = jwt.decode(
+            token,
+            settings.jwt_secret_key,
+            algorithms=[settings.jwt_algorithm],
+        )
         user_id = payload.get("sub")
-        if user_id is None:
-            return None
-        
-        return TokenData(sub=user_id, email=payload.get("email"))
-        
+        if user_id:
+            return TokenData(sub=user_id, email=payload.get("email"))
     except JWTError:
-        return None
+        pass
+    
+    # Then try Cognito only if configured (avoid _get_jwks() when AWS_REGION/COGNITO_USER_POOL_ID are missing)
+    region = os.getenv("AWS_REGION")
+    user_pool_id = os.getenv("COGNITO_USER_POOL_ID")
+    if region and user_pool_id:
+        try:
+            jwks = _get_jwks()
+            unverified_header = jwt.get_unverified_header(token)
+            rsa_key = {}
+            for key in jwks.get("keys", []):
+                if key.get("kid") == unverified_header.get("kid"):
+                    rsa_key = {
+                        "kty": key["kty"], "kid": key["kid"], "use": key["use"],
+                        "n": key["n"], "e": key["e"]
+                    }
+                    break
+            if not rsa_key:
+                return None
+            issuer = f"https://cognito-idp.{region}.amazonaws.com/{user_pool_id}"
+            client_id = os.getenv("COGNITO_CLIENT_ID")
+            claims = jwt.get_unverified_claims(token)
+            token_use = claims.get("token_use")
+            if token_use == "access":
+                payload = jwt.decode(
+                    token, rsa_key, algorithms=["RS256"],
+                    issuer=issuer, options={"verify_aud": False}
+                )
+                if client_id and payload.get("client_id") != client_id:
+                    return None
+            else:
+                payload = jwt.decode(
+                    token, rsa_key, algorithms=["RS256"],
+                    audience=client_id, issuer=issuer
+                )
+            user_id = payload.get("sub")
+            if user_id:
+                return TokenData(sub=user_id, email=payload.get("email"))
+        except JWTError:
+            pass
+        except Exception:
+            pass  # e.g. JWKS fetch failed; already tried symmetric above
+    
+    return None
 
 
 # =============================================================================
@@ -158,18 +201,18 @@ async def get_user_from_token(token: str) -> Optional[TokenData]:
 )
 def get_or_create_session(
     db: Session = Depends(get_patient_db),
-    # current_user: TokenData = Depends(get_current_user),  # Enable with auth
-    patient_uuid: Optional[str] = Query(default=None, description="Patient UUID"),
+    patient_uuid: Optional[str] = Query(default=None, description="Patient UUID (optional if Bearer token from doctor-api login)"),
     timezone: str = Query(default="America/Los_Angeles", description="User's timezone"),
+    auth_uuid: Optional[UUID] = Depends(get_optional_patient_uuid),
 ):
     """
     Primary endpoint for starting or resuming a conversation.
     
     If no chat exists for today, creates a new one and returns
     its first message. If a chat exists, returns its full history.
+    When the request has a valid Bearer token (e.g. from doctor-api login), patient_uuid is taken from the token.
     """
-    # Get patient UUID with local dev mode fallback
-    patient_uuid = get_patient_uuid_with_fallback(patient_uuid)
+    patient_uuid = resolve_patient_uuid(patient_uuid, auth_uuid)
     
     logger.info(f"Get/create session: patient={patient_uuid} tz={timezone}")
     
@@ -209,8 +252,9 @@ def get_or_create_session(
 )
 def force_create_new_session(
     db: Session = Depends(get_patient_db),
-    patient_uuid: Optional[str] = Query(default=None, description="Patient UUID"),
+    patient_uuid: Optional[str] = Query(default=None, description="Patient UUID (optional if Bearer token)"),
     timezone: str = Query(default="America/Los_Angeles", description="User's timezone"),
+    auth_uuid: Optional[UUID] = Depends(get_optional_patient_uuid),
 ):
     """
     Force creation of a new chat session for today.
@@ -218,8 +262,7 @@ def force_create_new_session(
     This deletes any existing sessions for today and creates
     a fresh conversation.
     """
-    # Get patient UUID with local dev mode fallback
-    patient_uuid = get_patient_uuid_with_fallback(patient_uuid)
+    patient_uuid = resolve_patient_uuid(patient_uuid, auth_uuid)
     
     logger.info(f"Force new session: patient={patient_uuid}")
     
@@ -233,7 +276,7 @@ def force_create_new_session(
     utc_today_end = user_tz.localize(today_end).astimezone(pytz.UTC)
     
     existing_chats = db.query(ChatModel).filter(
-        ChatModel.patient_uuid == patient_uuid,
+        ChatModel.patient_uuid == UUID(patient_uuid),
         ChatModel.created_at >= utc_today_start,
         ChatModel.created_at <= utc_today_end,
     ).all()
@@ -269,15 +312,15 @@ def force_create_new_session(
 def get_full_chat(
     chat_uuid: UUID,
     db: Session = Depends(get_patient_db),
-    patient_uuid: Optional[str] = Query(default=None, description="Patient UUID"),
+    patient_uuid: Optional[str] = Query(default=None, description="Patient UUID (optional if Bearer token)"),
+    auth_uuid: Optional[UUID] = Depends(get_optional_patient_uuid),
 ):
     """
     Fetch the entire history of a specific chat.
     
     Useful for rehydrating the UI when a user resumes a conversation.
     """
-    # Get patient UUID with local dev mode fallback
-    patient_uuid = get_patient_uuid_with_fallback(patient_uuid)
+    patient_uuid = resolve_patient_uuid(patient_uuid, auth_uuid)
     
     chat_service = ChatService(db)
     
@@ -297,13 +340,13 @@ def get_full_chat(
 def get_chat_state(
     chat_uuid: UUID,
     db: Session = Depends(get_patient_db),
-    patient_uuid: Optional[str] = Query(default=None, description="Patient UUID"),
+    patient_uuid: Optional[str] = Query(default=None, description="Patient UUID (optional if Bearer token)"),
+    auth_uuid: Optional[UUID] = Depends(get_optional_patient_uuid),
 ):
     """
     Quickly retrieve the current state and key data of a chat.
     """
-    # Get patient UUID with local dev mode fallback
-    patient_uuid = get_patient_uuid_with_fallback(patient_uuid)
+    patient_uuid = resolve_patient_uuid(patient_uuid, auth_uuid)
     
     chat_service = ChatService(db)
     
@@ -324,13 +367,13 @@ def update_overall_feeling(
     chat_uuid: UUID,
     payload: OverallFeelingUpdate,
     db: Session = Depends(get_patient_db),
-    patient_uuid: Optional[str] = Query(default=None, description="Patient UUID"),
+    patient_uuid: Optional[str] = Query(default=None, description="Patient UUID (optional if Bearer token)"),
+    auth_uuid: Optional[UUID] = Depends(get_optional_patient_uuid),
 ):
     """
     Update the overall feeling for a chat.
     """
-    # Get patient UUID with local dev mode fallback
-    patient_uuid = get_patient_uuid_with_fallback(patient_uuid)
+    patient_uuid = resolve_patient_uuid(patient_uuid, auth_uuid)
     
     chat_service = ChatService(db)
     
@@ -349,13 +392,13 @@ def update_overall_feeling(
 def delete_chat(
     chat_uuid: UUID,
     db: Session = Depends(get_patient_db),
-    patient_uuid: Optional[str] = Query(default=None, description="Patient UUID"),
+    patient_uuid: Optional[str] = Query(default=None, description="Patient UUID (optional if Bearer token)"),
+    auth_uuid: Optional[UUID] = Depends(get_optional_patient_uuid),
 ):
     """
     Delete a specific conversation.
     """
-    # Get patient UUID with local dev mode fallback
-    patient_uuid = get_patient_uuid_with_fallback(patient_uuid)
+    patient_uuid = resolve_patient_uuid(patient_uuid, auth_uuid)
     
     chat_service = ChatService(db)
     
