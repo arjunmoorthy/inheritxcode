@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # OncoLife Monolith
 
 A comprehensive healthcare platform for cancer patient symptom tracking and care team management.
@@ -470,3 +471,6 @@ Proprietary - OncoLife Inc.
 ---
 
 *Last Updated: January 2026*
+=======
+# inheritxcode
+>>>>>>> c24bbff7eaa9ac8258a70a6e3a3b7c3e8e25b021
