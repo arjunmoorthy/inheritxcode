@@ -257,6 +257,14 @@ class Settings(BaseSettings):
     )
     
     # ==========================================================================
+    # Patient Portal (welcome email / set-password link)
+    # ==========================================================================
+    patient_set_password_base_url: str = Field(
+        default="https://oncolife-ai-patient-web.vercel.app/set-password",
+        description="Base URL for patient set-password page (login link in welcome email). Env: PATIENT_SET_PASSWORD_BASE_URL",
+    )
+    
+    # ==========================================================================
     # Computed Properties
     # ==========================================================================
     # Optional explicit ssl mode for DB connections. If set, this value will be

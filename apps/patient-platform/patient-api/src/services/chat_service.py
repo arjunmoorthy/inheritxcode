@@ -49,7 +49,8 @@ from routers.chat.models import (
 
 # Database models
 from db.patient_models import (
-    Conversations as ChatModel, 
+    ChatPatient,
+    Conversations as ChatModel,
     Messages as MessageModel,
     PatientDiaryEntries as DiaryEntry,
 )
@@ -82,6 +83,17 @@ class ChatService:
         """
         self.db = db
         self.engine = None
+
+    def _ensure_chat_patient(self, patient_uuid: UUID, source: str = "fax") -> None:
+        """
+        Ensure this patient is registered in chat_patients (link to fax_patient via same UUID).
+        Called before creating a conversation so the FK is satisfied.
+        """
+        existing = self.db.query(ChatPatient).filter(ChatPatient.uuid == patient_uuid).first()
+        if not existing:
+            self.db.add(ChatPatient(uuid=patient_uuid, source=source))
+            self.db.commit()
+            logger.info(f"Registered chat_patient: uuid={patient_uuid} source={source}")
     
     # =========================================================================
     # Session Management
@@ -170,6 +182,7 @@ class ChatService:
             Tuple of (chat, initial_question)
         """
         logger.info(f"Create chat: patient={patient_uuid}")
+        self._ensure_chat_patient(patient_uuid)
         
         # Create the conversation record
         new_chat = ChatModel(

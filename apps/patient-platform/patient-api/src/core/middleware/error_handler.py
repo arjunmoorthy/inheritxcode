@@ -30,6 +30,14 @@ from core.config import settings
 logger = get_logger(__name__)
 
 
+def _request_meta(request) -> dict:
+    """Safe path/method for logging; works for both Request and WebSocket."""
+    path = getattr(request, "url", None)
+    path = path.path if path else getattr(request, "scope", {}).get("path", "")
+    method = getattr(request, "method", "WebSocket")
+    return {"path": path, "method": method}
+
+
 def setup_exception_handlers(app: FastAPI) -> None:
     """
     Register all exception handlers with the FastAPI application.
@@ -52,15 +60,14 @@ def setup_exception_handlers(app: FastAPI) -> None:
         These are expected business errors with proper error codes
         and messages that should be returned to the client.
         """
-        # Log the exception
+        meta = _request_meta(request)
         logger.warning(
             f"Application exception: {exc.error_code}",
             extra={
                 "error_code": exc.error_code,
                 "message": exc.message,
                 "details": exc.details,
-                "path": request.url.path,
-                "method": request.method,
+                **meta,
             }
         )
         
@@ -87,13 +94,10 @@ def setup_exception_handlers(app: FastAPI) -> None:
             field_path = ".".join(str(loc) for loc in error["loc"])
             errors[field_path] = error["msg"]
         
+        meta = _request_meta(request)
         logger.warning(
             "Request validation failed",
-            extra={
-                "errors": errors,
-                "path": request.url.path,
-                "method": request.method,
-            }
+            extra={"errors": errors, **meta}
         )
         
         return JSONResponse(
@@ -135,13 +139,13 @@ def setup_exception_handlers(app: FastAPI) -> None:
         
         error_code = error_code_map.get(exc.status_code, "HTTP_ERROR")
         
+        meta = _request_meta(request)
         logger.warning(
             f"HTTP exception: {exc.status_code}",
             extra={
                 "status_code": exc.status_code,
                 "detail": exc.detail,
-                "path": request.url.path,
-                "method": request.method,
+                **meta,
             }
         )
         
@@ -166,14 +170,13 @@ def setup_exception_handlers(app: FastAPI) -> None:
         In production, it hides internal details from the client.
         In development, it can return more details for debugging.
         """
-        # Log the full exception with traceback
+        meta = _request_meta(request)
         logger.error(
             f"Unhandled exception: {type(exc).__name__}: {str(exc)}",
             extra={
                 "exception_type": type(exc).__name__,
                 "exception_message": str(exc),
-                "path": request.url.path,
-                "method": request.method,
+                **meta,
                 "traceback": traceback.format_exc(),
             },
             exc_info=True

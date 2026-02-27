@@ -20,10 +20,17 @@ Usage:
 """
 
 from functools import lru_cache
+from pathlib import Path
 from typing import List, Optional
 from pydantic import Field, field_validator, computed_field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 import urllib.parse
+
+# Resolve .env relative to src/ (where this config lives: core/config.py -> src/core/ -> src/)
+# So we always load patient-api/src/.env even when running from patient-api/ or elsewhere.
+_CONFIG_DIR = Path(__file__).resolve().parent
+_SRC_DIR = _CONFIG_DIR.parent
+_ENV_FILE = _SRC_DIR / ".env"
 
 
 class Settings(BaseSettings):
@@ -41,7 +48,7 @@ class Settings(BaseSettings):
     """
     
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=str(_ENV_FILE) if _ENV_FILE.exists() else ".env",
         env_file_encoding="utf-8",
         case_sensitive=False,
         extra="ignore",  # Ignore extra env vars not defined here

@@ -2,10 +2,10 @@
 Authentication Endpoints - Patient API
 =======================================
 
-Complete authentication endpoints using AWS Cognito:
-- POST /signup: Register new user
-- POST /login: Authenticate and get tokens
-- POST /complete-new-password: Complete password setup
+Complete authentication endpoints:
+- POST /signup: Register new user (AWS Cognito + local DB)
+- POST /login: Authenticate with email/password (local User + JWT, same as doctor-api)
+- POST /complete-new-password: Complete password setup (Cognito)
 - POST /logout: Client-side logout acknowledgment
 - DELETE /delete-patient: Delete patient account
 
@@ -15,14 +15,18 @@ Rate Limiting:
 - Password reset: 3 attempts per minute
 """
 
+from datetime import datetime, timezone, timedelta
+
+import bcrypt
 from fastapi import APIRouter, Depends, HTTPException, status, Request
-from sqlalchemy.orm import Session
+from fastapi.responses import JSONResponse
+from jose import jwt
 from pydantic import BaseModel, EmailStr
-from typing import Optional, Dict, Any, List
+from sqlalchemy.orm import Session
+from typing import Any, Dict, List, Optional
 
 from api.deps import get_patient_db, get_doctor_db
-from services import AuthService
-from core.logging import get_logger
+from core.config import settings
 from core.exceptions import (
     ConflictError,
     NotFoundError,
@@ -30,11 +34,31 @@ from core.exceptions import (
     ValidationError,
     ExternalServiceError,
 )
+from core.logging import get_logger
 from core.middleware.rate_limiting import limiter, AUTH_RATE_LIMIT, PASSWORD_RESET_LIMIT
+from core.schemas import APIResponse, ErrorResponse
+from db.models import User, PatientProfile
+from db.doctor_models import DoctorUser, DoctorStaff, DoctorPatient
+from services import AuthService
 
 logger = get_logger(__name__)
 
 router = APIRouter()
+
+
+# =============================================================================
+# Password helpers (local auth, same as doctor-api)
+# =============================================================================
+
+def hash_password(password: str) -> str:
+    """Hash a password using bcrypt."""
+    salt = bcrypt.gensalt()
+    return bcrypt.hashpw(password.encode("utf-8"), salt).decode("utf-8")
+
+
+def verify_password(password: str, password_hash: str) -> bool:
+    """Verify a password against its hash."""
+    return bcrypt.checkpw(password.encode("utf-8"), password_hash.encode("utf-8"))
 
 
 # =============================================================================
@@ -67,11 +91,37 @@ class AuthTokens(BaseModel):
     access_token: str
     refresh_token: str
     id_token: str
-    token_type: str
+    token_type: str = "Bearer"
+
+
+class UserDetail(BaseModel):
+    """User details returned in login response (no password). Same as doctor-api."""
+    id: int
+    uuid: str
+    email: str
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    full_name: Optional[str] = None
+    role: str
+    auth_provider: str
+    is_active: bool
+    is_verified: bool
+    is_first_login: bool = False
+    last_login_at: Optional[str] = None
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
+    staff_id: Optional[int] = None
+    patient_id: Optional[int] = None
+
+
+class LoginData(BaseModel):
+    """Login response data: tokens + user details (same shape as doctor-api)."""
+    tokens: AuthTokens
+    user: UserDetail
 
 
 class LoginResponse(BaseModel):
-    """Response model for login attempt."""
+    """Response model for login attempt (Cognito flow; kept for complete-new-password)."""
     valid: bool
     message: str
     user_status: Optional[str] = None
@@ -105,6 +155,41 @@ class LogoutResponse(BaseModel):
 
 
 # =============================================================================
+# JWT helpers (same as doctor-api)
+# =============================================================================
+
+def _get_jwt_secret() -> str:
+    key = settings.jwt_secret_key
+    if not key:
+        raise HTTPException(
+            status_code=500,
+            detail="JWT_SECRET_KEY not configured. Set it in .env for JWT token creation.",
+        )
+    return key
+
+
+def create_access_token(data: dict) -> str:
+    to_encode = data.copy()
+    expire = datetime.now(timezone.utc) + timedelta(minutes=settings.jwt_access_token_expire_minutes)
+    to_encode.update({"exp": expire, "type": "access"})
+    return jwt.encode(to_encode, _get_jwt_secret(), algorithm=settings.jwt_algorithm)
+
+
+def create_refresh_token(data: dict) -> str:
+    to_encode = data.copy()
+    expire = datetime.now(timezone.utc) + timedelta(days=settings.jwt_refresh_token_expire_days)
+    to_encode.update({"exp": expire, "type": "refresh"})
+    return jwt.encode(to_encode, _get_jwt_secret(), algorithm=settings.jwt_algorithm)
+
+
+def create_id_token(data: dict) -> str:
+    to_encode = data.copy()
+    expire = datetime.now(timezone.utc) + timedelta(minutes=settings.jwt_access_token_expire_minutes)
+    to_encode.update({"exp": expire, "type": "id"})
+    return jwt.encode(to_encode, _get_jwt_secret(), algorithm=settings.jwt_algorithm)
+
+
+# =============================================================================
 # Endpoints
 # =============================================================================
 
@@ -116,8 +201,8 @@ class LogoutResponse(BaseModel):
 )
 @limiter.limit(AUTH_RATE_LIMIT)
 async def signup_user(
-    request: SignupRequest,
-    http_request: Request,
+    request: Request,
+    body: SignupRequest,
     patient_db: Session = Depends(get_patient_db),
     doctor_db: Session = Depends(get_doctor_db),
 ) -> SignupResponse:
@@ -131,16 +216,16 @@ async def signup_user(
     
     A temporary password will be sent to the user's email.
     """
-    logger.info(f"Signup request: email={request.email}")
+    logger.info(f"Signup request: email={body.email}")
     
     auth_service = AuthService(patient_db, doctor_db)
     
     try:
         result = auth_service.signup(
-            email=request.email,
-            first_name=request.first_name,
-            last_name=request.last_name,
-            physician_email=request.physician_email,
+            email=body.email,
+            first_name=body.first_name,
+            last_name=body.last_name,
+            physician_email=body.physician_email,
         )
         
         return SignupResponse(
@@ -163,49 +248,108 @@ async def signup_user(
 
 @router.post(
     "/login",
-    response_model=LoginResponse,
+    response_model=APIResponse[LoginData],
     summary="User login",
-    description="Authenticate user and return JWT tokens. Rate limited to prevent brute force."
+    description="Authenticate with email/password (local User). Returns JWT tokens and user details, same as doctor-api.",
 )
 @limiter.limit(AUTH_RATE_LIMIT)
 async def login(
-    request: LoginRequest,
-    http_request: Request,
-    patient_db: Session = Depends(get_patient_db),
-) -> LoginResponse:
+    request: Request,
+    body: LoginRequest,
+    doctor_db: Session = Depends(get_doctor_db),
+):
     """
-    Authenticate a user and return tokens.
-    
-    If a temporary password is used, returns a session token
-    for the password change flow.
+    Same login API as doctor-api: authenticate with email/password.
+    User is fetched from the doctor-api users table (same User model).
+    Request/response and error format match doctor-api POST /auth/login.
     """
-    logger.info(f"Login request: email={request.email}")
-    
-    auth_service = AuthService(patient_db)
-    
-    try:
-        result = auth_service.login(
-            email=request.email,
-            password=request.password,
+    logger.info(f"Login request: email={body.email}")
+
+    user = doctor_db.query(DoctorUser).filter(DoctorUser.email == body.email).first()
+
+    if not user or not user.password_hash:
+        return JSONResponse(
+            status_code=401,
+            content=ErrorResponse(
+                success=False,
+                message="Invalid email or password.",
+                details=None,
+                status_code=401,
+            ).model_dump(),
         )
-        
-        tokens = None
-        if result.get("tokens"):
-            tokens = AuthTokens(**result["tokens"])
-        
-        return LoginResponse(
-            valid=result["valid"],
-            message=result["message"],
-            user_status=result.get("user_status"),
-            tokens=tokens,
-            session=result.get("session"),
+
+    if not user.is_active:
+        return JSONResponse(
+            status_code=403,
+            content=ErrorResponse(
+                success=False,
+                message="User account is inactive. Please contact support.",
+                details=None,
+                status_code=403,
+            ).model_dump(),
         )
-        
-    except ExternalServiceError as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(e),
+
+    if not verify_password(body.password, user.password_hash):
+        return JSONResponse(
+            status_code=401,
+            content=ErrorResponse(
+                success=False,
+                message="Invalid email or password.",
+                details=None,
+                status_code=401,
+            ).model_dump(),
         )
+
+    user.last_login_at = datetime.now(timezone.utc)
+    doctor_db.commit()
+
+    token_data = {
+        "sub": str(user.uuid),
+        "email": user.email,
+    }
+    access_token = create_access_token(token_data)
+    refresh_token = create_refresh_token(token_data)
+    id_token = create_id_token(token_data)
+
+    first_name = user.first_name
+    last_name = user.last_name
+    full_name = " ".join(p for p in [first_name, last_name] if p) or None
+
+    staff = doctor_db.query(DoctorStaff).filter(DoctorStaff.user_id == user.id).first()
+    patient = doctor_db.query(DoctorPatient).filter(DoctorPatient.user_id == user.id).first()
+
+    user_detail = UserDetail(
+        id=user.id,
+        uuid=str(user.uuid),
+        email=user.email,
+        first_name=first_name,
+        last_name=last_name,
+        full_name=full_name,
+        role=user.role,
+        auth_provider=user.auth_provider,
+        is_active=user.is_active,
+        is_verified=user.is_verified,
+        is_first_login=user.is_first_login,
+        last_login_at=user.last_login_at.isoformat() if user.last_login_at else None,
+        created_at=user.created_at.isoformat() if user.created_at else None,
+        updated_at=user.updated_at.isoformat() if user.updated_at else None,
+        staff_id=staff.id if staff else None,
+        patient_id=patient.id if patient else None,
+    )
+
+    payload = APIResponse(
+        success=True,
+        message="Login successful.",
+        data=LoginData(
+            tokens=AuthTokens(
+                access_token=access_token,
+                refresh_token=refresh_token,
+                id_token=id_token,
+            ),
+            user=user_detail,
+        ),
+    )
+    return JSONResponse(status_code=200, content=payload.model_dump())
 
 
 @router.post(
@@ -216,23 +360,23 @@ async def login(
 )
 @limiter.limit(PASSWORD_RESET_LIMIT)
 async def complete_new_password(
-    request: CompleteNewPasswordRequest,
-    http_request: Request,
+    request: Request,
+    body: CompleteNewPasswordRequest,
     patient_db: Session = Depends(get_patient_db),
 ) -> CompleteNewPasswordResponse:
     """
     Complete the new password setup for a user who was
     created with a temporary password.
     """
-    logger.info(f"Complete new password: email={request.email}")
+    logger.info(f"Complete new password: email={body.email}")
     
     auth_service = AuthService(patient_db)
     
     try:
         result = auth_service.complete_new_password(
-            email=request.email,
-            new_password=request.new_password,
-            session=request.session,
+            email=body.email,
+            new_password=body.new_password,
+            session=body.session,
         )
         
         return CompleteNewPasswordResponse(

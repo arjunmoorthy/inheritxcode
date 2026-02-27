@@ -7,10 +7,14 @@ from pydantic import BaseModel, EmailStr, Field, HttpUrl
 from sqlalchemy.orm import Session
 
 from api.deps import get_doctor_db_session
+from db.models.user import User
 from db.models.fax_models import FaxRecord, Patient
 from services.fax_patient_service import create_or_update_fax_patient, parse_date
 from services.structured_extractor import extract_structured_fields, flatten_structured_data
 from utils.s3 import upload_file_to_s3
+from utils.security import verify_password, hash_password, generate_random_password
+from pydantic import model_validator
+from helpers.email import send_welcome_email
 
 router = APIRouter()
 
@@ -35,6 +39,7 @@ class AddManualPatientRequest(BaseModel):
     start_date: Optional[str] = None     # e.g. "6/30/2025"
     end_date: Optional[str] = None
     plan_name: Optional[str] = None
+    regimen_name: Optional[str] = None
     past_medical_history: Optional[str] = None
     past_surgical_history: Optional[str] = None
 
@@ -56,15 +61,40 @@ async def add_manual_patient(
 
     first_name = request.first_name
     last_name = request.last_name
+    email = str(request.email) if request.email else None
+
+    user = None
+    if email:
+        existing = db.query(User).filter(User.email == email, User.role == "patient").first()
+        if existing:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="A patient with this email already exists.",
+            )
+        temp_password = generate_random_password()
+        user = User(
+            email=email,
+            password_hash=hash_password(temp_password),
+            role="patient",
+            auth_provider="local",
+            first_name=first_name,
+            last_name=last_name,
+            is_active=True,
+            is_verified=False,
+            is_first_login=True,
+        )
+        db.add(user)
+        db.flush()
 
     patient = Patient(
+        user_id=user.id if user else None,
         mrn=request.mrn,
         first_name=first_name,
         last_name=last_name,
         date_of_birth=parse_date(request.date_of_birth),
         gender=request.gender,
         phone_number=request.phone_number,
-        email=str(request.email) if request.email else None,
+        email=email,
         age=request.age,
         bmi=request.bmi,
         cancer_type=request.cancer_type,
@@ -72,18 +102,54 @@ async def add_manual_patient(
         start_date=parse_date(request.start_date),
         end_date=parse_date(request.end_date),
         plan_name=request.plan_name,
+        regimen_name=request.regimen_name,
         past_medical_history=request.past_medical_history,
         past_surgical_history=request.past_surgical_history,
+        password_hash="",
     )
     db.add(patient)
     db.commit()
     db.refresh(patient)
+
+    if user and email:
+        login_link = "https://oncolife-ai-patient-web.vercel.app/set-password?email=" + email
+        await send_welcome_email(email, temp_password, login_link)
 
     return {
         "status": "success",
         "patient_id": patient.id,
         "message": "Patient added to fax_patients",
     }
+
+
+class ChangePasswordRequest(BaseModel):
+    email: EmailStr
+    current_password: str
+    new_password: str = Field(..., min_length=8)
+    confirm_password: str = Field(..., min_length=8)
+
+    @model_validator(mode="after")
+    def passwords_match(self):
+        if self.new_password != self.confirm_password:
+            raise ValueError("New password and confirm password do not match.")
+        return self
+
+
+@router.post("/change-password")
+async def change_password(
+    request: ChangePasswordRequest,
+    db: Session = Depends(get_doctor_db_session),
+):
+    """Change password for patient. Uses users table (role=patient). current_password is the temp password from email."""
+    user = db.query(User).filter(User.email == request.email, User.role == "patient").first()
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Patient not found.")
+    if not user.password_hash or not verify_password(request.current_password, user.password_hash):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Current password is incorrect.")
+    user.password_hash = hash_password(request.new_password)
+    user.is_first_login = False
+    db.commit()
+    return {"status": "success", "message": "Password changed successfully."}
 
 
 class Price(BaseModel):
@@ -233,6 +299,7 @@ def run_fax_ocr_task(fax_record_id: int):
 
     db = DoctorSessionLocal()
     fax = None  # ✅ IMPORTANT
+    background_tasks = BackgroundTasks()
 
     print(f"Starting OCR task for fax_record_id={fax_record_id}")
 
@@ -268,13 +335,17 @@ def run_fax_ocr_task(fax_record_id: int):
             fax.ocr_status = "success"
             db.commit()
 
-            create_or_update_fax_patient(db, fax, structured_data)
+            create_or_update_fax_patient(db, fax, structured_data, background_tasks)
+
+            print("Patient created/updated from OCR data successfully")
 
         except Exception as e:
             db.rollback()
             fax.ocr_status = "failed"
             db.commit()
+            print("Failed to create/update patient from OCR data:", str(e))
             raise e
+            
 
 
     except Exception as e:

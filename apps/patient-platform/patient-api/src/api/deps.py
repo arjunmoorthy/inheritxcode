@@ -108,11 +108,15 @@ def get_token_payload(
         )
         return payload
     except JWTError as e:
-        # In local dev mode, don't fail on invalid tokens
+        # When token is present but invalid, log a hint. "Not enough segments" = not a valid JWT string.
         if settings.local_dev_mode:
-            logger.debug(f"LOCAL_DEV_MODE: Invalid token ignored, using test user: {e}")
-            return {"sub": str(LOCAL_DEV_TEST_USER_UUID), "dev_mode": True}
-        
+            segs = len(token.split(".")) if token else 0
+            logger.warning(
+                "Bearer token validation failed: %s (token segments=%s, expected 3; send full access_token from doctor-api login)",
+                str(e),
+                segs,
+            )
+            return None
         error_msg = str(e).lower()
         if "expired" in error_msg:
             raise AuthenticationException("Token has expired")
@@ -157,6 +161,25 @@ def get_current_user_uuid(
 
 # Alias for patient-specific endpoints
 get_current_patient_uuid = get_current_user_uuid
+
+
+def get_optional_patient_uuid(
+    payload: Optional[dict] = Depends(get_token_payload)
+) -> Optional[UUID]:
+    """
+    Optionally get the current user's UUID from the token.
+    Returns None if no token or invalid token (used when endpoint supports both
+    authenticated and query-param patient_uuid, e.g. for fax-patient → chat alignment).
+    """
+    if payload is None:
+        return None
+    user_id = payload.get("sub") or payload.get("user_id")
+    if not user_id:
+        return None
+    try:
+        return UUID(user_id)
+    except ValueError:
+        return None
 
 
 def get_current_user(
