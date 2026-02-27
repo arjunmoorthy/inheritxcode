@@ -71,7 +71,14 @@ export interface LoginResponse {
       last_name?: string;
       full_name?: string;
       role?: string;
+      auth_provider?: string;
       is_active?: boolean;
+      is_verified?: boolean;
+      is_first_login?: boolean;
+      last_login_at?: string;
+      created_at?: string;
+      updated_at?: string;
+      staff_id?: number | null;
       patient_id?: number;
     };
   };

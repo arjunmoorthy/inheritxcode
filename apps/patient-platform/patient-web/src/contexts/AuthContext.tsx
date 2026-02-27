@@ -5,12 +5,8 @@ import type { CompleteNewPasswordResponse, LoginResponse } from '../services/log
 import { SESSION_START_KEY } from '@oncolife/ui-components';
 import { useQueryClient } from '@tanstack/react-query';
 import { clearPatientUuid } from '../utils/patientUuid';
-
-interface User {
-  email: string;
-  name?: string;
-  role?: string;
-}
+import type { User } from './authTypes';
+import { getStoredUser, setStoredUser } from './authTypes';
 
 interface AuthContextType {
   user: User | null;
@@ -52,8 +48,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const initializeAuth = async () => {
       const storedToken = localStorage.getItem('authToken');
       if (storedToken) {
-        // TODO: Verify token with backend
         setToken(storedToken);
+        const storedUser = getStoredUser();
+        if (storedUser) setUser(storedUser);
       }
       setIsLoading(false);
     };
@@ -67,11 +64,28 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       
       if (result.success) {
         const userData = result.data?.user;
-        setUser({
+        const fullName = userData?.full_name ?? ([userData?.first_name, userData?.last_name].filter(Boolean).join(' ').trim() || undefined);
+        const userPayload: User = {
+          id: userData?.id ?? 0,
+          uuid: userData?.uuid ?? '',
           email: userData?.email ?? email,
-          name: (userData?.full_name ?? [userData?.first_name, userData?.last_name].filter(Boolean).join(' ')) || undefined,
+          name: fullName || undefined,
+          first_name: userData?.first_name,
+          last_name: userData?.last_name,
+          full_name: userData?.full_name,
           role: userData?.role,
-        });
+          patient_id: userData?.patient_id,
+          staff_id: userData?.staff_id ?? null,
+          is_active: userData?.is_active,
+          is_verified: userData?.is_verified,
+          is_first_login: userData?.is_first_login,
+          auth_provider: userData?.auth_provider,
+          last_login_at: userData?.last_login_at,
+          created_at: userData?.created_at,
+          updated_at: userData?.updated_at,
+        };
+        setUser(userPayload);
+        setStoredUser(userPayload);
         // Token is stored by useLogin onSuccess; sync to state so headers use Bearer immediately
         const stored = localStorage.getItem('authToken');
         if (stored) setToken(stored);
@@ -86,12 +100,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         // API returns { success: false, message: "Invalid email or password.", data: null }
         throw new Error(result.message || result.error || 'Login failed');
       }
-    } catch (error: any) {
-      // If error from backend, try to include error code
-      if (error?.message) {
-        throw error;
-      }
-      throw new Error('Login failed');
+    } catch (err: unknown) {
+      const message = err && typeof err === 'object' && 'message' in err && typeof (err as { message: unknown }).message === 'string'
+        ? (err as Error).message
+        : 'Login failed';
+      throw new Error(message);
     }
   };
 
@@ -99,7 +112,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       const result = await completeNewPasswordMutation.mutateAsync({ email, newPassword });
       return result;
-    } catch (error) {
+    } catch {
       throw new Error('New password reset failed');
     }
   };
@@ -107,6 +120,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const logout = () => {
     localStorage.removeItem('authToken');
     localStorage.removeItem('refreshToken');
+    setStoredUser(null);
     clearPatientUuid();
     sessionStorage.removeItem(SESSION_START_KEY);
     setToken(null);
