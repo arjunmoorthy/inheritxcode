@@ -38,11 +38,42 @@ Usage:
 import uuid
 from typing import Optional, List
 
-from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, Index, DateTime, func
+from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, Index, DateTime, func, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 
 from db.base import DoctorBase, TimestampMixin
+
+
+class PhysicianNurseAssignment(DoctorBase):
+    """
+    Junction table linking physicians to nurses (many-to-many).
+    A physician can have multiple nurses; a nurse can be assigned to multiple physicians.
+    """
+    __tablename__ = "physician_nurse_assignments"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+
+    physician_id = Column(
+        Integer,
+        ForeignKey("staff.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+
+    nurse_id = Column(
+        Integer,
+        ForeignKey("staff.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+
+    __table_args__ = (
+        UniqueConstraint("physician_id", "nurse_id", name="uq_physician_nurse_assignment"),
+    )
+
+    physician = relationship("Staff", foreign_keys=[physician_id])
+    nurse = relationship("Staff", foreign_keys=[nurse_id])
 
 
 class Staff(DoctorBase, TimestampMixin):
@@ -59,7 +90,6 @@ class Staff(DoctorBase, TimestampMixin):
         email: Email address (denormalized from users)
         role: Role type (physician, nurse, staff, admin)
         npi_number: National Provider Identifier (physicians only)
-        department: Department within clinic
         phone: Contact phone number
         is_profile_completed: Whether profile setup is complete
         is_active: Whether the profile is active
@@ -121,11 +151,6 @@ class Staff(DoctorBase, TimestampMixin):
         nullable=True,
         comment="National Provider Identifier (physicians only)"
     )
-    department = Column(
-        String(100),
-        nullable=True,
-        comment="Department within clinic"
-    )
     phone = Column(
         String(20),
         nullable=True,
@@ -157,7 +182,23 @@ class Staff(DoctorBase, TimestampMixin):
         back_populates="staff",
         cascade="all, delete-orphan"
     )
-    
+
+    # Doctor <-> Nurse (Many-to-Many via physician_nurse_assignments)
+    assigned_nurses = relationship(
+        "Staff",
+        secondary="physician_nurse_assignments",
+        primaryjoin="Staff.id == PhysicianNurseAssignment.physician_id",
+        secondaryjoin="Staff.id == PhysicianNurseAssignment.nurse_id",
+        viewonly=True,
+    )
+    assigned_physicians = relationship(
+        "Staff",
+        secondary="physician_nurse_assignments",
+        primaryjoin="Staff.id == PhysicianNurseAssignment.nurse_id",
+        secondaryjoin="Staff.id == PhysicianNurseAssignment.physician_id",
+        viewonly=True,
+    )
+
     physician_patients = relationship(
         "PhysicianPatient",
         back_populates="physician",
@@ -244,7 +285,6 @@ class Staff(DoctorBase, TimestampMixin):
             "full_name": self.full_name,
             "role": self.role,
             "npi_number": self.npi_number,
-            "department": self.department,
             "phone": self.phone,
             "is_profile_completed": self.is_profile_completed,
             "is_active": self.is_active,

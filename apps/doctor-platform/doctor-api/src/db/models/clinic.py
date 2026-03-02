@@ -48,6 +48,7 @@ class Clinic(DoctorBase, TimestampMixin):
         zip_code: Postal code
         phone: Contact phone number
         fax: Fax number for medical documents
+        department: Department within the clinic
         is_active: Whether the clinic is active
     """
     
@@ -64,6 +65,13 @@ class Clinic(DoctorBase, TimestampMixin):
         autoincrement=True,
         comment="Auto-increment primary key"
     )
+
+    users = relationship(
+        "User",
+        back_populates="clinic",
+        cascade="all, delete-orphan"
+    )
+    
     uuid = Column(
         UUID(as_uuid=True),
         unique=True,
@@ -107,6 +115,11 @@ class Clinic(DoctorBase, TimestampMixin):
         String(20),
         nullable=True,
         comment="Fax number for medical documents"
+    )
+    department = Column(
+        String(100),
+        nullable=True,
+        comment="Department within the clinic"
     )
     
     # Status
@@ -161,6 +174,7 @@ class Clinic(DoctorBase, TimestampMixin):
             "zip_code": self.zip_code,
             "phone": self.phone,
             "fax": self.fax,
+            "department": self.department,
             "full_address": self.full_address,
             "is_active": self.is_active,
             "created_at": self.created_at.isoformat() if self.created_at else None,

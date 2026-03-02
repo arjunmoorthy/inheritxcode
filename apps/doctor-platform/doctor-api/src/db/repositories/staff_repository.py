@@ -155,7 +155,6 @@ class StaffRepository(BaseRepository[Staff]):
         last_name: str = None,
         role: str = 'staff',
         npi_number: str = None,
-        department: str = None,
     ) -> Staff:
         """
         Create a new staff profile linked to a user.
@@ -167,7 +166,6 @@ class StaffRepository(BaseRepository[Staff]):
             last_name: Staff member's last name
             role: Role (physician, nurse, staff, admin)
             npi_number: National Provider Identifier (physicians only)
-            department: Department within clinic
             
         Returns:
             The created Staff instance
@@ -185,7 +183,6 @@ class StaffRepository(BaseRepository[Staff]):
             last_name=last_name,
             role=role,
             npi_number=npi_number,
-            department=department,
             is_profile_completed=False,
             is_active=True,
         )
