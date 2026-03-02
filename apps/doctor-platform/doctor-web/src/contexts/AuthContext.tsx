@@ -41,7 +41,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const loginMutation = useLogin();
   const completeNewPasswordMutation = useCompleteNewPassword();
 
-  const isAuthenticated = !!token;
+  // Consider authenticated if we have token in state or in localStorage (e.g. set by login callback/OAuth)
+  const isAuthenticated = !!token || !!localStorage.getItem('authToken');
 
   useEffect(() => {
     const initializeAuth = async () => {
@@ -69,9 +70,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       if (result.success) {
         sessionStorage.setItem(SESSION_START_KEY, Date.now().toString());
 
-        // Fetch full profile after successful login
-        // const profile = await fetchStaffProfile();
-        // setUser(profile);
+        // Sync token to state so isAuthenticated is true (localStorage already set by mutation onSuccess)
+        const accessToken =
+          result.data?.access_token ??
+          result.data?.session ??
+          result.data?.tokens?.access_token;
+        if (accessToken) {
+          setToken(accessToken);
+        }
+        if (result.data?.user) {
+          setUser(result.data.user as User);
+        }
 
         if (result.data?.requiresPasswordChange) {
           setIsPasswordChangeRequired(true);
@@ -121,11 +130,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
 
   const logout = () => {
+    // Clear all auth-related localStorage keys
     localStorage.removeItem('authToken');
     localStorage.removeItem('refreshToken');
     localStorage.removeItem('accessToken');
+    localStorage.removeItem('idToken');
     localStorage.removeItem('userProfile');
-    sessionStorage.removeItem(SESSION_START_KEY);
+    localStorage.removeItem('userType');
+    localStorage.removeItem('profileCompleted');
+    // Clear entire session storage (tokens, SSO data, etc.)
+    sessionStorage.clear();
     setUser(null);
     setToken(null);
   };

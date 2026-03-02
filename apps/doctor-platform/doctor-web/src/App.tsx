@@ -23,13 +23,17 @@ interface ProtectedRouteProps {
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
     const { isAuthenticated, isLoading } = useAuth();
 
-    // if (isLoading) {
-    //     return <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>Loading...</div>;
-    // }
+    if (isLoading) {
+        return (
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', background: '#f8fafc' }}>
+                Loading...
+            </div>
+        );
+    }
 
-    // if (!isAuthenticated) {
-    //     return <Navigate to="/login" replace />;
-    // }
+    if (!isAuthenticated) {
+        return <Navigate to="/login" replace />;
+    }
 
     return <>{children}</>;
 };

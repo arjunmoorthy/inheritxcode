@@ -150,6 +150,34 @@ export const Select = React.forwardRef<any, SelectProps>(({
                 color: '#EF4444',
             },
         }),
+        // Multi-select tags: align label and close icon vertically
+        multiValue: (base) => ({
+            ...base,
+            display: 'flex',
+            alignItems: 'center',
+        }),
+        multiValueLabel: (base) => ({
+            ...base,
+            display: 'flex',
+            alignItems: 'center',
+            fontSize: '15px',
+            lineHeight: 1.5,
+            paddingTop: 0,
+            paddingBottom: 0,
+        }),
+        multiValueRemove: (base) => ({
+            ...base,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            paddingLeft: '4px',
+            paddingRight: '4px',
+            cursor: 'pointer',
+            '&:hover': {
+                backgroundColor: isDark ? 'rgba(248, 113, 113, 0.2)' : 'rgba(239, 68, 68, 0.15)',
+                color: '#EF4444',
+            },
+        }),
     };
 
     return (

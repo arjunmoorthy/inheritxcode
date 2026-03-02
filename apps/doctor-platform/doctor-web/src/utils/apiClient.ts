@@ -80,20 +80,20 @@ apiClient.interceptors.request.use(
 // Response Interceptor
 // =============================================================================
 
-// apiClient.interceptors.response.use(
-//   (response) => response,
-//   (error: AxiosError) => {
-//     // Handle 401 Unauthorized
-//     if (error.response?.status === 401) {
-//       tokenManager.clearTokens();
-//       // Redirect to login if not already there
-//       if (window.location.pathname !== '/login') {
-//         window.location.href = '/login';
-//       }
-//     }
-//     return Promise.reject(error);
-//   }
-// );
+apiClient.interceptors.response.use(
+  (response) => response,
+  (error: AxiosError) => {
+    // Handle 401 Unauthorized
+    if (error.response?.status === 401) {
+      tokenManager.clearTokens();
+      // Redirect to login if not already there
+      if (window.location.pathname !== '/login') {
+        window.location.href = '/login';
+      }
+    }
+    return Promise.reject(error);
+  }
+);
 
 export default apiClient;
 

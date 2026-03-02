@@ -49,6 +49,62 @@ export interface UpdateStaffRequest {
   npiNumber?: string;
 }
 
+/** Payload for POST /api/v1/staff/add */
+export interface AddStaffV1Payload {
+  role: string;
+  full_name: string;
+  email: string;
+  phone: string;
+  clinic_name: string;
+  clinic_department: string;
+  clinic_address: string;
+  fax_number: string;
+  doctor_ids: number[];
+}
+
+/** Doctor item from GET /api/v1/staff/list/doctors */
+export interface DoctorListItem {
+  id: number;
+  full_name?: string;
+  first_name?: string;
+  last_name?: string;
+  email?: string;
+}
+
+/** Clinic from all-staff item */
+export interface AllStaffClinic {
+  id: number;
+  uuid: string;
+  name: string;
+  address?: string;
+  phone?: string | null;
+  department?: string;
+}
+
+/** Staff item from GET /api/v1/staff/all-staff */
+export interface AllStaffItem {
+  id: number;
+  uuid: string;
+  user_id?: number;
+  email: string;
+  first_name: string;
+  last_name: string;
+  full_name: string;
+  role: string;
+  npi_number?: string | null;
+  phone?: string | null;
+  is_profile_completed?: boolean;
+  is_active?: boolean;
+  clinic?: AllStaffClinic;
+}
+
+/** Response from GET /api/v1/staff/all-staff */
+export interface AllStaffResponse {
+  success: boolean;
+  message: string;
+  data: AllStaffItem[];
+}
+
 // Backend response types (from doctor-api)
 interface BackendStaffResponse {
   staff_uuid: string;
@@ -189,6 +245,44 @@ const updateStaffMember = async ({
   throw new Error('Staff update not yet implemented in backend');
 };
 
+/** GET /api/v1/staff/list/doctors - list doctors for assignment (e.g. when adding nurse) */
+const getDoctorsList = async (): Promise<DoctorListItem[]> => {
+  const response = await apiClient.get<DoctorListItem[] | { data: DoctorListItem[] }>(
+    API_CONFIG.ENDPOINTS.STAFF.LIST_DOCTORS
+  );
+  const data = response.data;
+  if (Array.isArray(data)) return data;
+  if (data && typeof data === 'object' && 'data' in data) return (data as { data: DoctorListItem[] }).data;
+  return [];
+};
+
+/** POST /api/v1/staff/add - add new staff with full payload */
+const addStaffV1 = async (payload: AddStaffV1Payload): Promise<{ message?: string }> => {
+  const response = await apiClient.post<{ message?: string }>(
+    API_CONFIG.ENDPOINTS.STAFF.ADD,
+    payload
+  );
+  return response.data;
+};
+
+/** Payload for PUT /api/v1/staff/staff/{staff_id} - update full_name and phone */
+export interface UpdateStaffProfilePayload {
+  full_name: string;
+  phone: string;
+}
+
+/** PUT /api/v1/staff/staff/{staff_id} - Update staff full_name and phone */
+const updateStaffProfile = async (
+  staffId: number,
+  payload: UpdateStaffProfilePayload
+): Promise<unknown> => {
+  const response = await apiClient.put<unknown>(
+    API_CONFIG.ENDPOINTS.STAFF.BY_STAFF_ID(staffId),
+    payload
+  );
+  return response.data;
+};
+
 // =============================================================================
 // React Query Hooks
 // =============================================================================
@@ -216,6 +310,56 @@ export const useUpdateStaff = () => {
   
   return useMutation({
     mutationFn: updateStaffMember,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['staff'] });
+    },
+  });
+};
+
+/** GET /api/v1/staff/all-staff - Get all active staff members */
+const getAllStaff = async (): Promise<AllStaffItem[]> => {
+  const response = await apiClient.get<AllStaffResponse>(API_CONFIG.ENDPOINTS.STAFF.ALL_STAFF);
+  if (response.data?.success && Array.isArray(response.data?.data)) {
+    return response.data.data;
+  }
+  return [];
+};
+
+/** Fetch doctors list for staff assignment (e.g. nurse → doctor_ids) */
+export const useStaffListDoctors = (enabled = true) => {
+  return useQuery({
+    queryKey: ['staff', 'list', 'doctors'],
+    queryFn: getDoctorsList,
+    enabled,
+  });
+};
+
+/** Fetch all active staff (for Update Existing Staff list) */
+export const useAllStaff = (enabled = true) => {
+  return useQuery({
+    queryKey: ['staff', 'all'],
+    queryFn: getAllStaff,
+    enabled,
+  });
+};
+
+/** Add staff via POST /api/v1/staff/add */
+export const useAddStaffV1 = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: addStaffV1,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['staff'] });
+    },
+  });
+};
+
+/** Update current staff profile (full_name, phone) via PUT /api/v1/staff/staff/{staff_id} */
+export const useUpdateStaffProfile = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ staffId, payload }: { staffId: number; payload: UpdateStaffProfilePayload }) =>
+      updateStaffProfile(staffId, payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['staff'] });
     },
