@@ -15,7 +15,8 @@ export default defineConfig({
     port: 5174, // Different port from patient-web (5173)
     cors: true,
     allowedHosts: [
-      'isidra-nonpapal-georgine.ngrok-free.dev'
+      'isidra-nonpapal-georgine.ngrok-free.dev',
+      'oncolife-doctor.inheritxdev.in',
     ],
     proxy: {
       '/api': {
@@ -24,6 +25,13 @@ export default defineConfig({
         secure: false
       }
     }
+  },
+  preview: {
+    port: 5174,
+    strictPort: true,
+    allowedHosts: [
+      'oncolife-doctor.inheritxdev.in',
+    ],
   },
   define: {
     global: 'globalThis',

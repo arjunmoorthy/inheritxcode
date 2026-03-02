@@ -8,7 +8,8 @@
     "build": "tsc --noEmit && vite build",
     "build:nocheck": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview --port 5174 --strictPort",
+    "serve": "vite preview --port 5174 --host --strictPort"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",
