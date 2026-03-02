@@ -147,3 +147,78 @@ async def send_welcome_email(
 
     fm = FastMail(_get_mail_conf())
     await fm.send_message(message)
+
+
+
+async def send_welcome_email_staff(
+    email: str,
+    temp_password: str,
+    login_link: str,
+):
+    """
+    Sends a welcome email with temporary login credentials
+    and forces password change on first login.
+    """
+
+    html = f"""
+    <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+        <h2 style="color: #007bff;">Welcome to the Patient Portal</h2>
+
+        <p>Hi,</p>
+
+        <p>Your staff account has been successfully created.</p>
+
+        <p><strong>Your login credentials:</strong></p>
+
+        <table cellspacing="0" cellpadding="6" style="margin: 10px 0;">
+            <tr>
+                <td><strong>Email:</strong></td>
+                <td>{email}</td>
+            </tr>
+            <tr>
+                <td><strong>Temporary Password:</strong></td>
+                <td>{temp_password}</td>
+            </tr>
+        </table>
+
+        <p style="color:#d9534f;">
+            ⚠️ For security reasons, you will be required to change your password on your first login.
+        </p>
+
+        <!-- Left-aligned button -->
+        <table cellspacing="0" cellpadding="0" style="margin: 20px 0;">
+            <tr>
+                <td align="left" bgcolor="#007bff" style="border-radius: 5px;">
+                    <a href="{login_link}" target="_blank"
+                       style="display: inline-block; padding: 12px 25px; font-size: 16px;
+                              color: #ffffff; text-decoration: none; font-weight: bold;
+                              border-radius: 5px;">
+                        Login to Portal
+                    </a>
+                </td>
+            </tr>
+        </table>
+
+        <p>If the button doesn’t work, copy and paste this link into your browser:</p>
+
+        <p style="background-color:#f5f5f5; padding:10px; border-radius:5px; word-break:break-all;">
+            <a href="{login_link}" style="color:#007bff;">{login_link}</a>
+        </p>
+
+        <p>If you did not expect this email, please ignore it.</p>
+
+        <br>
+        <p>Thanks,<br>
+        <strong>Care Team</strong></p>
+    </div>
+    """
+
+    message = MessageSchema(
+        subject="Welcome to the Patient Portal",
+        recipients=[email],
+        body=html,
+        subtype="html",
+    )
+
+    fm = FastMail(_get_mail_conf())
+    await fm.send_message(message)

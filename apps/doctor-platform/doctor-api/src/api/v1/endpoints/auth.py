@@ -103,6 +103,16 @@ class AuthTokens(BaseModel):
     id_token: str
     token_type: str = "Bearer"
 
+class ClinicResponse(BaseModel):
+    id: int
+    uuid: str
+    name: str
+    address: Optional[str] = None
+    phone: Optional[str] = None
+    department: Optional[str] = None
+
+    class Config:
+        from_attributes = True
 
 class UserDetail(BaseModel):
     """User details returned in login response (no password)."""
@@ -122,7 +132,7 @@ class UserDetail(BaseModel):
     updated_at: Optional[str] = None
     staff_id: Optional[int] = None
     patient_id: Optional[int] = None
-
+    clinic: Optional[ClinicResponse] = None   # 👈 ADD THIS
 
 class LoginData(BaseModel):
     """Login response data: tokens + user details."""
@@ -543,14 +553,13 @@ async def manual_staff_signup(
             user_id=user.id,
             email=request.email,
             role=request.role or "staff",
-            department=request.department,
             is_profile_completed=False,
             is_active=True,
         )
         db.add(staff)
         db.flush()  # Get staff.id without committing
         
-        # 3. Create Clinic if clinic_name provided
+        # 3. Create Clinic if clinic_name provided; set user.clinic_id
         clinic = None
         if request.clinic_name:
             # Check if clinic already exists
@@ -560,10 +569,12 @@ async def manual_staff_signup(
                     uuid=uuid4(),
                     name=request.clinic_name,
                     address=request.clinic_address,
+                    department=request.department,
                     is_active=True,
                 )
                 db.add(clinic)
                 db.flush()
+            user.clinic_id = clinic.id
             
             # 4. Create StaffClinic association
             staff_clinic = StaffClinic(
@@ -615,8 +626,8 @@ def complete_profile(
     Complete staff profile after signup.
     
     Updates:
-    1. Staff role and department
-    2. Creates/associates clinic if provided
+    1. Staff role
+    2. Creates/associates clinic if provided (department is set on clinic)
     3. Marks profile as completed
     """
     # 1. Fetch staff
@@ -625,11 +636,9 @@ def complete_profile(
         raise HTTPException(status_code=404, detail="Staff not found")
 
     try:
-        # 2. Update role and department if provided
+        # 2. Update role if provided
         if request.role:
             staff.role = request.role
-        if request.department:
-            staff.department = request.department
 
         # 3. Create/associate clinic if clinic_name is provided
         clinic = None
@@ -641,6 +650,7 @@ def complete_profile(
                     uuid=uuid4(),
                     name=request.clinic_name,
                     address=request.clinic_address,
+                    department=request.department,
                     is_active=True,
                 )
                 db.add(clinic)
@@ -660,6 +670,11 @@ def complete_profile(
                     is_active=True,
                 )
                 db.add(staff_clinic)
+        elif request.department:
+            # Update department on staff's primary clinic if no new clinic created
+            primary = staff.primary_clinic
+            if primary:
+                primary.department = request.department
 
         # 4. Mark profile as completed
         staff.is_profile_completed = True
@@ -679,15 +694,19 @@ def complete_profile(
             detail=f"Failed to complete profile: {str(e)}"
         )
 
+    # Resolve department from clinic (created or primary)
+    resolved_clinic = clinic if clinic else staff.primary_clinic
+    department_value = resolved_clinic.department if resolved_clinic else None
+
     return ProfileCompletionResponse(
         message="Profile completed successfully",
         staff_id=staff.id,
         staff_uuid=staff.uuid,
         role=staff.role,
-        clinic_uuid=str(clinic.uuid) if clinic else request.clinic_uuid,
-        clinic_name=clinic.name if clinic else None,
-        clinic_address=clinic.address if clinic else None,
-        department=staff.department,
+        clinic_uuid=str(clinic.uuid) if clinic else (str(resolved_clinic.uuid) if resolved_clinic else request.clinic_uuid),
+        clinic_name=clinic.name if clinic else (resolved_clinic.name if resolved_clinic else None),
+        clinic_address=clinic.address if clinic else (resolved_clinic.address if resolved_clinic else None),
+        department=department_value,
     )
 
 def verify_google_token(token: str):
@@ -722,7 +741,7 @@ def _get_jwt_secret() -> str:
 
 def create_access_token(data: dict):
     to_encode = data.copy()
-    expire = datetime.utcnow() + timedelta(minutes=settings.access_token_expire_minutes)
+    expire = datetime.utcnow() + timedelta(hours=settings.access_token_expiry_hours)
     to_encode.update({"exp": expire, "type": "access"})
     return jwt.encode(to_encode, _get_jwt_secret(), algorithm=settings.jwt_algorithm)
 
@@ -949,6 +968,30 @@ async def reset_password(
         status_code=200
     )
 
+def resolve_user_clinic(user: User):
+    """
+    Resolve clinic for a user dynamically.
+    Priority:
+    1. Direct clinic on user (admin)
+    2. Staff linked clinic(s)
+    3. Patient linked clinic
+    """
+
+    # 1️⃣ Admin user
+    if user.clinic:
+        return user.clinic
+
+    # 2️⃣ Staff user (doctor / nurse)
+    if user.staff and user.staff.clinics:
+        # If multiple clinics exist, return first (current behavior)
+        return user.staff.clinics[0]
+
+    # 3️⃣ Patient user
+    if user.patient_profile and user.patient_profile.clinic:
+        return user.patient_profile.clinic
+
+    return None
+
 
 @router.post("/login", response_model=APIResponse[LoginData])
 async def login(
@@ -996,6 +1039,21 @@ async def login(
     refresh_token = create_refresh_token(token_data)
     id_token = create_id_token(token_data)
 
+    # 👇 Resolve clinic dynamically
+    clinic = resolve_user_clinic(user)
+
+    clinic_response = (
+        ClinicResponse(
+            id=clinic.id,
+            uuid=str(clinic.uuid),
+            name=clinic.name,
+            address=clinic.address,
+            phone=clinic.phone,
+            department=clinic.department,
+        )
+        if clinic else None
+    )
+
     # Build user details (exclude password_hash)
     user_detail = UserDetail(
         id=user.id,
@@ -1014,6 +1072,7 @@ async def login(
         updated_at=user.updated_at.isoformat() if user.updated_at else None,
         staff_id=user.staff.id if user.staff else None,
         patient_id=user.patient_profile.id if user.patient_profile else None,
+        clinic=clinic_response,   # 👈 RETURN CLINIC HERE
     )
 
     return APIResponse(

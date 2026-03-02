@@ -36,7 +36,7 @@ import uuid
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, Index
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, Index, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 
@@ -87,6 +87,14 @@ class User(DoctorBase, TimestampMixin):
         nullable=False,
         default=uuid.uuid4,
         comment="Unique identifier for external use"
+    )
+
+    clinic_id = Column(
+        Integer,
+        ForeignKey("clinics.id", ondelete="RESTRICT"),
+        nullable=True,
+        index=True,
+        comment="Clinic this user belongs to"
     )
     
     # Authentication credentials
@@ -174,6 +182,11 @@ class User(DoctorBase, TimestampMixin):
     )
     
     # Relationships
+    clinic = relationship(
+        "Clinic",
+        back_populates="users",
+        foreign_keys=[clinic_id],
+    )
     staff = relationship(
         "Staff",
         back_populates="user",

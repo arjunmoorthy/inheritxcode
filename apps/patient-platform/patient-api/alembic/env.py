@@ -3,17 +3,32 @@ Alembic Environment Configuration
 =================================
 
 This module configures the Alembic migration environment.
-It sets up database connections and model imports for autogenerate.
+DB credentials are read from .env (DATABASE_URL or PATIENT_DB_*). No need to edit this file.
 """
 
 import os
 import sys
+from pathlib import Path
 from logging.config import fileConfig
 
 from sqlalchemy import engine_from_config
 from sqlalchemy import pool
 
 from alembic import context
+
+# Load .env so migrations use the same DB config as the app (no credentials in env.py)
+for _path in (
+    Path(__file__).resolve().parent.parent / ".env",   # patient-api/.env
+    Path.cwd() / ".env",
+    Path(__file__).resolve().parent / ".env",
+):
+    if _path.exists():
+        try:
+            from dotenv import load_dotenv
+            load_dotenv(_path, override=True)
+            break
+        except Exception:
+            pass
 
 # Add src to path for model imports
 # For local: ../src, for Docker: /app (where src contents are mounted)
@@ -61,7 +76,7 @@ def get_url():
     host = os.getenv("PATIENT_DB_HOST", os.getenv("POSTGRES_HOST", "localhost"))
     port = os.getenv("PATIENT_DB_PORT", os.getenv("POSTGRES_PORT", "5432"))
     user = os.getenv("PATIENT_DB_USER", os.getenv("POSTGRES_USER", "postgres"))
-    password = os.getenv("PATIENT_DB_PASSWORD", os.getenv("POSTGRES_PASSWORD", "bulbulkj"))
+    password = os.getenv("PATIENT_DB_PASSWORD", os.getenv("POSTGRES_PASSWORD", "your_password"))
     database = os.getenv("PATIENT_DB_NAME", os.getenv("POSTGRES_PATIENT_DB", "oncolife_patient_dev"))
     
     return f"postgresql://{user}:{password}@{host}:{port}/{database}"
