@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "build:nocheck": "vite build",
-    "preview": "vite preview --port 5173 --strictPort"
+    "preview": "vite preview --port 5173 --strictPort",
+    "serve": "vite preview --port 5173 --host"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",

@@ -17,6 +17,9 @@ export default defineConfig(({ mode }) => {
       host: true,
       port: 5173,
       cors: true,
+      allowedHosts: [
+        'oncolife-patient.inheritxdev.in',
+      ],
       proxy: {
         '/api': {
           target: env.VITE_GATEWAY_URL || 'http://localhost:8000',
@@ -30,6 +33,13 @@ export default defineConfig(({ mode }) => {
           secure: false,
         }
       }
+    },
+    preview: {
+      port: 5173,
+      strictPort: true,
+      allowedHosts: [
+        'oncolife-patient.inheritxdev.in',
+      ],
     },
     define: {
       global: 'globalThis',
