@@ -17,19 +17,29 @@ export default defineConfig(({ mode }) => {
       host: true,
       port: 5173,
       cors: true,
+      allowedHosts: [
+        'oncolife-patient.inheritxdev.in',
+      ],
       proxy: {
         '/api': {
-          target: env.VITE_GATEWAY_URL || 'http://localhost:8000',
+          target: env.VITE_API_BASE || 'http://localhost:8000',
           changeOrigin: true,
           secure: false,
           ws: true,
         },
         '/static': {
-          target: env.VITE_GATEWAY_URL || 'http://localhost:8000',
+          target: env.VITE_API_BASE || 'http://localhost:8000',
           changeOrigin: true,
           secure: false,
         }
       }
+    },
+    preview: {
+      port: 5173,
+      strictPort: true,
+      allowedHosts: [
+        'oncolife-patient.inheritxdev.in',
+      ],
     },
     define: {
       global: 'globalThis',
