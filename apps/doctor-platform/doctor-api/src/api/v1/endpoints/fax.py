@@ -140,17 +140,44 @@ async def change_password(
     request: ChangePasswordRequest,
     db: Session = Depends(get_doctor_db_session),
 ):
-    """Change password for patient. Uses users table (role=patient). current_password is the temp password from email."""
-    user = db.query(User).filter(User.email == request.email, User.role == "patient").first()
+    """
+    Change password for patient, nurse, or physician.
+    Uses temp password sent via email as current_password.
+    """
+
+    # 🔍 Find user by email (no role restriction)
+    user = (
+        db.query(User)
+        .filter(User.email == request.email)
+        .first()
+    )
+
     if not user:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Patient not found.")
-    if not user.password_hash or not verify_password(request.current_password, user.password_hash):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Current password is incorrect.")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found.",
+        )
+
+    # 🔐 Validate current password
+    if not user.password_hash or not verify_password(
+        request.current_password,
+        user.password_hash,
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Current password is incorrect.",
+        )
+
+    # 🔑 Update password
     user.password_hash = hash_password(request.new_password)
     user.is_first_login = False
-    db.commit()
-    return {"status": "success", "message": "Password changed successfully."}
 
+    db.commit()
+
+    return {
+        "status": "success",
+        "message": "Password changed successfully.",
+    }
 
 class Price(BaseModel):
     currency_code: str

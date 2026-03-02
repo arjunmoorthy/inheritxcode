@@ -178,6 +178,10 @@ class Settings(BaseSettings):
         default=30,
         description="Access token expiry in minutes"
     )
+    access_token_expiry_hours: int = Field(
+        default=24,
+        description="Access token expiry in hours (alternative to minutes)"
+    )   
     refresh_token_expire_days: int = Field(
         default=7,
         description="Refresh token expiry in days"
@@ -262,6 +266,11 @@ class Settings(BaseSettings):
     patient_set_password_base_url: str = Field(
         default="https://oncolife-ai-patient-web.vercel.app/set-password",
         description="Base URL for patient set-password page (login link in welcome email). Env: PATIENT_SET_PASSWORD_BASE_URL",
+    )
+
+    doctor_set_password_base_url: str = Field(
+        default="https://oncolife-ai-doctor-web.vercel.app/set-password",
+        description="Base URL for doctor set-password page (login link in welcome email). Env: DOCTOR_SET_PASSWORD_BASE_URL",
     )
     
     # ==========================================================================
