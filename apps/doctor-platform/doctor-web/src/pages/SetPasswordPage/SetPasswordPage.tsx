@@ -7,7 +7,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -37,7 +37,10 @@ interface LocationState {
 const SetPasswordPage: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const email = (location.state as LocationState)?.email;
+  const [searchParams] = useSearchParams();
+  const emailFromState = (location.state as LocationState)?.email;
+  const emailFromQuery = searchParams.get('email');
+  const email = emailFromQuery ?? emailFromState ?? undefined;
 
   const [error, setError] = useState<string | null>(null);
   const [isSuccess, setIsSuccess] = useState(false);
@@ -63,6 +66,7 @@ const SetPasswordPage: React.FC = () => {
         email,
         currentPassword: values.currentPassword,
         newPassword: values.password,
+        confirmPassword: values.confirmPassword,
       });
 
       const isSuccessResponse = result.success === true || result.status === 'success';
@@ -219,6 +223,21 @@ const SetPasswordPage: React.FC = () => {
                   </div>
 
                   <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+                    {!email && (
+                      <div
+                        className={`mb-6 px-4 py-3 rounded-xl text-sm flex items-center gap-3 animate-fade-in border ${isDark ? 'bg-amber-900/20 border-amber-800/40 text-amber-400' : 'bg-amber-50 border-amber-200 text-amber-800'}`}
+                      >
+                        <Info size={18} className="shrink-0 mt-0.5" aria-hidden />
+                        <p className="m-0 leading-snug">
+                          Email is missing. Please use the link from your welcome email (it should include your email in the URL).
+                        </p>
+                      </div>
+                    )}
+                    {email && (
+                      <p className={`text-sm mb-2 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                        Setting password for: <strong className={isDark ? 'text-slate-200' : 'text-slate-800'}>{email}</strong>
+                      </p>
+                    )}
                     {error && (
                       <div
                         className={`mb-6 px-4 py-3 rounded-xl text-sm flex items-center gap-3 animate-fade-in border ${isDark ? 'bg-red-900/20 border-red-800/40 text-red-400' : 'bg-red-50 border-red-200 text-red-600'}`}
@@ -264,9 +283,9 @@ const SetPasswordPage: React.FC = () => {
                     <div className="pt-2">
                       <button
                         type="submit"
-                        disabled={isSubmitting}
+                        disabled={isSubmitting || !email}
                         className={`group relative w-full overflow-hidden rounded-xl font-bold text-[15px] transition-all duration-300 ${
-                          isSubmitting
+                          isSubmitting || !email
                             ? 'opacity-60 cursor-not-allowed'
                             : 'hover:scale-[1.02] active:scale-[0.98]'
                         } bg-[#1E3A5F] text-white shadow-lg hover:shadow-xl hover:bg-[#1a4a7f] py-3.5 px-6 flex items-center justify-center gap-2`}

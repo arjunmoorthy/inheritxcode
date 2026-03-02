@@ -3,11 +3,12 @@ import type { ReactNode } from 'react';
 // import { useFetchProfile } from '../services/profile'; // TODO: Create profile service
 
 export interface ProfileData {
-  id?: string;
+  id?: string | number;
   staff_id?: number;
   staff_uuid?: string;
   first_name: string;
   last_name: string;
+  full_name?: string;
   email: string;
   phone?: string;
   role?: string;
@@ -19,10 +20,38 @@ export interface ProfileData {
   clinic_uuid?: string;
 }
 
+/** Shape of userProfile as stored in localStorage (from API/login); may include nested clinic */
+export interface StoredUserProfile {
+  id?: number;
+  uuid?: string;
+  staff_id?: number;
+  patient_id?: number | null;
+  email?: string;
+  first_name?: string;
+  last_name?: string;
+  full_name?: string;
+  role?: string;
+  phone?: string;
+  clinic_name?: string;
+  clinic_department?: string;
+  clinic_address?: string;
+  clinic_fax?: string;
+  clinic?: { id?: number; uuid?: string; name?: string; address?: string; phone?: string | null; department?: string };
+  auth_provider?: string;
+  is_active?: boolean;
+  is_verified?: boolean;
+  is_first_login?: boolean;
+  last_login_at?: string;
+  created_at?: string;
+  updated_at?: string;
+  [key: string]: unknown;
+}
+
 interface UserContextType {
   profile: ProfileData | null;
   isLoading: boolean;
   error: string | null;
+  updateProfile: (data: Partial<ProfileData>) => void;
 }
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
@@ -44,29 +73,71 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Persist profile to localStorage and update state
+  const updateProfile = (data: Partial<ProfileData>) => {
+    const stored = localStorage.getItem('userProfile');
+    const current: StoredUserProfile = stored ? JSON.parse(stored) : {};
+    const merged: StoredUserProfile = {
+      ...current,
+      id: (data.id as number | undefined) ?? current.id,
+      uuid: data.staff_uuid ?? current.uuid,
+      staff_id: data.staff_id ?? current.staff_id,
+      email: data.email ?? current.email,
+      first_name: data.first_name ?? current.first_name,
+      last_name: data.last_name ?? current.last_name,
+      full_name: data.full_name ?? current.full_name ?? (data.first_name != null && data.last_name != null ? `${data.first_name} ${data.last_name}`.trim() : current.full_name),
+      role: data.role ?? current.role,
+      phone: data.phone ?? current.phone,
+      clinic_name: data.clinic_name ?? current.clinic_name,
+      clinic_department: data.clinic_department ?? data.department ?? current.clinic_department ?? current.department,
+      department: data.clinic_department ?? data.department ?? current.department,
+      clinic_address: data.clinic_address ?? current.clinic_address,
+      clinic_fax: data.clinic_fax ?? current.clinic_fax,
+    };
+    localStorage.setItem('userProfile', JSON.stringify(merged));
+    const nextProfile: ProfileData = {
+      id: merged.id ?? merged.uuid,
+      staff_id: merged.staff_id,
+      staff_uuid: merged.uuid,
+      first_name: merged.first_name || '',
+      last_name: merged.last_name || '',
+      full_name: merged.full_name,
+      email: merged.email || '',
+      phone: merged.phone,
+      role: merged.role,
+      clinic_name: merged.clinic_name,
+      clinic_department: merged.clinic_department ?? merged.department,
+      department: merged.department ?? merged.clinic_department,
+      clinic_address: merged.clinic_address,
+      clinic_fax: merged.clinic_fax,
+    };
+    setProfile(nextProfile);
+  };
+
   // Load profile from localStorage on mount
   useEffect(() => {
     const loadProfile = () => {
       try {
         const storedProfile = localStorage.getItem('userProfile');
         if (storedProfile) {
-          const parsedProfile = JSON.parse(storedProfile);
-          // Map the stored profile to ProfileData format
+          const parsed: StoredUserProfile = JSON.parse(storedProfile);
+          const c = parsed.clinic;
           const profileData: ProfileData = {
-            id: parsedProfile.staff_uuid || parsedProfile.id,
-            staff_id: parsedProfile.staff_id,
-            staff_uuid: parsedProfile.staff_uuid,
-            first_name: parsedProfile.first_name || '',
-            last_name: parsedProfile.last_name || '',
-            email: parsedProfile.email || '',
-            phone: parsedProfile.phone,
-            role: parsedProfile.role,
-            clinic_name: parsedProfile.clinic_name,
-            clinic_department: parsedProfile.department || parsedProfile.clinic_department,
-            department: parsedProfile.department,
-            clinic_address: parsedProfile.clinic_address,
-            clinic_fax: parsedProfile.clinic_fax,
-            clinic_uuid: parsedProfile.clinic_uuid,
+            id: parsed.id ?? parsed.uuid,
+            staff_id: parsed.staff_id,
+            staff_uuid: parsed.uuid,
+            first_name: parsed.first_name || '',
+            last_name: parsed.last_name || '',
+            full_name: parsed.full_name,
+            email: parsed.email || '',
+            phone: parsed.phone,
+            role: parsed.role,
+            clinic_name: parsed.clinic_name ?? c?.name ?? '',
+            clinic_department: parsed.clinic_department ?? parsed.department ?? c?.department ?? '',
+            department: parsed.department ?? parsed.clinic_department ?? c?.department ?? '',
+            clinic_address: parsed.clinic_address ?? c?.address ?? '',
+            clinic_fax: parsed.clinic_fax ?? c?.phone ?? '',
+            clinic_uuid: parsed.clinic_uuid ?? c?.uuid,
           };
           setProfile(profileData);
         } else {
@@ -124,6 +195,7 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
     profile,
     isLoading,
     error,
+    updateProfile,
   };
 
   return (

@@ -8,8 +8,9 @@ interface LoginData {
 }
 interface CompleteNewPasswordData {
   email: string;
-  currentPassword?: string;
+  currentPassword: string;
   newPassword: string;
+  confirmPassword: string;
 }
 
 interface ForgotPasswordData {
@@ -113,9 +114,18 @@ export const useLogin = () => {
         }
       }
       
-      // Store user data if available
+      // Store user data if available; flatten nested clinic for profile/add-staff autofill
       if (data.data?.user) {
-        localStorage.setItem('userProfile', JSON.stringify(data.data.user));
+        const user = data.data.user;
+        const clinic = user.clinic;
+        const toStore = {
+          ...user,
+          clinic_name: user.clinic_name ?? clinic?.name ?? '',
+          clinic_address: user.clinic_address ?? clinic?.address ?? '',
+          clinic_department: user.clinic_department ?? clinic?.department ?? '',
+          clinic_fax: user.clinic_fax ?? clinic?.phone ?? '',
+        };
+        localStorage.setItem('userProfile', JSON.stringify(toStore));
       }
     },
     onError: (error) => {
@@ -124,16 +134,18 @@ export const useLogin = () => {
   });
 };
 
+/** POST /api/v1/fax/change-password - Change password (patient, nurse, physician); temp password as current_password */
 const completeNewPassword = async (data: CompleteNewPasswordData): Promise<CompleteNewPasswordResponse> => {
-  const newData: Record<string, string | null> = {
-    email: data?.email,
-    new_password: data?.newPassword,
-    session: localStorage.getItem('authToken'),
+  const payload = {
+    email: data.email,
+    current_password: data.currentPassword,
+    new_password: data.newPassword,
+    confirm_password: data.confirmPassword,
   };
-  if (data?.currentPassword) {
-    newData.current_password = data.currentPassword;
-  }
-  const response = await apiClient.post<CompleteNewPasswordResponse>(API_CONFIG.ENDPOINTS.AUTH.COMPLETE_NEW_PASSWORD, newData);
+  const response = await apiClient.post<CompleteNewPasswordResponse>(
+    API_CONFIG.ENDPOINTS.FAX.CHANGE_PASSWORD,
+    payload
+  );
   return response.data;
 };
 

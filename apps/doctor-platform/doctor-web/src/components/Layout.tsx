@@ -42,7 +42,7 @@ import {
   ChevronDown
 } from 'lucide-react';
 import { useUser } from '../contexts/UserContext';
-// import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../contexts/AuthContext';
 import { useThemeMode } from '@oncolife/ui-components';
 // Sidebar width (commented out - kept for reference)
 // const DRAWER_WIDTH = 260;
@@ -61,7 +61,7 @@ const Layout: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { profile } = useUser();
-  // const { isAuthenticated, isLoading } = useAuth();
+  const { logout } = useAuth();
   const { isDark } = useThemeMode();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
@@ -129,9 +129,8 @@ const Layout: React.FC = () => {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('authToken');
-    sessionStorage.clear();
-    navigate('/login');
+    logout();
+    navigate('/login', { replace: true });
   };
 
   const handleProfileMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
@@ -616,7 +615,7 @@ const Layout: React.FC = () => {
         <MobileDrawerContent />
       </Drawer>
 
-      {/* Main Content Area */}
+      {/* Main Content Area - scrollable */}
       <Box
         component="main"
         sx={{
@@ -626,7 +625,7 @@ const Layout: React.FC = () => {
           flexDirection: 'column',
           bgcolor: 'background.default',
           transition: 'background-color 0.3s ease',
-          overflow: 'hidden',
+          overflow: 'auto',
           position: 'relative',
         }}
       >
@@ -637,7 +636,7 @@ const Layout: React.FC = () => {
             minHeight: 0,
             display: 'flex',
             flexDirection: 'column',
-            overflow: 'hidden',
+            overflow: 'visible',
             animation: 'fadeIn 0.3s ease-out',
             '@keyframes fadeIn': {
               '0%': { opacity: 0 },

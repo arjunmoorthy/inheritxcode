@@ -37,8 +37,14 @@ export const API_CONFIG = {
     // Staff Management
     STAFF: {
       LIST: '/staff',
+      ADD: '/staff/add',
+      LIST_DOCTORS: '/staff/list/doctors',
+      /** GET - All active staff members */
+      ALL_STAFF: '/staff/all-staff',
       PROFILE: '/staff/profile',
       BY_UUID: (uuid: string) => `/staff/${uuid}`,
+      /** PUT /staff/staff/{staff_id} - Update staff full_name and phone */
+      BY_STAFF_ID: (staffId: number) => `/staff/staff/${staffId}`,
     },
 
     // Clinic Management
@@ -64,6 +70,8 @@ export const API_CONFIG = {
         CREATE: '/fax/patients',
         UPDATE: (id: string) => `/fax/patients/${id}`,
       },
+      /** POST - Change password (patient, nurse, physician); uses temp password as current_password */
+      CHANGE_PASSWORD: '/fax/change-password',
     },
 
     // Dashboard & Analytics
