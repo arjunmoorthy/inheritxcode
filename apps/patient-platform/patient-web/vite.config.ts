@@ -22,6 +22,7 @@ export default defineConfig(({ mode }) => {
         'oncolife-patient.inheritxdev.in',
         'leida-bailable-loraine.ngrok-free.dev',
         'isidra-nonpapal-georgine.ngrok-free.dev',
+        'oncolife-ai-patient-web.vercel.app',
       ],
       proxy: {
         '/api': {
@@ -51,6 +52,7 @@ export default defineConfig(({ mode }) => {
         'oncolife-patient.inheritxdev.in',
         'leida-bailable-loraine.ngrok-free.dev',
         'isidra-nonpapal-georgine.ngrok-free.dev',
+        'oncolife-ai-patient-web.vercel.app',
       ],
     },
     define: {
