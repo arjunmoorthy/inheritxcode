@@ -6,6 +6,14 @@
   "framework": "vite",
   "rewrites": [
     {
+      "source": "/api/:path*",
+      "destination": "https://leida-bailable-loraine.ngrok-free.dev/api/:path*"
+    },
+    {
+      "source": "/static/:path*",
+      "destination": "https://leida-bailable-loraine.ngrok-free.dev/static/:path*"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }
