@@ -18,6 +18,7 @@ export default defineConfig(({ mode }) => {
       port: 5173,
       cors: true,
       allowedHosts: [
+        'isidra-nonpapal-georgine.ngrok-free.dev',
         'oncolife-patient.inheritxdev.in',
       ],
       proxy: {
