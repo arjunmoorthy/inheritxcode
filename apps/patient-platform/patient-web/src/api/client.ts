@@ -119,21 +119,24 @@ const buildHeaders = (config: RequestConfig = {}): Headers => {
     }
   }
 
+  // Always skip ngrok browser warning for all API calls
+  headers.set('ngrok-skip-browser-warning', 'true');
+
   return headers;
 };
 
-const sleep = (ms: number): Promise<void> => 
+const sleep = (ms: number): Promise<void> =>
   new Promise(resolve => setTimeout(resolve, ms));
 
 const shouldRetry = (error: unknown, attempt: number, maxRetries: number): boolean => {
   if (attempt >= maxRetries) return false;
-  
+
   // Retry on network errors
   if (error instanceof NetworkError) return true;
-  
+
   // Retry on 5xx errors (server errors)
   if (error instanceof ApiClientError && error.status >= 500) return true;
-  
+
   return false;
 };
 
@@ -147,9 +150,9 @@ async function request<T>(
 ): Promise<T> {
   const url = buildUrl(endpoint);
   const { timeout = DEFAULT_TIMEOUT, retries = MAX_RETRIES, ...fetchConfig } = config;
-  
+
   let lastError: Error | null = null;
-  
+
   for (let attempt = 0; attempt <= retries; attempt++) {
     if (attempt > 0) {
       await sleep(RETRY_DELAY * attempt);
@@ -163,6 +166,7 @@ async function request<T>(
         ...fetchConfig,
         headers: buildHeaders(fetchConfig),
         signal: controller.signal,
+        credentials: config.skipAuth ? 'omit' : 'include',
       });
 
       clearTimeout(timeoutId);
@@ -175,7 +179,7 @@ async function request<T>(
       // Parse response body
       let body: T | ApiError;
       const contentType = response.headers.get('content-type');
-      
+
       if (contentType?.includes('application/json')) {
         body = await response.json();
       } else {
@@ -197,7 +201,7 @@ async function request<T>(
 
     } catch (error) {
       clearTimeout(timeoutId);
-      
+
       // Handle abort errors (timeout)
       if (error instanceof Error && error.name === 'AbortError') {
         lastError = new NetworkError('Request timeout');

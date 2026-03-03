@@ -5,7 +5,7 @@ import path from 'path'
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
-  
+
   return {
     plugins: [react()],
     resolve: {
@@ -18,8 +18,10 @@ export default defineConfig(({ mode }) => {
       port: 5173,
       cors: true,
       allowedHosts: [
-        'isidra-nonpapal-georgine.ngrok-free.dev',
+        'localhost',
         'oncolife-patient.inheritxdev.in',
+        'leida-bailable-loraine.ngrok-free.dev',
+        'isidra-nonpapal-georgine.ngrok-free.dev',
       ],
       proxy: {
         '/api': {
@@ -27,11 +29,17 @@ export default defineConfig(({ mode }) => {
           changeOrigin: true,
           secure: false,
           ws: true,
+          headers: {
+            'ngrok-skip-browser-warning': 'true',
+          },
         },
         '/static': {
           target: env.VITE_API_BASE || 'http://localhost:8000',
           changeOrigin: true,
           secure: false,
+          headers: {
+            'ngrok-skip-browser-warning': 'true',
+          },
         }
       }
     },
@@ -39,7 +47,10 @@ export default defineConfig(({ mode }) => {
       port: 5173,
       strictPort: true,
       allowedHosts: [
+        'localhost',
         'oncolife-patient.inheritxdev.in',
+        'leida-bailable-loraine.ngrok-free.dev',
+        'isidra-nonpapal-georgine.ngrok-free.dev',
       ],
     },
     define: {
