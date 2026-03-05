@@ -42,8 +42,8 @@ import InputAdornment from '@mui/material/InputAdornment';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
 import Skeleton from '@mui/material/Skeleton';
-import { 
-  Search, 
+import {
+  Search,
   User,
   UserPlus,
   Activity,
@@ -86,6 +86,7 @@ function toAddManualPatientPayload(form: PatientFormValues): AddManualPatientPay
     plan_name: form.regimenName || undefined,
     past_medical_history: form.pastMedicalHistory || undefined,
     past_surgical_history: form.pastSurgicalHistory || undefined,
+    physician_ids: form.physicianIds && form.physicianIds.length > 0 ? form.physicianIds : undefined,
   };
 }
 
@@ -114,10 +115,10 @@ const DashboardPage: React.FC = () => {
     const timer = setTimeout(() => setDebouncedSearch(trimmed), 400);
     return () => clearTimeout(timer);
   }, [search]);
-  
+
   const { data, isLoading, error } = usePatientSummaries(page, debouncedSearch, 'all');
   const addPatientMutation = useAddManualPatient();
-  
+
   // Helper functions - defined before use
   const formatDOB = (dateString: string) => {
     if (!dateString) return 'N/A';
@@ -169,7 +170,7 @@ const DashboardPage: React.FC = () => {
     }
     return 'mild';
   };
-  
+
   // Static fallback data for when API fails or returns no data
   const staticPatients: PatientSummary[] = [
     {
@@ -236,10 +237,10 @@ const DashboardPage: React.FC = () => {
 
   // Use static data only if API fails or returns no data (not when loading)
   // Only use static data when we're not loading and there's no current data
-  const displayData = (!isLoading && (error || !data?.data || data.data.length === 0)) 
-    ? [] 
+  const displayData = (!isLoading && (error || !data?.data || data.data.length === 0))
+    ? []
     : (data?.data || []);
-  
+
   // Filter patients: search via API for live data; client-side for static fallback
   const isUsingStaticFallback = !isLoading && (error || !data?.data || data.data.length === 0);
   const searchTrimmed = debouncedSearch;
@@ -265,37 +266,37 @@ const DashboardPage: React.FC = () => {
       const patientSeverity = getSeverity(patient);
       if (severityFilter !== patientSeverity) return false;
     }
-    
+
     // Check-in filter (simplified - can be enhanced with actual date logic)
     if (checkInFilter !== 'all' && patient.lastUpdated) {
       const lastCheckIn = new Date(patient.lastUpdated);
       const now = new Date();
       const daysDiff = Math.floor((now.getTime() - lastCheckIn.getTime()) / (1000 * 60 * 60 * 24));
-      
+
       if (checkInFilter === 'today' && daysDiff !== 0) return false;
       if (checkInFilter === 'week' && daysDiff > 7) return false;
       if (checkInFilter === 'month' && daysDiff > 30) return false;
     }
-    
+
     return true;
   });
-  
+
   // Pagination for filtered results
   const itemsPerPage = 10;
   const startIndex = (page - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
   const paginatedPatients = filteredPatients.slice(startIndex, endIndex);
   const totalPages = Math.ceil(filteredPatients.length / itemsPerPage);
-  
+
   const handlePageChange = (_: React.ChangeEvent<unknown>, value: number) => {
     setPage(value);
   };
-  
+
   const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setSearch(event.target.value);
     setPage(1);
   };
-  
+
   const handleSymptomTypeChange = (event: any) => {
     setSymptomTypeFilter(event.target.value);
     setPage(1);
@@ -314,7 +315,7 @@ const DashboardPage: React.FC = () => {
   return (
     <div className={`flex flex-col h-full w-full overflow-hidden ${isDark ? 'bg-[#1A1917]' : 'bg-[rgb(250,248,245)]'} transition-colors duration-200`}>
       {/* Fixed Header - Enhanced Dashboard Style */}
-      <div 
+      <div
         className={`flex-shrink-0 ${isDark ? 'bg-[#1A1917] border-b border-slate-800/50' : 'bg-white/95 backdrop-blur-sm border-b border-slate-200/60'} transition-all duration-200 shadow-sm`}
       >
         <div className="p-6 pb-5 max-w-[1400px] mx-auto w-full">
@@ -334,11 +335,10 @@ const DashboardPage: React.FC = () => {
             </div>
             <button
               onClick={() => setIsAddPatientModalOpen(true)}
-              className={`inline-flex text-white items-center gap-2 px-5 py-2.5 rounded-lg font-semibold text-sm transition-all duration-200 transform hover:scale-105 active:scale-100 ${
-                isDark 
-                  ? 'bg-[#1e3a5f]' 
+              className={`inline-flex text-white items-center gap-2 px-5 py-2.5 rounded-lg font-semibold text-sm transition-all duration-200 transform hover:scale-105 active:scale-100 ${isDark
+                  ? 'bg-[#1e3a5f]'
                   : 'bg-[#1e3a5f]'
-              }`}
+                }`}
             >
               <UserPlus size={16} />
               <span>Add Patient</span>
@@ -346,225 +346,225 @@ const DashboardPage: React.FC = () => {
           </div>
         </div>
       </div>
-      
+
       {/* Fixed Search and Filters Bar */}
       <div
         className={`flex-shrink-0 ${isDark ? 'bg-[#1A1917]/95 backdrop-blur-sm border-b border-slate-800/50' : 'bg-white/95 backdrop-blur-sm border-b border-slate-200/60'} transition-all duration-200 shadow-md`}
       >
         <div className="p-6 py-5 max-w-[1400px] mx-auto w-full">
           <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center flex-wrap">
-          {/* Search */}
-          <div className="flex-1 min-w-[200px] w-full lg:w-auto">
-            <TextField
-              fullWidth
-              placeholder="Search by first name, last name, or full name..."
-              value={search}
-              onChange={handleSearchChange}
-              size="small"
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <Search size={18} className="text-slate-500 dark:text-slate-400" />
-                  </InputAdornment>
-                ),
-              }}
-              sx={{
-                '& .MuiOutlinedInput-root': {
-                  borderRadius: '12px',
-                  backgroundColor: isDark ? '#1A1917' : 'white',
-                  color: isDark ? '#f1f5f9' : '#0f172a',
-                  boxShadow: isDark ? '0 1px 3px rgba(0, 0, 0, 0.3)' : '0 1px 3px rgba(0, 0, 0, 0.05)',
-                  transition: 'all 0.2s ease',
-                  '& fieldset': {
-                    borderColor: isDark ? '#334155' : '#e2e8f0',
-                    borderWidth: '1.5px',
-                  },
-                  '&:hover fieldset': {
-                    borderColor: isDark ? '#475569' : '#cbd5e1',
-                  },
-                  '&.Mui-focused': {
-                    boxShadow: isDark ? '0 0 0 3px rgba(37, 99, 235, 0.2)' : '0 0 0 3px rgba(37, 99, 235, 0.1)',
-                  },
-                  '&.Mui-focused fieldset': {
-                    borderColor: '#2563EB',
-                    borderWidth: '2px',
-                  },
-                },
-                '& .MuiInputBase-input': {
-                  color: isDark ? '#f1f5f9' : '#0f172a',
-                  padding: '10px 14px',
-                  '&::placeholder': {
-                    color: isDark ? '#94a3b8' : '#64748b',
-                    opacity: 0.7,
-                  },
-                },
-              }}
-            />
-          </div>
-
-          {/* Filter Dropdowns */}
-          <div className="flex flex-row gap-3 items-center flex-wrap">
-            <FormControl size="small" sx={{ minWidth: { xs: 140, sm: 160 } }}>
-              <InputLabel 
-                sx={{ 
-                  color: isDark ? '#94a3b8' : '#64748b',
-                  '&.Mui-focused': { color: '#2563EB' }
+            {/* Search */}
+            <div className="flex-1 min-w-[200px] w-full lg:w-auto">
+              <TextField
+                fullWidth
+                placeholder="Search by first name, last name, or full name..."
+                value={search}
+                onChange={handleSearchChange}
+                size="small"
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <Search size={18} className="text-slate-500 dark:text-slate-400" />
+                    </InputAdornment>
+                  ),
                 }}
-              >
-                Symptom Type
-              </InputLabel>
-              <Select
-                value={symptomTypeFilter}
-                label="Symptom Type"
-                onChange={handleSymptomTypeChange}
-                MenuProps={{
-                  PaperProps: {
-                    sx: {
-                      backgroundColor: isDark ? '#1A1917' : 'white',
-                      border: `1px solid ${isDark ? '#334155' : '#e2e8f0'}`,
-                      borderRadius: '8px',
-                      marginTop: '8px',
-                      boxShadow: isDark 
-                        ? '0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2)'
-                        : '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: '12px',
+                    backgroundColor: isDark ? '#1A1917' : 'white',
+                    color: isDark ? '#f1f5f9' : '#0f172a',
+                    boxShadow: isDark ? '0 1px 3px rgba(0, 0, 0, 0.3)' : '0 1px 3px rgba(0, 0, 0, 0.05)',
+                    transition: 'all 0.2s ease',
+                    '& fieldset': {
+                      borderColor: isDark ? '#334155' : '#e2e8f0',
+                      borderWidth: '1.5px',
+                    },
+                    '&:hover fieldset': {
+                      borderColor: isDark ? '#475569' : '#cbd5e1',
+                    },
+                    '&.Mui-focused': {
+                      boxShadow: isDark ? '0 0 0 3px rgba(37, 99, 235, 0.2)' : '0 0 0 3px rgba(37, 99, 235, 0.1)',
+                    },
+                    '&.Mui-focused fieldset': {
+                      borderColor: '#2563EB',
+                      borderWidth: '2px',
+                    },
+                  },
+                  '& .MuiInputBase-input': {
+                    color: isDark ? '#f1f5f9' : '#0f172a',
+                    padding: '10px 14px',
+                    '&::placeholder': {
+                      color: isDark ? '#94a3b8' : '#64748b',
+                      opacity: 0.7,
                     },
                   },
                 }}
-                sx={{ 
-                  borderRadius: '8px',
-                  backgroundColor: isDark ? '#1A1917' : 'white',
-                  color: isDark ? '#f1f5f9' : '#0f172a',
-                  '& .MuiOutlinedInput-notchedOutline': {
-                    borderColor: isDark ? '#334155' : '#e2e8f0',
-                  },
-                  '&:hover .MuiOutlinedInput-notchedOutline': {
-                    borderColor: isDark ? '#475569' : '#cbd5e1',
-                  },
-                  '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                    borderColor: '#2563EB',
-                  },
-                  '& .MuiSvgIcon-root': {
-                    color: isDark ? '#94a3b8' : '#64748b',
-                  },
-                }}
-              >
-                <MenuItem value="all">All Symptoms</MenuItem>
-                <MenuItem value="fatigue">Fatigue</MenuItem>
-                <MenuItem value="pain">Pain</MenuItem>
-                <MenuItem value="nausea">Nausea</MenuItem>
-                <MenuItem value="breathing">Breathing Issues</MenuItem>
-              </Select>
-            </FormControl>
+              />
+            </div>
 
-            <FormControl size="small" sx={{ minWidth: { xs: 120, sm: 140 } }}>
-              <InputLabel 
-                sx={{ 
-                  color: isDark ? '#94a3b8' : '#64748b',
-                  '&.Mui-focused': { color: '#2563EB' }
-                }}
-              >
-                Severity
-              </InputLabel>
-              <Select
-                value={severityFilter}
-                label="Severity"
-                onChange={handleSeverityChange}
-                MenuProps={{
-                  PaperProps: {
-                    sx: {
-                      backgroundColor: isDark ? '#1A1917' : 'white',
-                      border: `1px solid ${isDark ? '#334155' : '#e2e8f0'}`,
-                      borderRadius: '8px',
-                      marginTop: '8px',
-                      boxShadow: isDark 
-                        ? '0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2)'
-                        : '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
-                    },
-                  },
-                }}
-                sx={{ 
-                  borderRadius: '8px',
-                  backgroundColor: isDark ? '#1A1917' : 'white',
-                  color: isDark ? '#f1f5f9' : '#0f172a',
-                  '& .MuiOutlinedInput-notchedOutline': {
-                    borderColor: isDark ? '#334155' : '#e2e8f0',
-                  },
-                  '&:hover .MuiOutlinedInput-notchedOutline': {
-                    borderColor: isDark ? '#475569' : '#cbd5e1',
-                  },
-                  '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                    borderColor: '#2563EB',
-                  },
-                  '& .MuiSvgIcon-root': {
+            {/* Filter Dropdowns */}
+            <div className="flex flex-row gap-3 items-center flex-wrap">
+              <FormControl size="small" sx={{ minWidth: { xs: 140, sm: 160 } }}>
+                <InputLabel
+                  sx={{
                     color: isDark ? '#94a3b8' : '#64748b',
-                  },
-                }}
-              >
-                <MenuItem value="all">All Severities</MenuItem>
-                <MenuItem value="mild">Mild</MenuItem>
-                <MenuItem value="moderate">Moderate</MenuItem>
-                <MenuItem value="severe">Severe</MenuItem>
-                <MenuItem value="urgent">Urgent</MenuItem>
-              </Select>
-            </FormControl>
+                    '&.Mui-focused': { color: '#2563EB' }
+                  }}
+                >
+                  Symptom Type
+                </InputLabel>
+                <Select
+                  value={symptomTypeFilter}
+                  label="Symptom Type"
+                  onChange={handleSymptomTypeChange}
+                  MenuProps={{
+                    PaperProps: {
+                      sx: {
+                        backgroundColor: isDark ? '#1A1917' : 'white',
+                        border: `1px solid ${isDark ? '#334155' : '#e2e8f0'}`,
+                        borderRadius: '8px',
+                        marginTop: '8px',
+                        boxShadow: isDark
+                          ? '0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2)'
+                          : '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+                      },
+                    },
+                  }}
+                  sx={{
+                    borderRadius: '8px',
+                    backgroundColor: isDark ? '#1A1917' : 'white',
+                    color: isDark ? '#f1f5f9' : '#0f172a',
+                    '& .MuiOutlinedInput-notchedOutline': {
+                      borderColor: isDark ? '#334155' : '#e2e8f0',
+                    },
+                    '&:hover .MuiOutlinedInput-notchedOutline': {
+                      borderColor: isDark ? '#475569' : '#cbd5e1',
+                    },
+                    '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                      borderColor: '#2563EB',
+                    },
+                    '& .MuiSvgIcon-root': {
+                      color: isDark ? '#94a3b8' : '#64748b',
+                    },
+                  }}
+                >
+                  <MenuItem value="all">All Symptoms</MenuItem>
+                  <MenuItem value="fatigue">Fatigue</MenuItem>
+                  <MenuItem value="pain">Pain</MenuItem>
+                  <MenuItem value="nausea">Nausea</MenuItem>
+                  <MenuItem value="breathing">Breathing Issues</MenuItem>
+                </Select>
+              </FormControl>
 
-            <FormControl size="small" sx={{ minWidth: { xs: 160, sm: 180 } }}>
-              <InputLabel 
-                sx={{ 
-                  color: isDark ? '#94a3b8' : '#64748b',
-                  '&.Mui-focused': { color: '#2563EB' }
-                }}
-              >
-                Last Chatbot Check-in
-              </InputLabel>
-              <Select
-                value={checkInFilter}
-                label="Last Chatbot Check-in"
-                onChange={handleCheckInChange}
-                MenuProps={{
-                  PaperProps: {
-                    sx: {
-                      backgroundColor: isDark ? '#1A1917' : 'white',
-                      border: `1px solid ${isDark ? '#334155' : '#e2e8f0'}`,
-                      borderRadius: '8px',
-                      marginTop: '8px',
-                      boxShadow: isDark 
-                        ? '0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2)'
-                        : '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
-                    },
-                  },
-                }}
-                sx={{ 
-                  borderRadius: '8px',
-                  backgroundColor: isDark ? '#1A1917' : 'white',
-                  color: isDark ? '#f1f5f9' : '#0f172a',
-                  '& .MuiOutlinedInput-notchedOutline': {
-                    borderColor: isDark ? '#334155' : '#e2e8f0',
-                  },
-                  '&:hover .MuiOutlinedInput-notchedOutline': {
-                    borderColor: isDark ? '#475569' : '#cbd5e1',
-                  },
-                  '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                    borderColor: '#2563EB',
-                  },
-                  '& .MuiSvgIcon-root': {
+              <FormControl size="small" sx={{ minWidth: { xs: 120, sm: 140 } }}>
+                <InputLabel
+                  sx={{
                     color: isDark ? '#94a3b8' : '#64748b',
-                  },
-                }}
-              >
-                <MenuItem value="all">All Time</MenuItem>
-                <MenuItem value="today">Today</MenuItem>
-                <MenuItem value="week">This Week</MenuItem>
-                <MenuItem value="month">This Month</MenuItem>
-              </Select>
-            </FormControl>
-          </div>
+                    '&.Mui-focused': { color: '#2563EB' }
+                  }}
+                >
+                  Severity
+                </InputLabel>
+                <Select
+                  value={severityFilter}
+                  label="Severity"
+                  onChange={handleSeverityChange}
+                  MenuProps={{
+                    PaperProps: {
+                      sx: {
+                        backgroundColor: isDark ? '#1A1917' : 'white',
+                        border: `1px solid ${isDark ? '#334155' : '#e2e8f0'}`,
+                        borderRadius: '8px',
+                        marginTop: '8px',
+                        boxShadow: isDark
+                          ? '0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2)'
+                          : '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+                      },
+                    },
+                  }}
+                  sx={{
+                    borderRadius: '8px',
+                    backgroundColor: isDark ? '#1A1917' : 'white',
+                    color: isDark ? '#f1f5f9' : '#0f172a',
+                    '& .MuiOutlinedInput-notchedOutline': {
+                      borderColor: isDark ? '#334155' : '#e2e8f0',
+                    },
+                    '&:hover .MuiOutlinedInput-notchedOutline': {
+                      borderColor: isDark ? '#475569' : '#cbd5e1',
+                    },
+                    '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                      borderColor: '#2563EB',
+                    },
+                    '& .MuiSvgIcon-root': {
+                      color: isDark ? '#94a3b8' : '#64748b',
+                    },
+                  }}
+                >
+                  <MenuItem value="all">All Severities</MenuItem>
+                  <MenuItem value="mild">Mild</MenuItem>
+                  <MenuItem value="moderate">Moderate</MenuItem>
+                  <MenuItem value="severe">Severe</MenuItem>
+                  <MenuItem value="urgent">Urgent</MenuItem>
+                </Select>
+              </FormControl>
+
+              <FormControl size="small" sx={{ minWidth: { xs: 160, sm: 180 } }}>
+                <InputLabel
+                  sx={{
+                    color: isDark ? '#94a3b8' : '#64748b',
+                    '&.Mui-focused': { color: '#2563EB' }
+                  }}
+                >
+                  Last Chatbot Check-in
+                </InputLabel>
+                <Select
+                  value={checkInFilter}
+                  label="Last Chatbot Check-in"
+                  onChange={handleCheckInChange}
+                  MenuProps={{
+                    PaperProps: {
+                      sx: {
+                        backgroundColor: isDark ? '#1A1917' : 'white',
+                        border: `1px solid ${isDark ? '#334155' : '#e2e8f0'}`,
+                        borderRadius: '8px',
+                        marginTop: '8px',
+                        boxShadow: isDark
+                          ? '0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2)'
+                          : '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+                      },
+                    },
+                  }}
+                  sx={{
+                    borderRadius: '8px',
+                    backgroundColor: isDark ? '#1A1917' : 'white',
+                    color: isDark ? '#f1f5f9' : '#0f172a',
+                    '& .MuiOutlinedInput-notchedOutline': {
+                      borderColor: isDark ? '#334155' : '#e2e8f0',
+                    },
+                    '&:hover .MuiOutlinedInput-notchedOutline': {
+                      borderColor: isDark ? '#475569' : '#cbd5e1',
+                    },
+                    '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                      borderColor: '#2563EB',
+                    },
+                    '& .MuiSvgIcon-root': {
+                      color: isDark ? '#94a3b8' : '#64748b',
+                    },
+                  }}
+                >
+                  <MenuItem value="all">All Time</MenuItem>
+                  <MenuItem value="today">Today</MenuItem>
+                  <MenuItem value="week">This Week</MenuItem>
+                  <MenuItem value="month">This Month</MenuItem>
+                </Select>
+              </FormControl>
+            </div>
           </div>
         </div>
       </div>
-      
+
       {/* Patient List Container - Scrollable */}
-      <div 
+      <div
         className={`flex-1 min-h-0 overflow-y-auto overflow-x-hidden ${isDark ? '[&::-webkit-scrollbar-thumb]:bg-slate-600 [&::-webkit-scrollbar-track]:bg-slate-800' : '[&::-webkit-scrollbar-thumb]:bg-slate-300 [&::-webkit-scrollbar-track]:bg-slate-100'}`}
         style={{
           scrollbarWidth: 'thin',
@@ -574,14 +574,14 @@ const DashboardPage: React.FC = () => {
         <div className="p-6 pt-4 pb-4 max-w-[1400px] mx-auto w-full">
           {/* Only show error if we're not using static data fallback */}
           {error && !isLoading && (!data?.data || data.data.length === 0) && (
-            <Box sx={{ 
-              p: 2, 
-              bgcolor: isDark ? '#7f1d1d' : '#FEF2F2', 
-              borderRadius: 2, 
+            <Box sx={{
+              p: 2,
+              bgcolor: isDark ? '#7f1d1d' : '#FEF2F2',
+              borderRadius: 2,
               border: `1px solid ${isDark ? '#991b1b' : '#FECACA'}`,
-              mb: 2 
+              mb: 2
             }}>
-              <Typography 
+              <Typography
                 variant="body2"
                 sx={{
                   color: isDark ? '#fca5a5' : '#dc2626',
@@ -591,13 +591,13 @@ const DashboardPage: React.FC = () => {
               </Typography>
             </Box>
           )}
-          
+
           {isLoading ? (
             <div className="flex flex-col gap-3">
               {[1, 2, 3].map((i) => (
-                <Card 
-                  key={i} 
-                  sx={{ 
+                <Card
+                  key={i}
+                  sx={{
                     borderRadius: 3,
                     backgroundColor: isDark ? '#1A1917' : 'white',
                     border: `1px solid ${isDark ? '#334155' : '#e2e8f0'}`,
@@ -605,25 +605,25 @@ const DashboardPage: React.FC = () => {
                 >
                   <CardContent sx={{ backgroundColor: isDark ? '#1A1917' : 'white' }}>
                     <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
-                      <Skeleton 
-                        variant="circular" 
-                        width={40} 
+                      <Skeleton
+                        variant="circular"
+                        width={40}
                         height={40}
                         sx={{
                           bgcolor: isDark ? '#2A2725' : '#f1f5f9',
                         }}
                       />
                       <Box sx={{ flex: 1 }}>
-                        <Skeleton 
-                          variant="text" 
+                        <Skeleton
+                          variant="text"
                           width="60%"
                           sx={{
                             bgcolor: isDark ? '#2A2725' : '#f1f5f9',
                             mb: 1,
                           }}
                         />
-                        <Skeleton 
-                          variant="text" 
+                        <Skeleton
+                          variant="text"
                           width="40%"
                           sx={{
                             bgcolor: isDark ? '#2A2725' : '#f1f5f9',
@@ -631,13 +631,13 @@ const DashboardPage: React.FC = () => {
                         />
                       </Box>
                     </Box>
-                    <Skeleton 
-                      variant="rectangular" 
-                      height={60} 
-                      sx={{ 
+                    <Skeleton
+                      variant="rectangular"
+                      height={60}
+                      sx={{
                         borderRadius: 1,
                         bgcolor: isDark ? '#2A2725' : '#f1f5f9',
-                      }} 
+                      }}
                     />
                   </CardContent>
                 </Card>
@@ -662,7 +662,7 @@ const DashboardPage: React.FC = () => {
                 const lastChemo = getLastChemo(patient);
                 const lastChatbot = patient.lastUpdated || '';
                 const dob = patient.dateOfBirth || (patient as any).date_of_birth || '';
-                
+
                 return (
                   <div
                     key={patient.id}
@@ -715,15 +715,14 @@ const DashboardPage: React.FC = () => {
                         </div>
 
                         {/* Right: Severity Badge (pill-shaped) */}
-                        <span className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider flex-shrink-0 ${
-                          severity === 'urgent'
+                        <span className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider flex-shrink-0 ${severity === 'urgent'
                             ? isDark ? 'bg-red-500/20 text-red-400' : 'bg-red-500 text-white'
                             : severity === 'severe'
-                            ? isDark ? 'bg-orange-500/20 text-orange-400' : 'bg-orange-500 text-white'
-                            : severity === 'moderate'
-                            ? isDark ? 'bg-yellow-500/20 text-yellow-400' : 'bg-yellow-500 text-white'
-                            : isDark ? 'bg-emerald-500/20 text-emerald-400' : 'bg-emerald-500 text-white'
-                        }`}>
+                              ? isDark ? 'bg-orange-500/20 text-orange-400' : 'bg-orange-500 text-white'
+                              : severity === 'moderate'
+                                ? isDark ? 'bg-yellow-500/20 text-yellow-400' : 'bg-yellow-500 text-white'
+                                : isDark ? 'bg-emerald-500/20 text-emerald-400' : 'bg-emerald-500 text-white'
+                          }`}>
                           {severity}
                         </span>
                       </div>
@@ -735,11 +734,10 @@ const DashboardPage: React.FC = () => {
                             e.stopPropagation();
                             navigate(`/patients/${patient.id}`);
                           }}
-                          className={`inline-flex items-center gap-1.5 text-sm font-medium transition-colors duration-200 ${
-                            isDark 
-                              ? 'text-blue-400 hover:text-blue-300' 
+                          className={`inline-flex items-center gap-1.5 text-sm font-medium transition-colors duration-200 ${isDark
+                              ? 'text-blue-400 hover:text-blue-300'
                               : 'text-blue-600 hover:text-blue-700'
-                          }`}
+                            }`}
                         >
                           <span>View Details</span>
                           <ChevronRight size={16} />
@@ -751,7 +749,7 @@ const DashboardPage: React.FC = () => {
               })}
             </div>
           )}
-          
+
           {/* Pagination */}
           {totalPages > 1 && (
             <div className="flex justify-center mt-6 pb-4">

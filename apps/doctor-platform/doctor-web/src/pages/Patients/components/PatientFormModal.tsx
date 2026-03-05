@@ -4,6 +4,7 @@
  */
 
 import React, { useEffect } from 'react';
+import { useAuth } from '../../../contexts/AuthContext';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -29,6 +30,7 @@ import {
   Stethoscope,
   Pill,
 } from 'lucide-react';
+import { useStaffListDoctors } from '../../../services/staff';
 
 const patientSchema = z.object({
   firstName: z.string().min(1, 'First name is required').max(50, 'First name is too long'),
@@ -49,6 +51,7 @@ const patientSchema = z.object({
   oncologist: z.string().optional(),
   pastMedicalHistory: z.string().optional(),
   pastSurgicalHistory: z.string().optional(),
+  physicianIds: z.array(z.number()).optional(),
 });
 
 export type PatientFormValues = z.infer<typeof patientSchema>;
@@ -72,6 +75,7 @@ const defaultFormValues: PatientFormValues = {
   oncologist: '',
   pastMedicalHistory: '',
   pastSurgicalHistory: '',
+  physicianIds: [],
 };
 
 function patientToFormValues(patient: Patient): PatientFormValues {
@@ -94,6 +98,7 @@ function patientToFormValues(patient: Patient): PatientFormValues {
     oncologist: patient.physician,
     pastMedicalHistory: '',
     pastSurgicalHistory: '',
+    physicianIds: patient.physician_ids || [],
   };
 }
 
@@ -124,6 +129,7 @@ function toAddManualPatientPayload(form: PatientFormValues): AddManualPatientPay
     plan_name: form.regimenName || undefined,
     past_medical_history: form.pastMedicalHistory || undefined,
     past_surgical_history: form.pastSurgicalHistory || undefined,
+    physician_ids: form.physicianIds && form.physicianIds.length > 0 ? form.physicianIds : undefined,
   };
 }
 
@@ -171,6 +177,8 @@ export const PatientFormModal: React.FC<PatientFormModalProps> = ({
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const addMutation = useAddManualPatient();
   const updateMutation = useUpdateFaxPatient();
+  const { data: doctors = [] } = useStaffListDoctors(open);
+  const { user } = useAuth();
 
   const isEdit = mode === 'edit';
 
@@ -178,6 +186,7 @@ export const PatientFormModal: React.FC<PatientFormModalProps> = ({
     control,
     handleSubmit,
     reset,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<PatientFormValues>({
     resolver: zodResolver(patientSchema),
@@ -193,6 +202,23 @@ export const PatientFormModal: React.FC<PatientFormModalProps> = ({
       }
     }
   }, [open, isEdit, patient, reset]);
+
+  // Pre-fill doctor/oncologist if the logged in user is a physician (only for Add Mode)
+  useEffect(() => {
+    if (open && !isEdit && user && (user.role === 'physician' || user.role === 'doctor' || user.role === 'admin')) {
+      const matchingDoctor = doctors.find((d: any) => d.id === user.staff_id);
+
+      const docId = matchingDoctor ? matchingDoctor.id : user.staff_id;
+      const docName = matchingDoctor
+        ? (matchingDoctor.full_name || `${matchingDoctor.first_name || ''} ${matchingDoctor.last_name || ''}`.trim() || matchingDoctor.email || `Doctor #${matchingDoctor.id}`)
+        : (`${user.first_name || ''} ${user.last_name || ''}`.trim() || user.email || `Doctor #${user.staff_id}`);
+
+      if (docId) {
+        setValue('physicianIds', [docId]);
+        setValue('oncologist', `Dr. ${docName}`.replace('Dr. Dr.', 'Dr.'));
+      }
+    }
+  }, [open, isEdit, user, doctors.length, setValue]);
 
   const handleFormSubmit = async (data: PatientFormValues) => {
     try {
@@ -313,6 +339,46 @@ export const PatientFormModal: React.FC<PatientFormModalProps> = ({
                     placeholder="Select status" error={errors.patientStatus?.message} fullWidth />
                 );
               }} />
+              <Controller name="physicianIds" control={control} render={({ field }) => {
+                let doctorOptions = doctors.map(doc => ({
+                  value: doc.id,
+                  label: doc.full_name || `${doc.first_name || ''} ${doc.last_name || ''}`.trim() || doc.email || `Doctor #${doc.id}`
+                }));
+
+                // If user is a physician and their id isn't in the list (e.g. 403 API), manually inject to allow assignment
+                if (user && (user.role === 'physician' || user.role === 'doctor' || user.role === 'admin')) {
+                  if (!doctorOptions.find(opt => opt.value === user.staff_id) && user.staff_id) {
+                    doctorOptions.push({
+                      value: user.staff_id,
+                      label: `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.email || `Doctor #${user.staff_id}`
+                    });
+                  }
+                }
+
+                const selectedOption = doctorOptions.find(opt => (field.value ?? []).includes(opt.value as number)) || null;
+                return (
+                  <Select
+                    label="Assigned Doctor"
+                    options={doctorOptions}
+                    value={selectedOption}
+                    onChange={(v: SingleValue<SelectOption> | MultiValue<SelectOption>) => {
+                      const selectedDoc = v as SingleValue<SelectOption>;
+                      const values = selectedDoc ? [selectedDoc.value as number] : [];
+                      field.onChange(values);
+
+                      // Update oncologist text field with selected doctor name
+                      let doctorName = '';
+                      if (selectedDoc) {
+                        const name = String(selectedDoc.label);
+                        doctorName = name.startsWith('Dr.') ? name : `Dr. ${name}`;
+                      }
+                      setValue('oncologist', doctorName, { shouldValidate: true });
+                    }}
+                    placeholder="Select a doctor"
+                    fullWidth
+                  />
+                );
+              }} />
               <Controller name="regimenName" control={control} render={({ field }) => (
                 <Input {...field} label="Regimen Name" placeholder="e.g., Carboplatin + Pemetrexed" icon={<Pill size={18} />} fullWidth />
               )} />
@@ -355,15 +421,19 @@ export const PatientFormModal: React.FC<PatientFormModalProps> = ({
           <ModalFooter>
             <Button type="button" variant="outlined" onClick={handleCancel} fullWidth={isMobile} size="medium"
               className={isDark ? 'border-[#3D3A35] text-[#F5F3EE] hover:bg-white/10' : 'border-slate-300 text-slate-700 hover:bg-slate-50'}
-              sx={{ borderColor: isDark ? '#3D3A35' : '#1E3A5F', color: isDark ? '#F5F3EE' : '#1E3A5F', padding: isMobile ? '0.625rem 1.5rem' : '0.75rem 2rem',
-                '&:hover': { borderColor: isDark ? '#5C574F' : '#2E5077', backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(30, 58, 95, 0.04)' }, transition: 'all 0.3s ease' }}>
+              sx={{
+                borderColor: isDark ? '#3D3A35' : '#1E3A5F', color: isDark ? '#F5F3EE' : '#1E3A5F', padding: isMobile ? '0.625rem 1.5rem' : '0.75rem 2rem',
+                '&:hover': { borderColor: isDark ? '#5C574F' : '#2E5077', backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(30, 58, 95, 0.04)' }, transition: 'all 0.3s ease'
+              }}>
               Cancel
             </Button>
             <Button type="submit" variant="contained" disabled={submitDisabled} fullWidth={isMobile} size="medium"
               className={isDark ? 'bg-[#7BA3C9] text-[#1A1917] hover:bg-[#A5C4DE] disabled:opacity-50' : 'bg-primary text-white hover:bg-primary-dark disabled:opacity-50'}
-              sx={{ backgroundColor: isDark ? '#7BA3C9' : '#1E3A5F', color: isDark ? '#1A1917' : '#FFFFFF', padding: isMobile ? '0.625rem 1.5rem' : '0.75rem 2rem',
+              sx={{
+                backgroundColor: isDark ? '#7BA3C9' : '#1E3A5F', color: isDark ? '#1A1917' : '#FFFFFF', padding: isMobile ? '0.625rem 1.5rem' : '0.75rem 2rem',
                 '&:hover': { backgroundColor: isDark ? '#A5C4DE' : '#2E5077' },
-                '&:disabled': { backgroundColor: isDark ? 'rgba(123, 163, 201, 0.5)' : 'rgba(30, 58, 95, 0.5)', color: isDark ? 'rgba(26, 25, 23, 0.5)' : 'rgba(255, 255, 255, 0.5)' }, transition: 'all 0.3s ease' }}>
+                '&:disabled': { backgroundColor: isDark ? 'rgba(123, 163, 201, 0.5)' : 'rgba(30, 58, 95, 0.5)', color: isDark ? 'rgba(26, 25, 23, 0.5)' : 'rgba(255, 255, 255, 0.5)' }, transition: 'all 0.3s ease'
+              }}>
               {submitDisabled ? (isEdit ? 'Updating...' : 'Saving...') : submitLabel}
             </Button>
           </ModalFooter>

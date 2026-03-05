@@ -29,6 +29,7 @@ export interface Patient {
   diseaseType: string;
   associateClinic: string;
   treatmentType: string;
+  physician_ids?: number[];
 }
 
 export interface PatientsResponse {
@@ -142,7 +143,7 @@ const fetchPatientListing = async (
 };
 
 const fetchPatients = async (
-  page: number = 1, 
+  page: number = 1,
   search: string = '',
   rowsPerPage: number = 10
 ): Promise<PatientsResponse> => {
@@ -175,7 +176,7 @@ const fetchPatientDetails = async (patientId: string): Promise<Patient> => {
   const response = await apiClient.get<BackendPatientDetail>(
     API_CONFIG.ENDPOINTS.PATIENTS.BY_UUID(patientId)
   );
-  
+
   return transformPatientDetail(response.data);
 };
 
@@ -184,7 +185,7 @@ const fetchPatientDetails = async (patientId: string): Promise<Patient> => {
 // =============================================================================
 
 export const usePatients = (
-  page: number = 1, 
+  page: number = 1,
   search: string = '',
   rowsPerPage: number = 10
 ) => {
@@ -224,6 +225,7 @@ export interface AddManualPatientPayload {
   plan_name?: string;
   past_medical_history?: string;
   past_surgical_history?: string;
+  physician_ids?: number[];
 }
 
 const addManualPatient = async (
@@ -280,7 +282,7 @@ export const useUpdateFaxPatient = () => {
 
 export const useAddPatient = () => {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: async (patientData: Omit<Patient, 'id'>): Promise<Patient> => {
       // TODO: Implement when backend supports patient creation from doctor portal
@@ -296,7 +298,7 @@ export const useAddPatient = () => {
 
 export const useUpdatePatient = () => {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: async ({ id, ...patientData }: Patient): Promise<Patient> => {
       // TODO: Implement when backend supports patient updates from doctor portal
