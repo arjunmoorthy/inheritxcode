@@ -144,8 +144,8 @@ const transformStaff = (backend: BackendStaffResponse): Staff => ({
 // =============================================================================
 
 const getStaff = async (
-  page: number, 
-  search?: string, 
+  page: number,
+  search?: string,
   pageSize: number = 10
 ): Promise<StaffListResponse> => {
   try {
@@ -154,16 +154,16 @@ const getStaff = async (
       skip: skip.toString(),
       limit: pageSize.toString(),
     });
-    
+
     let endpoint = `${API_CONFIG.ENDPOINTS.STAFF.LIST}?${params.toString()}`;
-    
+
     // Use search endpoint if search term provided
     if (search && search.length >= 2) {
       endpoint = `${API_CONFIG.ENDPOINTS.STAFF.LIST}/search?q=${encodeURIComponent(search)}&limit=${pageSize}`;
-      
+
       const response = await apiClient.get<BackendStaffResponse[]>(endpoint);
       const staffList = response.data.map(transformStaff);
-      
+
       return {
         data: staffList,
         total: staffList.length,
@@ -171,10 +171,10 @@ const getStaff = async (
         page_size: pageSize,
       };
     }
-    
+
     const response = await apiClient.get<BackendStaffListResponse>(endpoint);
     const staffList = response.data.staff.map(transformStaff);
-    
+
     return {
       data: staffList,
       total: response.data.total,
@@ -224,12 +224,12 @@ const addStaffMember = async (
   }
 };
 
-const updateStaffMember = async ({ 
-  id, 
-  data 
-}: { 
-  id: string; 
-  data: UpdateStaffRequest 
+const updateStaffMember = async ({
+  id,
+  data
+}: {
+  id: string;
+  data: UpdateStaffRequest
 }): Promise<{ message: string }> => {
   // TODO: Implement when backend supports staff updates
   // const response = await apiClient.put(
@@ -247,13 +247,21 @@ const updateStaffMember = async ({
 
 /** GET /api/v1/staff/list/doctors - list doctors for assignment (e.g. when adding nurse) */
 const getDoctorsList = async (): Promise<DoctorListItem[]> => {
-  const response = await apiClient.get<DoctorListItem[] | { data: DoctorListItem[] }>(
-    API_CONFIG.ENDPOINTS.STAFF.LIST_DOCTORS
-  );
-  const data = response.data;
-  if (Array.isArray(data)) return data;
-  if (data && typeof data === 'object' && 'data' in data) return (data as { data: DoctorListItem[] }).data;
-  return [];
+  try {
+    const response = await apiClient.get<DoctorListItem[] | { data: DoctorListItem[] }>(
+      API_CONFIG.ENDPOINTS.STAFF.LIST_DOCTORS
+    );
+    const data = response.data;
+    if (Array.isArray(data)) return data;
+    if (data && typeof data === 'object' && 'data' in data) return (data as { data: DoctorListItem[] }).data;
+    return [];
+  } catch (error: any) {
+    if (error?.response?.status === 403) {
+      console.warn('User does not have permission to view full doctors list.');
+      return [];
+    }
+    throw error;
+  }
 };
 
 /** POST /api/v1/staff/add - add new staff with full payload */
@@ -296,7 +304,7 @@ export const useStaff = (page: number, search?: string, pageSize: number = 10) =
 
 export const useAddStaff = () => {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: addStaffMember,
     onSuccess: () => {
@@ -307,7 +315,7 @@ export const useAddStaff = () => {
 
 export const useUpdateStaff = () => {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: updateStaffMember,
     onSuccess: () => {

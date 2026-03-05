@@ -4,7 +4,8 @@
  * Uses common UI components (Input, Select, Button)
  */
 
-import React from 'react';
+import React, { useEffect } from 'react';
+import { useAuth } from '../../../contexts/AuthContext';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -15,15 +16,16 @@ import { Input } from '../../../components/ui/Input';
 import { Select, type SelectOption } from '../../../components/ui/Select';
 import type { SingleValue, MultiValue } from 'react-select';
 import { useThemeMode } from '@oncolife/ui-components';
-import { 
-  User, 
-  Mail, 
-  Phone, 
-  Calendar, 
-  MapPin, 
-  Stethoscope, 
-  Pill
+import {
+  User,
+  Mail,
+  Phone,
+  Calendar,
+  MapPin,
+  Stethoscope,
+  Pill,
 } from 'lucide-react';
+import { useStaffListDoctors } from '../../../services/staff';
 
 // Validation Schema
 const patientSchema = z.object({
@@ -45,6 +47,7 @@ const patientSchema = z.object({
   oncologist: z.string().optional(),
   pastMedicalHistory: z.string().optional(),
   pastSurgicalHistory: z.string().optional(),
+  physicianIds: z.array(z.number()).optional(),
 });
 
 export type PatientFormValues = z.infer<typeof patientSchema>;
@@ -80,19 +83,22 @@ const genderOptions: SelectOption[] = [
   { value: 'Other', label: 'Other' },
 ];
 
-export const AddPatientModal: React.FC<AddPatientModalProps> = ({ 
-  isOpen, 
+export const AddPatientModal: React.FC<AddPatientModalProps> = ({
+  isOpen,
   onClose,
-  onSubmit 
+  onSubmit
 }) => {
   const theme = useTheme();
   const { isDark } = useThemeMode();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const { data: doctors = [], isLoading: isLoadingDoctors } = useStaffListDoctors(isOpen);
+  const { user } = useAuth();
 
   const {
     control,
     handleSubmit,
     reset,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<PatientFormValues>({
     resolver: zodResolver(patientSchema),
@@ -115,8 +121,27 @@ export const AddPatientModal: React.FC<AddPatientModalProps> = ({
       oncologist: '',
       pastMedicalHistory: '',
       pastSurgicalHistory: '',
+      physicianIds: [],
     },
   });
+
+  // Pre-fill doctor/oncologist if the logged in user is a physician
+  useEffect(() => {
+    if (isOpen && user && (user.role === 'physician' || user.role === 'doctor' || user.role === 'admin')) {
+      // Find the doctor in the list that matches the user
+      const matchingDoctor = doctors.find((d: any) => d.id === user.staff_id);
+
+      const docId = matchingDoctor ? matchingDoctor.id : user.staff_id;
+      const docName = matchingDoctor
+        ? (matchingDoctor.full_name || `${matchingDoctor.first_name || ''} ${matchingDoctor.last_name || ''}`.trim() || matchingDoctor.email || `Doctor #${matchingDoctor.id}`)
+        : (`${user.first_name || ''} ${user.last_name || ''}`.trim() || user.email || `Doctor #${user.staff_id}`);
+
+      if (docId) {
+        setValue('physicianIds', [docId]);
+        setValue('oncologist', `Dr. ${docName}`.replace('Dr. Dr.', 'Dr.'));
+      }
+    }
+  }, [isOpen, user, doctors.length, setValue]);
 
   const handleFormSubmit = async (data: PatientFormValues) => {
     try {
@@ -163,7 +188,7 @@ export const AddPatientModal: React.FC<AddPatientModalProps> = ({
                 Personal Information
               </h3>
             </div>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* First Name */}
               <Controller
@@ -343,6 +368,53 @@ export const AddPatientModal: React.FC<AddPatientModalProps> = ({
                       }}
                       placeholder="Select status"
                       error={errors.patientStatus?.message}
+                      fullWidth
+                    />
+                  );
+                }}
+              />
+
+              {/* Assigned Doctor */}
+              <Controller
+                name="physicianIds"
+                control={control}
+                render={({ field }) => {
+                  let doctorOptions = doctors.map(doc => ({
+                    value: doc.id,
+                    label: doc.full_name || `${doc.first_name || ''} ${doc.last_name || ''}`.trim() || doc.email || `Doctor #${doc.id}`
+                  }));
+
+                  // If user is a physician and their id isn't in the list (e.g. 403 API), manually inject to allow assignment
+                  if (user && (user.role === 'physician' || user.role === 'doctor' || user.role === 'admin')) {
+                    if (!doctorOptions.find(opt => opt.value === user.staff_id) && user.staff_id) {
+                      doctorOptions.push({
+                        value: user.staff_id,
+                        label: `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.email || `Doctor #${user.staff_id}`
+                      });
+                    }
+                  }
+
+                  const selectedOption = doctorOptions.find(opt => (field.value ?? []).includes(opt.value as number)) || null;
+                  return (
+                    <Select
+                      label="Assigned Doctor"
+                      options={doctorOptions}
+                      value={selectedOption}
+                      isDisabled={isLoadingDoctors}
+                      onChange={(selected) => {
+                        const selectedDoc = selected as SingleValue<SelectOption>;
+                        const values = selectedDoc ? [selectedDoc.value as number] : [];
+                        field.onChange(values);
+
+                        // Update oncologist text field with selected doctor name
+                        let doctorName = '';
+                        if (selectedDoc) {
+                          const name = String(selectedDoc.label);
+                          doctorName = name.startsWith('Dr.') ? name : `Dr. ${name}`;
+                        }
+                        setValue('oncologist', doctorName, { shouldValidate: true });
+                      }}
+                      placeholder={isLoadingDoctors ? "Loading doctors..." : "Select a doctor"}
                       fullWidth
                     />
                   );
