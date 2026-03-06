@@ -407,7 +407,7 @@ class PhysicianPatient(DoctorBase):
     __tablename__ = 'physician_patients'
     __table_args__ = (
         Index('ix_physician_patients_physician_id', 'physician_id'),
-        Index('ix_physician_patients_patient_uuid', 'patient_uuid'),
+        Index('ix_physician_patients_patient_id', 'patient_id'),
         Index('ix_physician_patients_active', 'is_active'),
         {'comment': 'Physician-Patient assignments'}
     )
@@ -426,10 +426,11 @@ class PhysicianPatient(DoctorBase):
         comment="Foreign key to staff table (physician)"
     )
     
-    patient_uuid = Column(
-        UUID(as_uuid=True),
+    patient_id = Column(
+        Integer,
+        ForeignKey("fax_patients.id", ondelete="CASCADE"),
         nullable=False,
-        comment="UUID of the patient (from patient database)"
+        index=True
     )
     
     assigned_at = Column(
@@ -458,6 +459,12 @@ class PhysicianPatient(DoctorBase):
         "Staff",
         back_populates="physician_patients",
         foreign_keys=[physician_id]
+    )
+
+    patient = relationship(
+        "Patient",
+        back_populates="physician_assignments",
+        foreign_keys=[patient_id]
     )
     
     def __repr__(self) -> str:

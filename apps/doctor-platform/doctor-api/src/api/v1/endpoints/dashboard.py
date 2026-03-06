@@ -46,6 +46,8 @@ from core.logging import get_logger
 from core.exceptions import NotFoundError, AuthorizationError
 from db.models.fax_models import Patient as FaxPatient
 from sqlalchemy import or_, and_
+from api.deps import require_roles
+from db.models.staff import PhysicianNurseAssignment, PhysicianPatient, Staff
 
 
 logger = get_logger(__name__)
@@ -383,10 +385,49 @@ def patient_listing_dashboard(
         default=None,
         description="Search by first name, last name, or full name"
     ),
+    current_user: TokenData = Depends(require_roles("physician", "nurse", "admin")),
     db: Session = Depends(get_doctor_db_session),
 ):
     try:
-        query = db.query(FaxPatient)
+        query = (
+            db.query(FaxPatient)
+            .join(
+                PhysicianPatient,
+                PhysicianPatient.patient_id == FaxPatient.id
+            )
+        )
+
+        staff = db.query(Staff).filter(
+            Staff.user_id == current_user.id
+        ).first()
+
+        if not staff:
+            raise HTTPException(
+                status_code=404,
+                detail="Staff not found"
+            )
+
+        if current_user.role == "physician":
+            query = query.filter(
+                PhysicianPatient.physician_id == staff.id
+            )
+
+        elif current_user.role == "nurse":
+
+            physician_ids = db.query(
+                PhysicianNurseAssignment.physician_id
+            ).filter(
+                PhysicianNurseAssignment.nurse_id == staff.id
+            ).all()
+
+            physician_ids = [p[0] for p in physician_ids]
+
+            if not physician_ids:
+                return {"status": "success", "count": 0, "data": []}
+
+            query = query.filter(
+                PhysicianPatient.physician_id.in_(physician_ids)
+            )
 
         if search:
             terms = search.strip().split()

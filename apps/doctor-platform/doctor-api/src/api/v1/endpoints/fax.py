@@ -1,13 +1,14 @@
 from datetime import datetime
 import json
-from typing import Optional
+from typing import List, Optional
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status, UploadFile
 from pydantic import BaseModel, EmailStr, Field, HttpUrl
 from sqlalchemy.orm import Session
 
-from api.deps import get_doctor_db_session
+from api.deps import TokenData, get_doctor_db_session
 from db.models.user import User
+from db.models.staff import PhysicianPatient, Staff
 from db.models.fax_models import FaxRecord, Patient
 from services.fax_patient_service import create_or_update_fax_patient, parse_date
 from services.structured_extractor import extract_structured_fields, flatten_structured_data
@@ -15,6 +16,8 @@ from utils.s3 import upload_file_to_s3
 from utils.security import verify_password, hash_password, generate_random_password
 from pydantic import model_validator
 from helpers.email import send_welcome_email
+from api.deps import require_roles
+from core.config import settings
 
 router = APIRouter()
 
@@ -36,6 +39,7 @@ class AddManualPatientRequest(BaseModel):
     bmi: Optional[str] = None
     cancer_type: Optional[str] = None
     oncologist: Optional[str] = None
+    physician_ids: Optional[List[int]] = None
     start_date: Optional[str] = None     # e.g. "6/30/2025"
     end_date: Optional[str] = None
     plan_name: Optional[str] = None
@@ -47,6 +51,7 @@ class AddManualPatientRequest(BaseModel):
 @router.post("/patients", status_code=201)
 async def add_manual_patient(
     request: AddManualPatientRequest,
+    current_user: TokenData = Depends(require_roles("physician", "nurse", "admin")),
     db: Session = Depends(get_doctor_db_session),
 ):
     """
@@ -108,11 +113,39 @@ async def add_manual_patient(
         password_hash="",
     )
     db.add(patient)
+    db.flush()
+
+    if request.physician_ids:
+        for physician_id in request.physician_ids:
+
+            physician = db.query(Staff).filter(
+                Staff.id == physician_id
+            ).first()
+
+            if not physician:
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"Staff with id {physician_id} not found"
+                )
+
+            if physician.role != "physician":
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Staff id {physician_id} is not a physician"
+                )
+
+            assignment = PhysicianPatient(
+                physician_id=physician_id,
+                patient_id=patient.id
+            )
+
+            db.add(assignment)
+
     db.commit()
     db.refresh(patient)
 
     if user and email:
-        login_link = "https://oncolife-ai-patient-web.vercel.app/set-password?email=" + email
+        login_link = settings.patient_set_password_base_url.format(email=email)
         await send_welcome_email(email, temp_password, login_link)
 
     return {
