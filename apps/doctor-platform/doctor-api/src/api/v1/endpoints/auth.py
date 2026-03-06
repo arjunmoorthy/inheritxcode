@@ -922,8 +922,7 @@ async def forgot_password(request: ForgotPasswordRequest, db: Session = Depends(
     user.reset_token_expires_at = datetime.utcnow() + timedelta(hours=1)
     db.commit()
 
-    reset_link = f"http://localhost:5174/reset-password?token={token}"
-
+    reset_link = settings.doctor_forget_password_base_url.format(token=token)
     # Send email
     await send_reset_password_email(email=request.email, reset_link=reset_link)
 

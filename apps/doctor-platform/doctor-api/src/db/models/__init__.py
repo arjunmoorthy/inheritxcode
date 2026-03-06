@@ -19,7 +19,7 @@ Usage:
 from .user import User
 
 # Staff models (profiles and associations)
-from .staff import Staff, StaffClinic, PhysicianPatient
+from .staff import Staff, StaffClinic, PhysicianPatient, PhysicianNurseAssignment
 
 # Clinic model
 from .clinic import Clinic
@@ -42,6 +42,7 @@ __all__ = [
     "Staff",
     "StaffClinic",
     "PhysicianPatient",
+    "PhysicianNurseAssignment",
     
     # Clinic
     "Clinic",

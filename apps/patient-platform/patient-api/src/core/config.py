@@ -88,7 +88,7 @@ class Settings(BaseSettings):
         description="API version 1 prefix for all endpoints"
     )
     cors_origins: str = Field(
-        default="http://localhost:5173,http://localhost:3000",
+        default="http://localhost:5174,http://localhost:3001,https://oncolife-ai-doctor-web-4got.vercel.app,http://localhost:5173,https://oncolife-ai-patient-web.vercel.app",
         description="Comma-separated list of allowed CORS origins"
     )
     
@@ -480,3 +480,5 @@ def get_settings() -> Settings:
 # Global settings instance for easy import
 settings = get_settings()
 
+print("RAW CORS:", settings.cors_origins)
+print("PARSED CORS:", settings.cors_origins_list)

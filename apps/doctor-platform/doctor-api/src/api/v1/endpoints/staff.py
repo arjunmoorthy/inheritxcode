@@ -745,9 +745,8 @@ def get_all_staff(
                     if clinic else None
                 ),
             )
-        )
-
-    return APIResponse(
+        )    
+        return APIResponse(
         success=True,
         message="All active staff fetched successfully",
         data=staff_list,
