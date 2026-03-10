@@ -2,7 +2,9 @@
 node_modules/
 .pnp
 .pnp.js
-
+.env
+*.env
+apps/doctor-platform/doctor-api/.env
 # Testing
 coverage/
 

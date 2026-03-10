@@ -1278,6 +1278,10 @@ register_task_definitions() {
                 {"name": "PATIENT_DB_PASSWORD", "valueFrom": "$DB_SECRET_ARN:password::"},
                 {"name": "PATIENT_DB_USER", "valueFrom": "$DB_SECRET_ARN:username::"},
                 {"name": "PATIENT_DB_NAME", "valueFrom": "$DB_SECRET_ARN:patient_db::"},
+                {"name": "DOCTOR_DB_HOST", "valueFrom": "$DB_SECRET_ARN:host::"},
+                {"name": "DOCTOR_DB_PASSWORD", "valueFrom": "$DB_SECRET_ARN:password::"},
+                {"name": "DOCTOR_DB_USER", "valueFrom": "$DB_SECRET_ARN:username::"},
+                {"name": "DOCTOR_DB_NAME", "valueFrom": "$DB_SECRET_ARN:doctor_db::"},
                 {"name": "COGNITO_USER_POOL_ID", "valueFrom": "$COGNITO_SECRET_ARN:user_pool_id::"},
                 {"name": "COGNITO_CLIENT_ID", "valueFrom": "$COGNITO_SECRET_ARN:client_id::"}
             ],
