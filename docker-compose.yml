@@ -77,8 +77,8 @@ services:
       - S3_EDUCATION_BUCKET=${S3_EDUCATION_BUCKET:-oncolife-education}
       # Other
       - CORS_ORIGINS=http://localhost:3000,http://localhost:5173
-    expose:
-      - "8000"
+    ports:
+      - "127.0.0.1:8000:8000"
     depends_on:
       postgres:
         condition: service_healthy
@@ -131,8 +131,8 @@ services:
       - COGNITO_CLIENT_SECRET=${COGNITO_CLIENT_SECRET:-}
       # Other
       - CORS_ORIGINS=http://localhost:3001,http://localhost:5174
-    expose:
-      - "8001"
+    ports:
+      - "127.0.0.1:8001:8001"
     depends_on:
       postgres:
         condition: service_healthy
@@ -148,34 +148,6 @@ services:
       retries: 3
     networks:
       - oncolife-network
-
-  # ===========================================================================
-  # NGINX PROXY (SSL Termination for all services)
-  # ===========================================================================
-
-  nginx-proxy:
-    build:
-      context: ./nginx
-      dockerfile: Dockerfile
-    container_name: oncolife-nginx-proxy
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - /etc/letsencrypt/live/oncolife-doctor-api.inheritxdev.in:/etc/ssl/certs/oncolife-doctor-api:ro
-      - /etc/letsencrypt/live/oncolife-doctor-web.inheritxdev.in:/etc/ssl/certs/oncolife-doctor-web:ro
-      - /etc/letsencrypt/live/oncolife-patient-api.inheritxdev.in:/etc/ssl/certs/oncolife-patient-api:ro
-      - /etc/letsencrypt/live/oncolife-patient-web.inheritxdev.in:/etc/ssl/certs/oncolife-patient-web:ro
-      - ./apps/doctor-platform/doctor-web/dist:/usr/share/nginx/html/doctor-web:ro
-      - ./apps/patient-platform/patient-web/dist:/usr/share/nginx/html/patient-web:ro
-    depends_on:
-      - doctor-api
-      - patient-api
-      - doctor-web
-      - patient-web
-    networks:
-      - oncolife-network
-    restart: unless-stopped
 
   # ===========================================================================
   # BACKEND FOR FRONTEND (BFF)
@@ -217,12 +189,13 @@ services:
       context: .
       dockerfile: apps/patient-platform/patient-web/Dockerfile
       args:
-        - VITE_API_BASE_URL=https://oncolife-patient-api.inheritxdev.in
-        - VITE_WS_BASE_URL=wss://oncolife-patient-api.inheritxdev.in
+        - VITE_API_BASE_URL=https://oncolife-patient.inheritxdev.in
+        - VITE_WS_BASE_URL=wss://oncolife-patient.inheritxdev.in
     container_name: oncolife-patient-web
     environment:
       - NODE_ENV=production
-    # No ports exposed - served by nginx-proxy
+    ports:
+      - "127.0.0.1:5173:80"
     networks:
       - oncolife-network
 
@@ -232,12 +205,13 @@ services:
       context: .
       dockerfile: apps/doctor-platform/doctor-web/Dockerfile
       args:
-        - VITE_API_BASE_URL=https://oncolife-doctor-api.inheritxdev.in
-        - VITE_PATIENT_API_URL=https://oncolife-patient-api.inheritxdev.in
+        - VITE_API_BASE_URL=https://oncolife-doctor.inheritxdev.in
+        - VITE_PATIENT_API_URL=https://oncolife-patient.inheritxdev.in
     container_name: oncolife-doctor-web
     environment:
       - NODE_ENV=production
-    # No ports exposed - served by nginx-proxy
+    ports:
+      - "127.0.0.1:5174:80"
     networks:
       - oncolife-network
 
