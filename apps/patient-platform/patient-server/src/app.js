@@ -6,6 +6,11 @@ const routes = require('./routes');
 
 const app = express();
 
+// Health check endpoint (before any middleware for Docker health checks)
+app.get('/health', (req, res) => {
+  res.status(200).json({ status: 'healthy', timestamp: new Date().toISOString() });
+});
+
 // Configure basic middleware (CORS, body parsing, etc.)
 app.use(require('cors')({
   origin: ['http://localhost:3000', 'http://localhost:5173'],

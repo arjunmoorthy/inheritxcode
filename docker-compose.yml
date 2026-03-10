@@ -15,7 +15,7 @@ services:
   # ===========================================================================
   # DATABASES
   # ===========================================================================
-  
+
   postgres:
     image: postgres:15-alpine
     container_name: oncolife-postgres
@@ -37,7 +37,7 @@ services:
       - oncolife-network
 
   # ===========================================================================
-  # BACKEND APIS
+  # BACKEND APIS (Internal - no direct external access)
   # ===========================================================================
 
   patient-api:
@@ -77,8 +77,8 @@ services:
       - S3_EDUCATION_BUCKET=${S3_EDUCATION_BUCKET:-oncolife-education}
       # Other
       - CORS_ORIGINS=http://localhost:3000,http://localhost:5173
-    ports:
-      - "8000:8000"
+    expose:
+      - "8000"
     depends_on:
       postgres:
         condition: service_healthy
@@ -131,8 +131,8 @@ services:
       - COGNITO_CLIENT_SECRET=${COGNITO_CLIENT_SECRET:-}
       # Other
       - CORS_ORIGINS=http://localhost:3001,http://localhost:5174
-    ports:
-      - "8001:8001"
+    expose:
+      - "8001"
     depends_on:
       postgres:
         condition: service_healthy
@@ -148,6 +148,34 @@ services:
       retries: 3
     networks:
       - oncolife-network
+
+  # ===========================================================================
+  # NGINX PROXY (SSL Termination for all services)
+  # ===========================================================================
+
+  nginx-proxy:
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile
+    container_name: oncolife-nginx-proxy
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /etc/letsencrypt/live/oncolife-doctor-api.inheritxdev.in:/etc/ssl/certs/oncolife-doctor-api:ro
+      - /etc/letsencrypt/live/oncolife-doctor-web.inheritxdev.in:/etc/ssl/certs/oncolife-doctor-web:ro
+      - /etc/letsencrypt/live/oncolife-patient-api.inheritxdev.in:/etc/ssl/certs/oncolife-patient-api:ro
+      - /etc/letsencrypt/live/oncolife-patient-web.inheritxdev.in:/etc/ssl/certs/oncolife-patient-web:ro
+      - ./apps/doctor-platform/doctor-web/dist:/usr/share/nginx/html/doctor-web:ro
+      - ./apps/patient-platform/patient-web/dist:/usr/share/nginx/html/patient-web:ro
+    depends_on:
+      - doctor-api
+      - patient-api
+      - doctor-web
+      - patient-web
+    networks:
+      - oncolife-network
+    restart: unless-stopped
 
   # ===========================================================================
   # BACKEND FOR FRONTEND (BFF)
@@ -167,8 +195,13 @@ services:
     depends_on:
       - patient-api
     volumes:
-      - ./apps/patient-platform/patient-server:/app:cached
-      - /app/node_modules
+      - ./apps/patient-platform/patient-server:/app/apps/patient-platform/patient-server:cached
+      - /app/apps/patient-platform/patient-server/node_modules
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
     networks:
       - oncolife-network
 
@@ -184,15 +217,12 @@ services:
       context: .
       dockerfile: apps/patient-platform/patient-web/Dockerfile
       args:
-        - VITE_API_BASE_URL=http://localhost:8000
-        - VITE_WS_BASE_URL=ws://localhost:8000
+        - VITE_API_BASE_URL=https://oncolife-patient-api.inheritxdev.in
+        - VITE_WS_BASE_URL=wss://oncolife-patient-api.inheritxdev.in
     container_name: oncolife-patient-web
     environment:
       - NODE_ENV=production
-    ports:
-      - "5173:80"
-    depends_on:
-      - patient-api
+    # No ports exposed - served by nginx-proxy
     networks:
       - oncolife-network
 
@@ -202,15 +232,12 @@ services:
       context: .
       dockerfile: apps/doctor-platform/doctor-web/Dockerfile
       args:
-        - VITE_API_BASE_URL=http://localhost:8001
-        - VITE_PATIENT_API_URL=http://localhost:8000
+        - VITE_API_BASE_URL=https://oncolife-doctor-api.inheritxdev.in
+        - VITE_PATIENT_API_URL=https://oncolife-patient-api.inheritxdev.in
     container_name: oncolife-doctor-web
     environment:
       - NODE_ENV=production
-    ports:
-      - "5174:80"
-    depends_on:
-      - doctor-api
+    # No ports exposed - served by nginx-proxy
     networks:
       - oncolife-network
 

@@ -35,6 +35,9 @@ psutil>=5.9.0
 python-multipart>=0.0.6
 httpx>=0.25.0
 
+# Email
+fastapi-mail>=1.4.0
+
 # Testing (optional - install with: pip install -r requirements.txt)
 pytest>=7.4.0
 pytest-asyncio>=0.21.0

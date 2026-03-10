@@ -43,9 +43,12 @@ ENV NODE_ENV=production
 # Configure port for Fly
 ENV PORT=3000
 
+# Copy root package.json and turbo.json for workspace configuration
+COPY --from=build /app/package.json ./package.json
+COPY --from=build /app/turbo.json ./turbo.json
+
 # Copy node_modules and repo files required at runtime
 COPY --from=build /app/node_modules ./node_modules
-COPY --from=build /app/package.json ./package.json
 COPY --from=build /app/apps/patient-platform/patient-server ./apps/patient-platform/patient-server
 # Copy built web assets into expected path for production serving
 COPY --from=build /app/apps/patient-platform/patient-web/dist ./apps/patient-platform/patient-web/dist
@@ -54,4 +57,4 @@ COPY --from=build /app/packages ./packages
 
 EXPOSE 3000
 # Start the express gateway in production mode
-CMD ["npm", "start", "--workspace=@oncolife/patient-server"] 
+CMD ["node", "apps/patient-platform/patient-server/src/app.js"] 
