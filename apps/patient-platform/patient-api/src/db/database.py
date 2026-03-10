@@ -34,17 +34,30 @@ DATABASE_CONFIG = {
 # --- SQLAlchemy Engine Creation ---
 # Create a separate engine for each database found in the config.
 engines = {}
+
+# Determine SSL mode: check environment variable first, then default based on host
+# For local development (localhost/127.0.0.1/postgres), disable SSL; for cloud databases, require SSL
+db_ssl_mode_env = os.getenv("DB_SSL_MODE", None)
+
 for db_name, config in DATABASE_CONFIG.items():
     if all(config.values()):  # Only create an engine if all details are provided
         # URL encode the password to handle special characters
         encoded_password = urllib.parse.quote_plus(config['password'])
-        
+
         conn_url = (
             f"postgresql://{config['user']}:{encoded_password}@"
             f"{config['host']}:{config['port']}/{config['name']}"
         )
         logger.info(f"-----------------------------------Connecting to {db_name}: {config['user']}@{config['host']}:{config['port']}/{config['name']}")
-        
+
+        # Determine SSL mode: explicit env var > auto-detect localhost > require for production
+        if db_ssl_mode_env:
+            ssl_mode = db_ssl_mode_env
+        elif config['host'] in ['localhost', '127.0.0.1', 'postgres']:
+            ssl_mode = "disable"  # Local development (including Docker Compose 'postgres' service)
+        else:
+            ssl_mode = "require"  # Cloud databases (AWS RDS, etc.)
+
         # Add SSL mode and connection pooling for AWS RDS
         engines[db_name] = create_engine(
             conn_url,
@@ -53,7 +66,7 @@ for db_name, config in DATABASE_CONFIG.items():
             pool_size=5,         # Limit pool size
             max_overflow=10,     # Allow some overflow
             connect_args={
-                "sslmode": "require",  # Force SSL for AWS RDS
+                "sslmode": ssl_mode,
                 "keepalives": 1,
                 "keepalives_idle": 30,
                 "keepalives_interval": 10,

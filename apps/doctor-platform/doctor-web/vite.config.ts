@@ -19,8 +19,18 @@ export default defineConfig({
       'oncolife-doctor.inheritxdev.in',
     ],
     proxy: {
+      '/api/v1/auth': {
+        target: 'http://127.0.0.1:8001',
+        changeOrigin: true,
+        secure: false
+      },
+      '/api/v1/staff': {
+        target: 'http://127.0.0.1:8001',
+        changeOrigin: true,
+        secure: false
+      },
       '/api': {
-        target: 'http://localhost:8001', // Assuming doctor-api runs on different port
+        target: 'http://127.0.0.1:8000',
         changeOrigin: true,
         secure: false
       }

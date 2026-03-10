@@ -65,6 +65,30 @@ def create_db_engine(database_url: Optional[str], db_name: str) -> Optional[Engi
         raise
 
 
+# =============================================================================
+# Log Database Configuration (for debugging)
+# =============================================================================
+
+logger.info("=" * 80)
+logger.info("DATABASE CONFIGURATION - DOCTOR API")
+logger.info("=" * 80)
+logger.info("Environment Variables:")
+logger.info(f"  DOCTOR_DB_HOST: {settings.doctor_db_host}")
+logger.info(f"  DOCTOR_DB_PORT: {settings.doctor_db_port}")
+logger.info(f"  DOCTOR_DB_USER: {settings.doctor_db_user}")
+logger.info(f"  DOCTOR_DB_PASSWORD: {'*' * len(settings.doctor_db_password) if settings.doctor_db_password else 'None'}")
+logger.info(f"  DOCTOR_DB_NAME: {settings.doctor_db_name}")
+logger.info(f"  PATIENT_DB_HOST: {settings.patient_db_host}")
+logger.info(f"  PATIENT_DB_PORT: {settings.patient_db_port}")
+logger.info(f"  PATIENT_DB_USER: {settings.patient_db_user}")
+logger.info(f"  PATIENT_DB_PASSWORD: {'*' * len(settings.patient_db_password) if settings.patient_db_password else 'None'}")
+logger.info(f"  PATIENT_DB_NAME: {settings.patient_db_name}")
+logger.info("-" * 80)
+logger.info("Constructed Database URLs:")
+logger.info(f"  Doctor DB URL: {settings.doctor_database_url}")
+logger.info(f"  Patient DB URL: {settings.patient_database_url}")
+logger.info("=" * 80)
+
 # Create database engines
 doctor_engine = create_db_engine(settings.doctor_database_url, "Doctor")
 patient_engine = create_db_engine(settings.patient_database_url, "Patient")

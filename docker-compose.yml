@@ -75,8 +75,8 @@ services:
       # S3 Buckets
       - S3_REFERRAL_BUCKET=${S3_REFERRAL_BUCKET:-oncolife-referrals}
       - S3_EDUCATION_BUCKET=${S3_EDUCATION_BUCKET:-oncolife-education}
-      # Other
-      - CORS_ORIGINS=http://localhost:3000,http://localhost:5173
+      # CORS
+      - CORS_ORIGINS=http://localhost:3000,http://localhost:5173,http://127.0.0.1:5173,http://127.0.0.1:3000
     ports:
       - "127.0.0.1:8000:8000"
     depends_on:
@@ -109,18 +109,18 @@ services:
       - LOG_LEVEL=DEBUG
       - LOG_FORMAT=text
       - LOCAL_DEV_MODE=true
-      # Doctor Database (primary)
-      - DOCTOR_DB_HOST=postgres
+      # Doctor Database (primary) - LIVE RDS
+      - DOCTOR_DB_HOST=oncolife-uat.c1om2gk4ycxn.us-east-2.rds.amazonaws.com
       - DOCTOR_DB_PORT=5432
-      - DOCTOR_DB_USER=oncolife_admin
-      - DOCTOR_DB_PASSWORD=oncolife_dev_password
-      - DOCTOR_DB_NAME=oncolife_doctor
-      # Patient Database (read-only)
-      - PATIENT_DB_HOST=postgres
+      - DOCTOR_DB_USER=oncoife-doctor
+      - DOCTOR_DB_PASSWORD=1FeusXaVR6JMP272Fgbb
+      - DOCTOR_DB_NAME=oncolife-doctor-db
+      # Patient Database (read-only) - LIVE RDS
+      - PATIENT_DB_HOST=oncolife-uat.c1om2gk4ycxn.us-east-2.rds.amazonaws.com
       - PATIENT_DB_PORT=5432
-      - PATIENT_DB_USER=oncolife_admin
-      - PATIENT_DB_PASSWORD=oncolife_dev_password
-      - PATIENT_DB_NAME=oncolife_patient
+      - PATIENT_DB_USER=oncolife-patient
+      - PATIENT_DB_PASSWORD=f1HV9hz823qcmeVap2i4
+      - PATIENT_DB_NAME=oncolife-patient-db
       # AWS
       - AWS_REGION=${AWS_REGION:-us-west-2}
       - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID:-}
@@ -129,8 +129,9 @@ services:
       - COGNITO_USER_POOL_ID=${COGNITO_USER_POOL_ID:-}
       - COGNITO_CLIENT_ID=${COGNITO_CLIENT_ID:-}
       - COGNITO_CLIENT_SECRET=${COGNITO_CLIENT_SECRET:-}
-      # Other
-      - CORS_ORIGINS=http://localhost:3001,http://localhost:5174
+      # CORS
+      - CORS_ORIGINS=http://localhost:3001,http://localhost:5174,http://127.0.0.1:5174,http://127.0.0.1:3001
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-supersecretkey}
     ports:
       - "127.0.0.1:8001:8001"
     depends_on:

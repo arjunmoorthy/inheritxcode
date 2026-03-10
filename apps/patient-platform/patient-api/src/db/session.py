@@ -61,11 +61,18 @@ def create_db_engine(database_url: str, db_name: str):
     # Configure SSL mode based on environment
     # Always require SSL for cloud databases (Neon, AWS RDS)
     # Only disable for truly local Docker/localhost PostgreSQL
-    is_localhost = settings.patient_db_host and (
-        'localhost' in settings.patient_db_host or 
-        '127.0.0.1' in settings.patient_db_host
-    )
-    ssl_mode = "disable" if is_localhost else "require"
+    # Check environment variable first, then auto-detect
+    db_ssl_mode_env = getattr(settings, 'db_ssl_mode', None)
+    
+    if db_ssl_mode_env:
+        ssl_mode = db_ssl_mode_env
+    else:
+        is_localhost = settings.patient_db_host and (
+            'localhost' in settings.patient_db_host or
+            '127.0.0.1' in settings.patient_db_host or
+            settings.patient_db_host == 'postgres'
+        )
+        ssl_mode = "disable" if is_localhost else "require"
     
     return create_engine(
         database_url,
