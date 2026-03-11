@@ -76,9 +76,9 @@ services:
       - S3_REFERRAL_BUCKET=${S3_REFERRAL_BUCKET:-oncolife-referrals}
       - S3_EDUCATION_BUCKET=${S3_EDUCATION_BUCKET:-oncolife-education}
       # CORS
-      - CORS_ORIGINS=http://localhost:3000,http://localhost:5173,http://127.0.0.1:5173,http://127.0.0.1:3000
+      - CORS_ORIGINS=http://localhost:3000,http://localhost:5173,http://127.0.0.1:5173,http://127.0.0.1:3000,https://oncolife-patient.inheritxdev.in,https://oncolife-patient-api.inheritxdev.in
     ports:
-      - "127.0.0.1:8000:8000"
+      - "8000:8000"
     depends_on:
       postgres:
         condition: service_healthy
@@ -130,10 +130,10 @@ services:
       - COGNITO_CLIENT_ID=${COGNITO_CLIENT_ID:-}
       - COGNITO_CLIENT_SECRET=${COGNITO_CLIENT_SECRET:-}
       # CORS
-      - CORS_ORIGINS=http://localhost:3001,http://localhost:5174,http://127.0.0.1:5174,http://127.0.0.1:3001
+      - CORS_ORIGINS=http://localhost:3001,http://localhost:5174,http://127.0.0.1:5174,http://127.0.0.1:3001,https://oncolife-doctor.inheritxdev.in,https://oncolife-doctor-api.inheritxdev.in
       - JWT_SECRET_KEY=${JWT_SECRET_KEY:-supersecretkey}
     ports:
-      - "127.0.0.1:8001:8001"
+      - "8001:8001"
     depends_on:
       postgres:
         condition: service_healthy
@@ -190,13 +190,15 @@ services:
       context: .
       dockerfile: apps/patient-platform/patient-web/Dockerfile
       args:
-        - VITE_API_BASE_URL=https://oncolife-patient.inheritxdev.in
-        - VITE_WS_BASE_URL=wss://oncolife-patient.inheritxdev.in
+        - VITE_API_BASE_URL=http://localhost/api/v1
+        - VITE_WS_BASE_URL=ws://localhost/ws
     container_name: oncolife-patient-web
     environment:
       - NODE_ENV=production
     ports:
-      - "127.0.0.1:5173:80"
+      - "5173:80"
+    depends_on:
+      - patient-api
     networks:
       - oncolife-network
 
@@ -206,15 +208,46 @@ services:
       context: .
       dockerfile: apps/doctor-platform/doctor-web/Dockerfile
       args:
-        - VITE_API_BASE_URL=https://oncolife-doctor.inheritxdev.in
-        - VITE_PATIENT_API_URL=https://oncolife-patient.inheritxdev.in
+        - VITE_API_BASE_URL=http://localhost/doctor-api/api/v1
+        - VITE_PATIENT_API_URL=http://localhost/api/v1
     container_name: oncolife-doctor-web
     environment:
       - NODE_ENV=production
     ports:
-      - "127.0.0.1:5174:80"
+      - "5174:80"
+    depends_on:
+      - doctor-api
     networks:
       - oncolife-network
+
+  # ===========================================================================
+  # NGINX REVERSE PROXY (Handles custom domains)
+  # ===========================================================================
+
+  nginx:
+    image: nginx:alpine
+    container_name: oncolife-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+      - /var/www/certbot:/var/www/certbot:ro
+    depends_on:
+      - patient-api
+      - doctor-api
+      - patient-web
+      - doctor-web
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1:80/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks:
+      - oncolife-network
+    restart: unless-stopped
 
 # =============================================================================
 # NETWORKS
