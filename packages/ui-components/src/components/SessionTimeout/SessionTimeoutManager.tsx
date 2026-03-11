@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { SESSION_TIMEOUT_MINUTES } from '../config/api';
 import SessionTimeoutModal from './SessionTimeoutModal';
 
@@ -7,7 +6,6 @@ export const SESSION_START_KEY = 'sessionStartTime';
 
 const SessionTimeoutManager: React.FC = () => {
   const [sessionTimedOut, setSessionTimedOut] = useState(false);
-  const navigate = useNavigate();
 
   useEffect(() => {
     let sessionStart = sessionStorage.getItem(SESSION_START_KEY);
@@ -36,7 +34,8 @@ const SessionTimeoutManager: React.FC = () => {
     localStorage.removeItem('authToken');
     sessionStorage.removeItem(SESSION_START_KEY);
     setSessionTimedOut(false);
-    navigate('/login', { replace: true });
+    // Use window.location so this works even when Router context is unavailable (e.g. duplicate react-router in bundle)
+    window.location.replace('/login');
   };
 
   return (

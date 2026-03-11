@@ -12,6 +12,7 @@ export default defineConfig(({ mode }) => {
       alias: {
         '@': path.resolve(__dirname, './src'),
       },
+      dedupe: ['react', 'react-dom', 'react-router-dom'],
     },
     server: {
       host: true,
@@ -23,6 +24,7 @@ export default defineConfig(({ mode }) => {
         'leida-bailable-loraine.ngrok-free.dev',
         'isidra-nonpapal-georgine.ngrok-free.dev',
         'oncolife-ai-patient-web.vercel.app',
+        'oncolife-patient-api.inheritxdev.in'
       ],
       proxy: {
         '/api': {
@@ -53,7 +55,24 @@ export default defineConfig(({ mode }) => {
         'leida-bailable-loraine.ngrok-free.dev',
         'isidra-nonpapal-georgine.ngrok-free.dev',
         'oncolife-ai-patient-web.vercel.app',
+        'oncolife-patient-api.inheritxdev.in'
       ],
+      // Proxy to backend so preview (npm run preview) can hit API like dev server
+      proxy: {
+        '/api': {
+          target: env.VITE_API_BASE || 'http://localhost:8000',
+          changeOrigin: true,
+          secure: false,
+          ws: true,
+          headers: { 'ngrok-skip-browser-warning': 'true' },
+        },
+        '/static': {
+          target: env.VITE_API_BASE || 'http://localhost:8000',
+          changeOrigin: true,
+          secure: false,
+          headers: { 'ngrok-skip-browser-warning': 'true' },
+        },
+      },
     },
     define: {
       global: 'globalThis',

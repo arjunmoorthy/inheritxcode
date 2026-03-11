@@ -11,14 +11,14 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import './index.css' // Tailwind CSS FIRST so base layer loads before GlobalStyles
 import {
   OncolifeThemeProvider,
   GlobalStyles,
   ErrorBoundary,
 } from '@oncolife/ui-components'
-import { GoogleOAuthProvider } from '@react-oauth/google';
+import { GoogleOAuthProvider } from '@react-oauth/google'
 import App from './App.tsx'
-import './index.css' // Tailwind CSS entry point
 
 // Configure React Query
 const queryClient = new QueryClient({

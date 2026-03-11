@@ -13,6 +13,7 @@ export default defineConfig(({ mode }) => {
       alias: {
         '@': path.resolve(__dirname, './src'),
       },
+      dedupe: ['react', 'react-dom', 'react-router-dom'],
     },
     server: {
       host: true,
@@ -22,6 +23,7 @@ export default defineConfig(({ mode }) => {
         'localhost',
         'isidra-nonpapal-georgine.ngrok-free.dev',
         'oncolife-doctor.inheritxdev.in',
+        'oncolife-doctor-api.inheritxdev.in'
       ],
       proxy: {
         '/api': {
@@ -40,7 +42,16 @@ export default defineConfig(({ mode }) => {
       allowedHosts: [
         'localhost',
         'oncolife-doctor.inheritxdev.in',
+        'oncolife-doctor-api.inheritxdev.in'
       ],
+      proxy: {
+        '/api': {
+          target: apiBase,
+          changeOrigin: true,
+          secure: false,
+          headers: { 'ngrok-skip-browser-warning': 'true' },
+        },
+      },
     },
     define: {
       global: 'globalThis',
