@@ -32,7 +32,8 @@ const AuthCallback: React.FC = () => {
                 // Determine if user is new based on 'created' parameter
                 // created: 'true' = new user, created: 'false' = existing user
                 const profileCompleted = isProfileCompleted === 'true';
-
+                
+                // Use window.location.href for full page navigation to ensure AuthContext picks up tokens
                 if (!profileCompleted) {
                     // New user - redirect to complete profile
                     const queryParams = new URLSearchParams({
@@ -41,10 +42,10 @@ const AuthCallback: React.FC = () => {
                         last_name: lastName || '',
                         email: email || ''
                     }).toString();
-                    navigate(`/complete-profile?${queryParams}`, { replace: true });
+                    window.location.href = `/complete-profile?${queryParams}`;
                 } else {
                     // Existing user or profile already completed - redirect to dashboard
-                    navigate('/dashboard', { replace: true });
+                    window.location.href = '/dashboard';
                 }
             } else {
                 // If we have an id_token in the URL (unlikely in redirect flow, but possible if FE handles it)

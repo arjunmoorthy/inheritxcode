@@ -27,7 +27,7 @@
  * =============================================================================
  */
 
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate } from 'react-router-dom';
 import { GlobalStyles, SessionTimeoutManager } from '@oncolife/ui-components';
 import { AuthProvider } from './contexts/AuthContext';
 import { UserProvider } from './contexts/UserContext';
@@ -63,9 +63,8 @@ function App() {
       <AuthProvider>
         <UserProvider>
           <GlobalStyles />
-          <BrowserRouter>
-            <SessionTimeoutManager />
-            <Routes>
+          <SessionTimeoutManager />
+          <Routes>
               <Route path="/login" element={<LoginPage />} />
               <Route path="/forgot-password" element={<ForgotPasswordPage />} />
               <Route path="/reset-password" element={<ResetPassword />} />
@@ -83,7 +82,6 @@ function App() {
               </Route>
               <Route path="/" element={<Navigate to="/login" />} />
             </Routes>
-          </BrowserRouter>
         </UserProvider>
       </AuthProvider>
     </UserTypeProvider>

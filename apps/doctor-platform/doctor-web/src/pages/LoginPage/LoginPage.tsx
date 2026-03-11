@@ -102,12 +102,11 @@ const LoginPage: React.FC = () => {
       }
 
       if (result?.success) {
-        // Use navigate to preserve the current protocol (HTTPS)
-        navigate('/dashboard', { replace: true });
+        window.location.href = '/dashboard';
       }
     } catch (err: any) {
-      const errorMessage = err?.response?.data?.message
-        || err?.message
+      const errorMessage = err?.response?.data?.message 
+        || err?.message 
         || 'Invalid credentials. Please check your email and password.';
       setError(errorMessage);
     }
@@ -350,8 +349,8 @@ const LoginPage: React.FC = () => {
                                 if (result.refresh_token) {
                                   localStorage.setItem('refreshToken', result.refresh_token);
                                 }
-                                // Redirect to dashboard using navigate to preserve HTTPS protocol
-                                navigate('/dashboard', { replace: true });
+                                // Redirect to dashboard
+                                window.location.href = '/dashboard';
                               }
                             } else {
                               // Unexpected response format
