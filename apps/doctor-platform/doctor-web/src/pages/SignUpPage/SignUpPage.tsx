@@ -380,8 +380,8 @@ const SignUpPage: React.FC = () => {
                                                                     }).toString();
                                                                     navigate(`/complete-profile?${queryParams}`);
                                                                 } else {
-                                                                    // Profile already completed - redirect to dashboard using navigate to preserve HTTPS
-                                                                    navigate('/dashboard', { replace: true });
+                                                                    // Profile already completed - redirect to dashboard
+                                                                    window.location.href = '/dashboard';
                                                                 }
                                                             }, 1500);
                                                         } else {
