@@ -132,6 +132,14 @@ services:
       # CORS
       - CORS_ORIGINS=http://localhost:3001,http://localhost:5174,http://127.0.0.1:5174,http://127.0.0.1:3001,https://oncolife-doctor.inheritxdev.in,https://oncolife-doctor-api.inheritxdev.in
       - JWT_SECRET_KEY=${JWT_SECRET_KEY:-supersecretkey}
+      # Mail
+      - MAIL_USERNAME=${MAIL_USERNAME:-}
+      - MAIL_PASSWORD=${MAIL_PASSWORD:-}
+      - MAIL_FROM=${MAIL_FROM:-}
+      - MAIL_SERVER=${MAIL_SERVER:-}
+      - MAIL_PORT=${MAIL_PORT:-}
+      - MAIL_STARTTLS=${MAIL_STARTTLS:-}
+      - MAIL_SSL_TLS=${MAIL_SSL_TLS:-}
     ports:
       - "8001:8001"
     depends_on:
