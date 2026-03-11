@@ -13,6 +13,7 @@ export default defineConfig(({ mode }) => {
       alias: {
         '@': path.resolve(__dirname, './src'),
       },
+      dedupe: ['react', 'react-dom', 'react-router-dom'],
     },
     server: {
       host: true,
@@ -41,6 +42,14 @@ export default defineConfig(({ mode }) => {
         'localhost',
         'oncolife-doctor.inheritxdev.in',
       ],
+      proxy: {
+        '/api': {
+          target: apiBase,
+          changeOrigin: true,
+          secure: false,
+          headers: { 'ngrok-skip-browser-warning': 'true' },
+        },
+      },
     },
     define: {
       global: 'globalThis',
