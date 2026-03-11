@@ -24,6 +24,7 @@ export default defineConfig(({ mode }) => {
         'leida-bailable-loraine.ngrok-free.dev',
         'isidra-nonpapal-georgine.ngrok-free.dev',
         'oncolife-ai-patient-web.vercel.app',
+        'oncolife-patient-api.inheritxdev.in'
       ],
       proxy: {
         '/api': {
@@ -54,6 +55,7 @@ export default defineConfig(({ mode }) => {
         'leida-bailable-loraine.ngrok-free.dev',
         'isidra-nonpapal-georgine.ngrok-free.dev',
         'oncolife-ai-patient-web.vercel.app',
+        'oncolife-patient-api.inheritxdev.in'
       ],
       // Proxy to backend so preview (npm run preview) can hit API like dev server
       proxy: {
