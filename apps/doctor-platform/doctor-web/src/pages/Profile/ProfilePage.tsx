@@ -322,7 +322,7 @@ const ProfilePage: React.FC = () => {
     ];
 
     return (
-        <div className={`min-h-screen p-4 md:p-8 transition-colors ${isDark ? 'bg-[#1A1917]' : 'bg-gradient-to-br from-white to-slate-50'
+        <div className={` p-4 md:p-8 transition-colors ${isDark ? 'bg-[#1A1917]' : 'bg-gradient-to-br from-white to-slate-50'
             }`}>
             <div className="max-w-4xl mx-auto">
                 {/* Header */}

@@ -39,6 +39,8 @@ import InputLabel from '@mui/material/InputLabel';
 import Pagination from '@mui/material/Pagination';
 import Typography from '@mui/material/Typography';
 import InputAdornment from '@mui/material/InputAdornment';
+import Drawer from '@mui/material/Drawer';
+import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
 import Skeleton from '@mui/material/Skeleton';
@@ -52,7 +54,8 @@ import {
   ChevronRight,
   Stethoscope,
   MessageCircle,
-  Pill
+  Pill,
+  SlidersHorizontal
 } from 'lucide-react';
 import { usePatientSummaries, type PatientSummary } from '../../services/dashboard';
 import { useAddManualPatient, type AddManualPatientPayload } from '../../services/patients';
@@ -101,9 +104,8 @@ const DashboardPage: React.FC = () => {
   const [severityFilter, setSeverityFilter] = useState('all');
   const [checkInFilter, setCheckInFilter] = useState('all');
   const [isAddPatientModalOpen, setIsAddPatientModalOpen] = useState(false);
+  const [filtersDrawerOpen, setFiltersDrawerOpen] = useState(false);
   const [debouncedSearch, setDebouncedSearch] = useState('');
-  console.log("first---------------------------------->")
-  console.log("first222222222---------------------------------->")
 
   // Debounce search: wait 400ms after typing stops; clear triggers API immediately
   useEffect(() => {
@@ -314,28 +316,28 @@ const DashboardPage: React.FC = () => {
 
   return (
     <div className={`flex flex-col h-full w-full overflow-hidden ${isDark ? 'bg-[#1A1917]' : 'bg-[rgb(250,248,245)]'} transition-colors duration-200`}>
-      {/* Fixed Header - Enhanced Dashboard Style */}
+      {/* Fixed Header - Compact on mobile */}
       <div
         className={`flex-shrink-0 ${isDark ? 'bg-[#1A1917] border-b border-slate-800/50' : 'bg-white/95 backdrop-blur-sm border-b border-slate-200/60'} transition-all duration-200 shadow-sm`}
       >
-        <div className="p-6 pb-5 max-w-[1400px] mx-auto w-full">
-          <div className="flex flex-col gap-4 md:flex-row md:justify-between md:items-center">
-            <div className="flex items-start gap-4">
-              <div className={`p-2.5 rounded-xl ${isDark ? 'bg-blue-500/10' : 'bg-blue-50'}`}>
-                <Activity size={22} className={isDark ? 'text-blue-400' : 'text-secondary'} />
+        <div className="px-4 py-4 sm:p-6 sm:pb-5 max-w-[1400px] mx-auto w-full">
+          <div className="flex flex-col gap-3 sm:gap-4 md:flex-row md:justify-between md:items-center">
+            <div className="flex items-start gap-3 sm:gap-4">
+              <div className={`p-2 sm:p-2.5 rounded-xl ${isDark ? 'bg-blue-500/10' : 'bg-blue-50'}`}>
+                <Activity size={isMobile ? 20 : 22} className={isDark ? 'text-blue-400' : 'text-secondary'} />
               </div>
-              <div>
-                <h3 className={`text-3xl md:text-[1.75rem] font-bold font-serif ${isDark ? 'text-slate-100' : 'text-slate-900'} m-0 leading-tight`}>
+              <div className="min-w-0">
+                <h3 className={`text-xl sm:text-2xl md:text-[1.75rem] font-bold font-serif ${isDark ? 'text-slate-100' : 'text-slate-900'} m-0 leading-tight truncate`}>
                   Patient Dashboard
                 </h3>
-                <p className={`text-sm ${isDark ? 'text-slate-400' : 'text-slate-600'} mt-1.5 mb-0 font-medium`}>
+                <p className={`text-xs sm:text-sm ${isDark ? 'text-slate-400' : 'text-slate-600'} mt-1 sm:mt-1.5 mb-0 font-medium hidden sm:block`}>
                   Monitor patient symptoms and clinical trends
                 </p>
               </div>
             </div>
             <button
               onClick={() => setIsAddPatientModalOpen(true)}
-              className={`inline-flex text-white items-center gap-2 px-5 py-2.5 rounded-lg font-semibold text-sm transition-all duration-200 transform hover:scale-105 active:scale-100 ${isDark
+              className={`inline-flex text-white items-center justify-center gap-2 px-4 py-2 sm:px-5 sm:py-2.5 rounded-lg font-semibold text-sm transition-all duration-200 transform hover:scale-105 active:scale-100 w-full sm:w-auto ${isDark
                   ? 'bg-[#1e3a5f]'
                   : 'bg-[#1e3a5f]'
                 }`}
@@ -347,17 +349,17 @@ const DashboardPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Fixed Search and Filters Bar */}
+      {/* Fixed Search and Filters Bar - Compact on mobile with Filters drawer */}
       <div
         className={`flex-shrink-0 ${isDark ? 'bg-[#1A1917]/95 backdrop-blur-sm border-b border-slate-800/50' : 'bg-white/95 backdrop-blur-sm border-b border-slate-200/60'} transition-all duration-200 shadow-md`}
       >
-        <div className="p-6 py-5 max-w-[1400px] mx-auto w-full">
-          <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center flex-wrap">
-            {/* Search */}
-            <div className="flex-1 min-w-[200px] w-full lg:w-auto">
+        <div className="px-4 py-4 sm:p-6 sm:py-5 max-w-[1400px] mx-auto w-full">
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 items-stretch sm:items-center">
+            {/* Search - full width on mobile, shorter placeholder to avoid truncation */}
+            <div className="flex-1 min-w-0 w-full">
               <TextField
                 fullWidth
-                placeholder="Search by first name, last name, or full name..."
+                placeholder={isMobile ? 'Search patients...' : 'Search by first name, last name, or full name...'}
                 value={search}
                 onChange={handleSearchChange}
                 size="small"
@@ -402,7 +404,33 @@ const DashboardPage: React.FC = () => {
               />
             </div>
 
-            {/* Filter Dropdowns */}
+            {/* Mobile: Filters button opens drawer; Desktop: inline dropdowns */}
+            {isMobile ? (
+              <Button
+                variant="outlined"
+                onClick={() => setFiltersDrawerOpen(true)}
+                startIcon={<SlidersHorizontal size={18} />}
+                className="w-full sm:w-auto"
+                sx={{
+                  borderRadius: '12px',
+                  borderColor: isDark ? '#334155' : '#e2e8f0',
+                  color: isDark ? '#f1f5f9' : '#0f172a',
+                  textTransform: 'none',
+                  fontWeight: 600,
+                  '&:hover': {
+                    borderColor: isDark ? '#475569' : '#cbd5e1',
+                    backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)',
+                  },
+                }}
+              >
+                Filters
+                {(symptomTypeFilter !== 'all' || severityFilter !== 'all' || checkInFilter !== 'all') && (
+                  <span className="ml-1.5 inline-flex items-center justify-center min-w-[18px] h-[18px] rounded-full bg-blue-500 text-white text-xs font-bold">
+                    {[symptomTypeFilter, severityFilter, checkInFilter].filter((f) => f !== 'all').length}
+                  </span>
+                )}
+              </Button>
+            ) : (
             <div className="flex flex-row gap-3 items-center flex-wrap">
               <FormControl size="small" sx={{ minWidth: { xs: 140, sm: 160 } }}>
                 <InputLabel
@@ -559,9 +587,97 @@ const DashboardPage: React.FC = () => {
                 </Select>
               </FormControl>
             </div>
+            )}
           </div>
         </div>
       </div>
+
+      {/* Mobile Filters Drawer */}
+      <Drawer
+        anchor="bottom"
+        open={filtersDrawerOpen}
+        onClose={() => setFiltersDrawerOpen(false)}
+        PaperProps={{
+          sx: {
+            borderTopLeftRadius: 16,
+            borderTopRightRadius: 16,
+            backgroundColor: isDark ? '#1A1917' : 'white',
+            maxHeight: '85vh',
+          },
+        }}
+      >
+        <div className={`p-4 pb-6 ${isDark ? 'bg-[#1A1917]' : 'bg-white'}`}>
+          <div className="flex items-center justify-between mb-4">
+            <Typography variant="h6" sx={{ fontWeight: 600, color: isDark ? '#f1f5f9' : '#0f172a' }}>
+              Filters
+            </Typography>
+            <Button size="small" onClick={() => setFiltersDrawerOpen(false)} sx={{ color: isDark ? '#94a3b8' : '#64748b' }}>
+              Done
+            </Button>
+          </div>
+          <div className="flex flex-col gap-4">
+            <FormControl size="small" fullWidth>
+              <InputLabel sx={{ color: isDark ? '#94a3b8' : '#64748b', '&.Mui-focused': { color: '#2563EB' } }}>Symptom Type</InputLabel>
+              <Select
+                value={symptomTypeFilter}
+                label="Symptom Type"
+                onChange={(e) => { handleSymptomTypeChange(e); }}
+                sx={{
+                  borderRadius: '8px',
+                  backgroundColor: isDark ? '#1A1917' : 'white',
+                  color: isDark ? '#f1f5f9' : '#0f172a',
+                  '& .MuiOutlinedInput-notchedOutline': { borderColor: isDark ? '#334155' : '#e2e8f0' },
+                }}
+              >
+                <MenuItem value="all">All Symptoms</MenuItem>
+                <MenuItem value="fatigue">Fatigue</MenuItem>
+                <MenuItem value="pain">Pain</MenuItem>
+                <MenuItem value="nausea">Nausea</MenuItem>
+                <MenuItem value="breathing">Breathing Issues</MenuItem>
+              </Select>
+            </FormControl>
+            <FormControl size="small" fullWidth>
+              <InputLabel sx={{ color: isDark ? '#94a3b8' : '#64748b', '&.Mui-focused': { color: '#2563EB' } }}>Severity</InputLabel>
+              <Select
+                value={severityFilter}
+                label="Severity"
+                onChange={(e) => { handleSeverityChange(e); }}
+                sx={{
+                  borderRadius: '8px',
+                  backgroundColor: isDark ? '#1A1917' : 'white',
+                  color: isDark ? '#f1f5f9' : '#0f172a',
+                  '& .MuiOutlinedInput-notchedOutline': { borderColor: isDark ? '#334155' : '#e2e8f0' },
+                }}
+              >
+                <MenuItem value="all">All Severities</MenuItem>
+                <MenuItem value="mild">Mild</MenuItem>
+                <MenuItem value="moderate">Moderate</MenuItem>
+                <MenuItem value="severe">Severe</MenuItem>
+                <MenuItem value="urgent">Urgent</MenuItem>
+              </Select>
+            </FormControl>
+            <FormControl size="small" fullWidth>
+              <InputLabel sx={{ color: isDark ? '#94a3b8' : '#64748b', '&.Mui-focused': { color: '#2563EB' } }}>Last Chatbot Check-in</InputLabel>
+              <Select
+                value={checkInFilter}
+                label="Last Chatbot Check-in"
+                onChange={(e) => { handleCheckInChange(e); }}
+                sx={{
+                  borderRadius: '8px',
+                  backgroundColor: isDark ? '#1A1917' : 'white',
+                  color: isDark ? '#f1f5f9' : '#0f172a',
+                  '& .MuiOutlinedInput-notchedOutline': { borderColor: isDark ? '#334155' : '#e2e8f0' },
+                }}
+              >
+                <MenuItem value="all">All Time</MenuItem>
+                <MenuItem value="today">Today</MenuItem>
+                <MenuItem value="week">This Week</MenuItem>
+                <MenuItem value="month">This Month</MenuItem>
+              </Select>
+            </FormControl>
+          </div>
+        </div>
+      </Drawer>
 
       {/* Patient List Container - Scrollable */}
       <div
@@ -571,7 +687,7 @@ const DashboardPage: React.FC = () => {
           scrollbarColor: isDark ? '#475569 #1A1917' : '#cbd5e1 #f1f5f9',
         }}
       >
-        <div className="p-6 pt-4 pb-4 max-w-[1400px] mx-auto w-full">
+        <div className="px-4 py-4 sm:p-6 sm:pt-4 sm:pb-4 max-w-[1400px] mx-auto w-full">
           {/* Only show error if we're not using static data fallback */}
           {error && !isLoading && (!data?.data || data.data.length === 0) && (
             <Box sx={{
@@ -669,53 +785,28 @@ const DashboardPage: React.FC = () => {
                     onClick={() => navigate(`/patients/${patient.id}`)}
                     className={`group ${isDark ? 'bg-[#252320] border-slate-700/50 hover:border-blue-500/50' : 'bg-white border-slate-200 hover:border-blue-300 hover:shadow-lg'} rounded-lg border overflow-hidden transition-all duration-300 cursor-pointer shadow-sm`}
                   >
-                    {/* Patient Card Content */}
-                    <div className="p-5">
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                        {/* Left: Patient Name & MRN */}
-                        <div className="flex-1 min-w-0 flex flex-col justify-center">
-                          <div className={`font-bold ${isDark ? 'text-[#F5F3EE]' : 'text-slate-900'} text-base leading-tight`}>
-                            {patient.patientName}
-                          </div>
-                          <div className={`text-xs mt-0.5 flex items-center gap-4 flex-wrap ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                            <span className="flex items-center justify-center gap-2">
-                              <FileText size={14} className="flex-shrink-0 self-center" />
-                              <span className="leading-none">MRN: {patient.mrn || 'N/A'}</span>
-                            </span>
-                            <span className="flex items-center justify-center gap-2">
-                              <Calendar size={14} className="flex-shrink-0 self-center" />
-                              <span className="leading-none">DOB: {dob ? formatDOB(dob) : 'N/A'}</span>
-                            </span>
-                          </div>
-                        </div>
-
-                        {/* Middle: Diagnosis, Last Chatbot, Last Chemo (with light blue icons) */}
-                        <div className="flex flex-wrap items-center gap-x-6 gap-y-2 flex-1 sm:flex-initial sm:flex-nowrap sm:justify-center">
-                          <div className="flex items-center justify-center gap-2">
-                            <Stethoscope size={14} className={`flex-shrink-0 self-center ${isDark ? 'text-sky-400' : 'text-sky-600'}`} />
-                            <div className="flex items-center gap-1">
-                              <span className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Diagnosis: </span>
-                              <span className={`text-sm ${isDark ? 'text-[#F5F3EE]' : 'text-slate-900'}`}>{getDiagnosis(patient)}</span>
+                    {/* Patient Card Content - tighter padding on mobile */}
+                    <div className="p-4 sm:p-5">
+                      <div className="flex flex-col gap-3 sm:gap-4">
+                        {/* Top row on mobile: Name + Severity badge */}
+                        <div className="flex flex-row items-start justify-between gap-2 flex-wrap">
+                          <div className="flex-1 min-w-0 flex flex-col justify-center">
+                            <div className={`font-bold ${isDark ? 'text-[#F5F3EE]' : 'text-slate-900'} text-base leading-tight`}>
+                              {patient.patientName}
+                            </div>
+                            <div className={`text-xs mt-0.5 flex items-center gap-3 sm:gap-4 flex-wrap ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                              <span className="flex items-center gap-1.5">
+                                <FileText size={14} className="flex-shrink-0" />
+                                <span>MRN: {patient.mrn || 'N/A'}</span>
+                              </span>
+                              <span className="flex items-center gap-1.5">
+                                <Calendar size={14} className="flex-shrink-0" />
+                                <span>DOB: {dob ? formatDOB(dob) : 'N/A'}</span>
+                              </span>
                             </div>
                           </div>
-                          <div className="flex items-center justify-center gap-2">
-                            <MessageCircle size={14} className={`flex-shrink-0 self-center ${isDark ? 'text-sky-400' : 'text-sky-600'}`} />
-                            <div className="flex items-center gap-1">
-                              <span className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Last Chatbot: </span>
-                              <span className={`text-sm ${isDark ? 'text-[#F5F3EE]' : 'text-slate-900'}`}>{lastChatbot ? formatDateShort(lastChatbot) : 'N/A'}</span>
-                            </div>
-                          </div>
-                          <div className="flex items-center justify-center gap-2">
-                            <Pill size={14} className={`flex-shrink-0 self-center ${isDark ? 'text-sky-400' : 'text-sky-600'}`} />
-                            <div className="flex items-center gap-1">
-                              <span className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Last Chemo: </span>
-                              <span className={`text-sm ${isDark ? 'text-[#F5F3EE]' : 'text-slate-900'}`}>{lastChemo && lastChemo !== 'None' ? formatDateShort(lastChemo) : 'N/A'}</span>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Right: Severity Badge (pill-shaped) */}
-                        <span className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider flex-shrink-0 ${severity === 'urgent'
+                          {/* Severity Badge - top-right on mobile */}
+                          <span className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider flex-shrink-0 ${severity === 'urgent'
                             ? isDark ? 'bg-red-500/20 text-red-400' : 'bg-red-500 text-white'
                             : severity === 'severe'
                               ? isDark ? 'bg-orange-500/20 text-orange-400' : 'bg-orange-500 text-white'
@@ -725,6 +816,32 @@ const DashboardPage: React.FC = () => {
                           }`}>
                           {severity}
                         </span>
+                        </div>
+
+                        {/* Diagnosis, Last Chatbot, Last Chemo - stacked on mobile, row on desktop */}
+                        <div className="flex flex-col sm:flex-row flex-wrap items-start sm:items-center gap-y-2 sm:gap-x-6 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <Stethoscope size={14} className={`flex-shrink-0 ${isDark ? 'text-sky-400' : 'text-sky-600'}`} />
+                            <div className="flex items-center gap-1 min-w-0">
+                              <span className={`text-xs shrink-0 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Diagnosis: </span>
+                              <span className={`text-sm truncate ${isDark ? 'text-[#F5F3EE]' : 'text-slate-900'}`}>{getDiagnosis(patient)}</span>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <MessageCircle size={14} className={`flex-shrink-0 ${isDark ? 'text-sky-400' : 'text-sky-600'}`} />
+                            <div className="flex items-center gap-1">
+                              <span className={`text-xs shrink-0 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Last Chatbot: </span>
+                              <span className={`text-sm ${isDark ? 'text-[#F5F3EE]' : 'text-slate-900'}`}>{lastChatbot ? formatDateShort(lastChatbot) : 'N/A'}</span>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Pill size={14} className={`flex-shrink-0 ${isDark ? 'text-sky-400' : 'text-sky-600'}`} />
+                            <div className="flex items-center gap-1">
+                              <span className={`text-xs shrink-0 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Last Chemo: </span>
+                              <span className={`text-sm ${isDark ? 'text-[#F5F3EE]' : 'text-slate-900'}`}>{lastChemo && lastChemo !== 'None' ? formatDateShort(lastChemo) : 'N/A'}</span>
+                            </div>
+                          </div>
+                        </div>
                       </div>
 
                       {/* View Details link */}
