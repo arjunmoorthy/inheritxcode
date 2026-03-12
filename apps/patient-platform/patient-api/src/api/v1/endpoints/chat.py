@@ -27,6 +27,7 @@ import pytz
 from api.deps import get_patient_db, get_optional_patient_uuid
 from services import ChatService
 from db.patient_models import Conversations as ChatModel
+from db.patient_models import Messages as MessageModel
 from routers.auth.dependencies import _get_jwks, TokenData
 from routers.chat.models import (
     WebSocketMessageIn, Message, FullChatResponse, 
@@ -266,41 +267,86 @@ def force_create_new_session(
     
     logger.info(f"Force new session: patient={patient_uuid}")
     
-    # Delete existing chats for today
-    user_tz = pytz.timezone(timezone)
-    user_now = datetime.now(user_tz)
-    today_start = datetime.combine(user_now.date(), time.min)
-    today_end = datetime.combine(user_now.date(), time.max)
+    # # Delete existing chats for today
+    # user_tz = pytz.timezone(timezone)
+    # user_now = datetime.now(user_tz)
+    # today_start = datetime.combine(user_now.date(), time.min)
+    # today_end = datetime.combine(user_now.date(), time.max)
     
-    utc_today_start = user_tz.localize(today_start).astimezone(pytz.UTC)
-    utc_today_end = user_tz.localize(today_end).astimezone(pytz.UTC)
+    # utc_today_start = user_tz.localize(today_start).astimezone(pytz.UTC)
+    # utc_today_end = user_tz.localize(today_end).astimezone(pytz.UTC)
     
     existing_chats = db.query(ChatModel).filter(
         ChatModel.patient_uuid == UUID(patient_uuid),
-        ChatModel.created_at >= utc_today_start,
-        ChatModel.created_at <= utc_today_end,
+        # ChatModel.created_at >= utc_today_start,
+        # ChatModel.created_at <= utc_today_end,
+        ChatModel.is_complete == "false"
     ).all()
     
     for chat in existing_chats:
-        db.delete(chat)
+        chat.is_complete = True
     db.commit()
     
     # Create new session
     chat_service = ChatService(db)
-    chat, messages, is_new = chat_service.get_or_create_today_session(
-        UUID(patient_uuid), timezone
+    # chat, messages, is_new = chat_service.get_or_create_today_session(
+    #     UUID(patient_uuid), timezone
+    # )
+    chat, initial_question = chat_service.create_chat(patient_uuid)
+
+    first_message = MessageModel(
+        chat_uuid=chat.uuid,
+        sender="assistant",
+        message_type=initial_question["type"],
+        content=initial_question["text"],
+        structured_data={
+            "options": initial_question.get("options", []),
+            "options_data": initial_question.get("options_data", []),
+            "frontend_type": initial_question.get("frontend_type", "text"),
+            "symptom_groups": initial_question.get("symptom_groups"),
+            "summary_data": initial_question.get("summary_data"),
+            "sender": initial_question.get("sender"),
+        },
     )
-    
-    pydantic_messages = [convert_message_for_frontend(Message.from_orm(msg)) for msg in messages]
+
+    db.add(first_message)
+    db.commit()
+    db.refresh(first_message)
+
+    messages = [first_message]
+
+    # ---------------------------------------------------------------------
+    # Step 4: Convert messages for frontend
+    # ---------------------------------------------------------------------
+    pydantic_messages = [
+        convert_message_for_frontend(Message.from_orm(first_message))
+    ]
+
     convert_chat_to_user_timezone(chat, pydantic_messages, timezone)
-    
+
+    logger.info(f"New session created: chat={chat.uuid}")
+
+    # ---------------------------------------------------------------------
+    # Step 5: Return response
+    # ---------------------------------------------------------------------
     return TodaySessionResponse(
         chat_uuid=chat.uuid,
         conversation_state=chat.conversation_state,
         messages=pydantic_messages,
-        is_new_session=is_new,
+        is_new_session=True,
         symptom_list=chat.symptom_list or [],
     )
+    
+    # pydantic_messages = [convert_message_for_frontend(Message.from_orm(msg)) for msg in messages]
+    # convert_chat_to_user_timezone(chat, pydantic_messages, timezone)
+    
+    # return TodaySessionResponse(
+    #     chat_uuid=chat.uuid,
+    #     conversation_state=chat.conversation_state,
+    #     messages=pydantic_messages,
+    #     is_new_session=is_new,
+    #     symptom_list=chat.symptom_list or [],
+    # )
 
 
 @router.get(

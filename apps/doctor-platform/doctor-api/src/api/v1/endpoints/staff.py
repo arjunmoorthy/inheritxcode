@@ -505,8 +505,7 @@ def add_staff_simple(
                 raise HTTPException(
                     status_code=400,
                     detail="One or more doctor_ids are invalid",
-                )
-
+                )            
             for doctor in doctors:
                 db.add(
                     PhysicianNurseAssignment(
