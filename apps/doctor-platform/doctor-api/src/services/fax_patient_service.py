@@ -68,7 +68,7 @@ def create_or_update_fax_patient(db, fax, structured, background_tasks: Backgrou
 
     def v(key):
         return structured.get(key)
-    login_link = f"{settings.patient_set_password_base_url}?email={v('email')}"
+    login_link = settings.patient_set_password_base_url.format(email=v("email"))
  
     first_name, last_name = split_name(v("name"))
     phone = v("phone_number")
