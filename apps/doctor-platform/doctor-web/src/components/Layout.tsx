@@ -55,6 +55,9 @@ const navItems = [
   { id: 'reports', label: 'Weekly Reports', icon: FileText, path: '/reports' },
 ];
 
+// Font stack used in header so it shows DM Sans on live (theme typography may be Roboto in prod)
+const HEADER_FONT = "'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
+
 // Fallback colors so header always renders correctly (e.g. production/SSR when theme may not be ready)
 const HEADER_FALLBACK = {
   light: {
@@ -115,6 +118,9 @@ const Layout: React.FC = () => {
   const headerDivider = fallback.divider;
   const headerHover = fallback.hover;
   const headerActive = fallback.active;
+  // Fallbacks so sx styles work on live when theme.palette is not applied
+  const primaryMain = isDark ? '#3B82F6' : '#1E3A5F';
+  const errorMain = isDark ? '#ef4444' : '#dc2626';
 
   // (Commented out: theme-based header colours – not showing on live)
   // const headerBg = isDark
@@ -135,13 +141,13 @@ const Layout: React.FC = () => {
   // const primaryMain = theme.palette?.primary?.main ?? (isDark ? '#3B82F6' : '#1E3A5F');
   // const headerActive = isDark ? `${primaryMain}20` : fallback.active;
 
-  // Sidebar colors based on dark mode (commented out - kept for reference, used in commented sidebar code below)
-  const sidebarBg = isDark ? theme.palette.background.paper : theme.palette.primary.main;
-  const sidebarText = isDark ? theme.palette.text.primary : 'white';
-  const sidebarTextMuted = isDark ? theme.palette.text.secondary : 'rgba(255,255,255,0.7)';
-  const sidebarDivider = isDark ? theme.palette.divider : 'rgba(255,255,255,0.1)';
-  const sidebarHover = isDark ? theme.palette.action.hover : 'rgba(255,255,255,0.08)';
-  const sidebarActive = isDark ? `${theme.palette.primary.main}20` : 'rgba(255,255,255,0.15)';
+  // Sidebar colors: use fallbacks so styles apply on live (theme.palette may be missing)
+  const sidebarBg = isDark ? fallback.bg : primaryMain;
+  const sidebarText = fallback.text;
+  const sidebarTextMuted = fallback.textMuted;
+  const sidebarDivider = fallback.divider;
+  const sidebarHover = fallback.hover;
+  const sidebarActive = isDark ? `${primaryMain}20` : fallback.active;
 
   // Get current nav item
   const currentNav = navItems.find(item => location.pathname.startsWith(item.path))?.id || 'dashboard';
@@ -238,12 +244,12 @@ const Layout: React.FC = () => {
               width: 40,
               height: 40,
               borderRadius: 2,
-              bgcolor: isDark ? theme.palette.primary.main : 'rgba(255,255,255,0.15)',
+              bgcolor: isDark ? primaryMain : 'rgba(255,255,255,0.15)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               color: 'white',
-              boxShadow: isDark ? `0 4px 12px ${theme.palette.primary.main}40` : 'none',
+              boxShadow: isDark ? `0 4px 12px ${primaryMain}40` : 'none',
             }}
           >
             <Activity size={24} />
@@ -296,7 +302,7 @@ const Layout: React.FC = () => {
                     minHeight: 48,
                     '&:hover': {
                       bgcolor: isActive
-                        ? (isDark ? `${theme.palette.primary.main}30` : 'rgba(255,255,255,0.2)')
+                        ? (isDark ? `${primaryMain}30` : 'rgba(255,255,255,0.2)')
                         : headerHover,
                     },
                   }}
@@ -305,7 +311,7 @@ const Layout: React.FC = () => {
                     minWidth: 40,
                     justifyContent: 'center',
                     color: isActive
-                      ? (isDark ? theme.palette.primary.main : 'white')
+                      ? (isDark ? primaryMain : 'white')
                       : headerTextMuted,
                   }}>
                     <Icon size={22} />
@@ -334,7 +340,7 @@ const Layout: React.FC = () => {
                 minHeight: 48,
                 '&:hover': {
                   bgcolor: isProfileActive
-                    ? (isDark ? `${theme.palette.primary.main}30` : 'rgba(255,255,255,0.2)')
+                    ? (isDark ? `${primaryMain}30` : 'rgba(255,255,255,0.2)')
                     : headerHover,
                 },
               }}
@@ -343,7 +349,7 @@ const Layout: React.FC = () => {
                 minWidth: 40,
                 justifyContent: 'center',
                 color: isProfileActive
-                  ? (isDark ? theme.palette.primary.main : 'white')
+                  ? (isDark ? primaryMain : 'white')
                   : headerTextMuted,
               }}>
                 <User size={22} />
@@ -386,10 +392,10 @@ const Layout: React.FC = () => {
           onClick={handleLogout}
           sx={{
             borderRadius: 2,
-            color: isDark ? theme.palette.error.main : '#FCA5A5',
+            color: isDark ? errorMain : '#FCA5A5',
             transition: 'all 0.2s ease',
             '&:hover': {
-              bgcolor: isDark ? `${theme.palette.error.main}15` : 'rgba(239, 68, 68, 0.15)',
+              bgcolor: isDark ? `${errorMain}15` : 'rgba(239, 68, 68, 0.15)',
             },
           }}
         >
@@ -408,12 +414,15 @@ const Layout: React.FC = () => {
       <AppBar
         position="sticky"
         elevation={0}
-        sx={{
-          bgcolor: headerBg,
+        className="doctor-app-header"
+        style={{
+          backgroundColor: headerBg,
+          color: headerText,
+          fontFamily: HEADER_FONT,
           borderBottom: isDark ? `1px solid ${headerDivider}` : 'none',
-          transition: 'all 0.3s ease',
-          zIndex: theme.zIndex.drawer + 1,
+          zIndex: theme.zIndex?.drawer != null ? theme.zIndex.drawer + 1 : 1200,
         }}
+        sx={{ transition: 'all 0.3s ease' }}
       >
         <Toolbar sx={{ 
           minHeight: { xs: 64, md: 70 },
@@ -432,29 +441,32 @@ const Layout: React.FC = () => {
             onClick={() => handleNavigation('/dashboard')}
           >
             <Box
+              className="doctor-header-logo"
               sx={{
                 width: { xs: 36, md: 40 },
                 height: { xs: 36, md: 40 },
                 borderRadius: 2,
-                bgcolor: isDark ? theme.palette.primary.main : 'rgba(255,255,255,0.15)',
+                bgcolor: isDark ? primaryMain : 'rgba(255,255,255,0.15)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 color: 'white',
-                boxShadow: isDark ? `0 4px 12px ${theme.palette.primary.main}40` : 'none',
+                boxShadow: isDark ? `0 4px 12px ${primaryMain}40` : 'none',
                 flexShrink: 0,
               }}
+              style={{ fontFamily: HEADER_FONT }}
             >
               <Activity size={isMobile ? 20 : 24} />
             </Box>
             <Typography
               variant="h6"
               fontWeight={700}
-              sx={{ 
+              sx={{
                 color: headerText,
                 fontSize: { xs: '1.1rem', md: '1.25rem' },
                 display: { xs: 'none', sm: 'block' },
               }}
+              style={{ fontFamily: HEADER_FONT }}
             >
               OncoLife AI
             </Typography>
@@ -483,7 +495,7 @@ const Layout: React.FC = () => {
                         transition: 'all 0.2s ease',
                         '&:hover': {
                           bgcolor: isActive
-                            ? (isDark ? `${theme.palette.primary.main}30` : 'rgba(255,255,255,0.2)')
+                            ? (isDark ? `${primaryMain}30` : 'rgba(255,255,255,0.2)')
                             : headerHover,
                           color: 'white',
                         },
@@ -525,7 +537,7 @@ const Layout: React.FC = () => {
                         sx={{
                           width: 36,
                           height: 36,
-                          bgcolor: isDark ? theme.palette.primary.main : 'rgba(255,255,255,0.2)',
+                          bgcolor: isDark ? primaryMain : 'rgba(255,255,255,0.2)',
                           color: 'white',
                           fontSize: '0.875rem',
                           fontWeight: 600,
@@ -608,9 +620,9 @@ const Layout: React.FC = () => {
                     sx={{
                       py: 1.5,
                       px: 2,
-                      color: isDark ? theme.palette.error.main : '#dc2626',
+                      color: isDark ? errorMain : '#dc2626',
                       '&:hover': {
-                        bgcolor: isDark ? `${theme.palette.error.main}15` : 'rgba(239, 68, 68, 0.1)',
+                        bgcolor: isDark ? `${errorMain}15` : 'rgba(239, 68, 68, 0.1)',
                       },
                     }}
                   >

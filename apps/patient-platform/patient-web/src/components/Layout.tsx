@@ -53,6 +53,32 @@ const navItems = [
   { id: 'profile', label: 'Profile', icon: User, path: '/profile' },
 ];
 
+// Fallbacks so layout styles work on live when theme.palette is not applied (same as doctor-web fix)
+const PATIENT_LAYOUT_FALLBACK = {
+  light: {
+    primaryMain: '#4F7CAC',
+    primaryDark: '#3B5F8A',
+    secondaryMain: '#D4A574',
+    secondaryDark: '#B8875A',
+    divider: '#E8E4DD',
+    actionHover: 'rgba(0,0,0,0.04)',
+    textPrimary: '#3D3A35',
+    textSecondary: '#8A847A',
+    errorMain: '#dc2626',
+  },
+  dark: {
+    primaryMain: '#7BA3C9',
+    primaryDark: '#4F7CAC',
+    secondaryMain: '#E5C4A8',
+    secondaryDark: '#D4A574',
+    divider: '#3D3A35',
+    actionHover: 'rgba(255,255,255,0.08)',
+    textPrimary: '#F5F3EE',
+    textSecondary: '#B8B3A8',
+    errorMain: '#ef4444',
+  },
+} as const;
+
 const Layout: React.FC = () => {
   const theme = useTheme();
   const navigate = useNavigate();
@@ -60,6 +86,17 @@ const Layout: React.FC = () => {
   const { isDark } = useThemeMode();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
+  const p = isDark ? PATIENT_LAYOUT_FALLBACK.dark : PATIENT_LAYOUT_FALLBACK.light;
+  const divider = theme.palette?.divider ?? p.divider;
+  const primaryMain = theme.palette?.primary?.main ?? p.primaryMain;
+  const primaryDark = theme.palette?.primary?.dark ?? p.primaryDark;
+  const secondaryMain = theme.palette?.secondary?.main ?? p.secondaryMain;
+  const secondaryDark = theme.palette?.secondary?.dark ?? p.secondaryDark;
+  const actionHover = theme.palette?.action?.hover ?? p.actionHover;
+  const textPrimary = theme.palette?.text?.primary ?? p.textPrimary;
+  const textSecondary = theme.palette?.text?.secondary ?? p.textSecondary;
+  const errorMain = theme.palette?.error?.main ?? p.errorMain;
+  const zIndexAppBar = theme.zIndex?.appBar ?? 1100;
 
   // Get current nav item
   const currentNav = navItems.find(item => location.pathname.startsWith(item.path))?.id || 'chat';
@@ -90,20 +127,20 @@ const Layout: React.FC = () => {
         display: 'flex', 
         alignItems: 'center', 
         gap: 1.5,
-        borderBottom: `1px solid ${theme.palette.divider}`,
+        borderBottom: `1px solid ${divider}`,
       }}>
         <Box
           sx={{
             width: 40,
             height: 40,
             borderRadius: 2,
-            background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`,
+            background: `linear-gradient(135deg, ${primaryMain} 0%, ${primaryDark} 100%)`,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             color: 'white',
             fontSize: '1.25rem',
-            boxShadow: `0 4px 12px ${theme.palette.primary.main}40`,
+            boxShadow: `0 4px 12px ${primaryMain}40`,
           }}
         >
           💎
@@ -141,16 +178,16 @@ const Layout: React.FC = () => {
         display: 'flex', 
         alignItems: 'center', 
         gap: 1.5,
-        borderBottom: `1px solid ${theme.palette.divider}`,
+        borderBottom: `1px solid ${divider}`,
         cursor: 'pointer',
         transition: 'background-color 0.2s ease',
-        '&:hover': { bgcolor: theme.palette.action.hover },
+        '&:hover': { bgcolor: actionHover },
       }}
       onClick={() => handleNavigation('/profile')}
       >
         <Avatar 
           sx={{ 
-            background: `linear-gradient(135deg, ${theme.palette.secondary.main} 0%, ${theme.palette.secondary.dark} 100%)`,
+            background: `linear-gradient(135deg, ${secondaryMain} 0%, ${secondaryDark} 100%)`,
             width: 44,
             height: 44,
           }}
@@ -195,19 +232,19 @@ const Layout: React.FC = () => {
                   sx={{
                     mx: 1,
                     borderRadius: 2,
-                    bgcolor: isActive ? `${theme.palette.primary.main}15` : 'transparent',
-                    color: isActive ? theme.palette.primary.main : theme.palette.text.primary,
+                    bgcolor: isActive ? `${primaryMain}15` : 'transparent',
+                    color: isActive ? primaryMain : textPrimary,
                     transition: 'all 0.2s ease',
                     '&:hover': {
                       bgcolor: isActive 
-                        ? `${theme.palette.primary.main}20` 
-                        : theme.palette.action.hover,
+                        ? `${primaryMain}20` 
+                        : actionHover,
                     },
                   }}
                 >
                   <ListItemIcon sx={{ 
                     minWidth: 40,
-                    color: isActive ? theme.palette.primary.main : theme.palette.text.secondary,
+                    color: isActive ? primaryMain : textSecondary,
                   }}>
                     <Icon size={22} />
                   </ListItemIcon>
@@ -247,10 +284,10 @@ const Layout: React.FC = () => {
           onClick={handleLogout}
           sx={{
             borderRadius: 2,
-            color: theme.palette.error.main,
+            color: errorMain,
             transition: 'all 0.2s ease',
             '&:hover': {
-              bgcolor: `${theme.palette.error.main}10`,
+              bgcolor: `${errorMain}10`,
             },
           }}
         >
@@ -275,7 +312,7 @@ const Layout: React.FC = () => {
             '& .MuiDrawer-paper': {
               width: DRAWER_WIDTH,
               boxSizing: 'border-box',
-              borderRight: `1px solid ${theme.palette.divider}`,
+              borderRight: `1px solid ${divider}`,
               transition: 'background-color 0.3s ease, border-color 0.3s ease',
             },
           }}
@@ -321,7 +358,7 @@ const Layout: React.FC = () => {
             color="inherit" 
             elevation={0}
             sx={{ 
-              borderBottom: `1px solid ${theme.palette.divider}`,
+              borderBottom: `1px solid ${divider}`,
               bgcolor: 'background.paper',
               transition: 'all 0.3s ease',
             }}
@@ -340,7 +377,7 @@ const Layout: React.FC = () => {
                     width: 32,
                     height: 32,
                     borderRadius: 1.5,
-                    background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`,
+                    background: `linear-gradient(135deg, ${primaryMain} 0%, ${primaryDark} 100%)`,
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
@@ -360,7 +397,7 @@ const Layout: React.FC = () => {
                   sx={{ 
                     width: 32, 
                     height: 32,
-                    background: `linear-gradient(135deg, ${theme.palette.secondary.main} 0%, ${theme.palette.secondary.dark} 100%)`,
+                    background: `linear-gradient(135deg, ${secondaryMain} 0%, ${secondaryDark} 100%)`,
                     fontSize: '0.875rem',
                   }}
                 >
@@ -398,8 +435,8 @@ const Layout: React.FC = () => {
               bottom: 0, 
               left: 0, 
               right: 0,
-              zIndex: theme.zIndex.appBar,
-              borderTop: `1px solid ${theme.palette.divider}`,
+              zIndex: zIndexAppBar,
+              borderTop: `1px solid ${divider}`,
               bgcolor: 'background.paper',
               transition: 'all 0.3s ease',
               // Safe area for iOS
@@ -426,7 +463,7 @@ const Layout: React.FC = () => {
                     sx={{
                       minWidth: 60,
                       '&.Mui-selected': {
-                        color: theme.palette.primary.main,
+                        color: primaryMain,
                       },
                       transition: 'color 0.2s ease',
                     }}

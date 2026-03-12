@@ -15,7 +15,7 @@
     }
 
     body {
-        font-family: 'DM Sans', sans-serif;
+        font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         -webkit-font-smoothing: antialiased;
         -moz-osx-font-smoothing: grayscale;
     }
@@ -258,4 +258,95 @@
     .animate-slide-in-right {
         animation: slideInRight 0.3s ease-out;
     }
+}
+
+/* =============================================================================
+   Critical: full rounded corners + DM Sans font on live (overrides MUI when sx fails)
+   Use !important so production bundle order does not break appearance.
+   ============================================================================= */
+.doctor-app-header {
+    background-color: #1E3A5F;
+    color: #ffffff;
+    font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif !important;
+}
+.doctor-app-header .MuiToolbar-root {
+    min-height: 64px;
+    padding-left: 24px;
+    padding-right: 24px;
+}
+.doctor-app-header .MuiTypography-root,
+.doctor-app-header .MuiButton-root,
+.doctor-app-header .MuiIconButton-root,
+.doctor-app-header .MuiAvatar-root,
+.doctor-app-header * {
+    color: inherit !important;
+    font-family: inherit !important;
+}
+.doctor-app-header .MuiButton-root {
+    border-radius: 12px !important;
+}
+.doctor-app-header .MuiIconButton-root {
+    border-radius: 12px !important;
+}
+.doctor-app-header .MuiAvatar-root {
+    border-radius: 12px !important;
+}
+.doctor-app-header .doctor-header-logo {
+    border-radius: 12px !important;
+}
+
+/* Dashboard: force font + rounded so live matches local */
+.doctor-dashboard,
+.doctor-dashboard * {
+    font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif !important;
+}
+.doctor-dashboard h1,
+.doctor-dashboard h2,
+.doctor-dashboard h3,
+.doctor-dashboard h4,
+.doctor-dashboard h5,
+.doctor-dashboard h6 {
+    font-family: 'Fraunces', Georgia, 'Times New Roman', serif !important;
+}
+
+/* Search bar: full rounded + font (when MUI sx not applied on live) */
+.doctor-search-bar .MuiOutlinedInput-root,
+.doctor-search-bar .MuiInputBase-root {
+    border-radius: 12px !important;
+    font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif !important;
+}
+.doctor-search-bar .MuiInputBase-input {
+    color: #0f172a !important;
+}
+.doctor-search-bar .MuiInputBase-input::placeholder {
+    color: #64748b !important;
+}
+
+/* Filter dropdowns: rounded + font */
+.doctor-filter-select .MuiOutlinedInput-notchedOutline,
+.doctor-filter-select .MuiSelect-select,
+.doctor-filter-select .MuiInputBase-root {
+    border-radius: 12px !important;
+    font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif !important;
+}
+
+/* MUI buttons and inputs anywhere in doctor app: consistent rounding */
+.doctor-dashboard .MuiButton-root {
+    border-radius: 12px !important;
+}
+.doctor-dashboard .MuiOutlinedInput-root {
+    border-radius: 12px !important;
+}
+.doctor-dashboard .MuiSelect-select,
+.doctor-dashboard .MuiSelect-outlined {
+    border-radius: 12px !important;
+}
+.doctor-dashboard [class*="rounded-lg"] {
+    border-radius: 12px !important;
+}
+.doctor-dashboard [class*="rounded-xl"] {
+    border-radius: 16px !important;
+}
+.doctor-dashboard [class*="rounded-full"] {
+    border-radius: 9999px !important;
 }

@@ -315,7 +315,7 @@ const DashboardPage: React.FC = () => {
   };
 
   return (
-    <div className={`flex flex-col h-full w-full overflow-hidden ${isDark ? 'bg-[#1A1917]' : 'bg-[rgb(250,248,245)]'} transition-colors duration-200`}>
+    <div className={`doctor-dashboard flex flex-col h-full w-full overflow-hidden ${isDark ? 'bg-[#1A1917]' : 'bg-[rgb(250,248,245)]'} transition-colors duration-200`}>
       {/* Fixed Header - Compact on mobile */}
       <div
         className={`flex-shrink-0 ${isDark ? 'bg-[#1A1917] border-b border-slate-800/50' : 'bg-white/95 backdrop-blur-sm border-b border-slate-200/60'} transition-all duration-200 shadow-sm`}
@@ -355,8 +355,8 @@ const DashboardPage: React.FC = () => {
       >
         <div className="px-4 py-4 sm:p-6 sm:py-5 max-w-[1400px] mx-auto w-full">
           <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 items-stretch sm:items-center">
-            {/* Search - full width on mobile, shorter placeholder to avoid truncation */}
-            <div className="flex-1 min-w-0 w-full">
+            {/* Search - doctor-search-bar forces rounded + font on live */}
+            <div className="doctor-search-bar flex-1 min-w-0 w-full">
               <TextField
                 fullWidth
                 placeholder={isMobile ? 'Search patients...' : 'Search by first name, last name, or full name...'}
@@ -432,7 +432,7 @@ const DashboardPage: React.FC = () => {
               </Button>
             ) : (
             <div className="flex flex-row gap-3 items-center flex-wrap">
-              <FormControl size="small" sx={{ minWidth: { xs: 140, sm: 160 } }}>
+              <FormControl size="small" className="doctor-filter-select" sx={{ minWidth: { xs: 140, sm: 160 } }}>
                 <InputLabel
                   sx={{
                     color: isDark ? '#94a3b8' : '#64748b',
@@ -484,7 +484,7 @@ const DashboardPage: React.FC = () => {
                 </Select>
               </FormControl>
 
-              <FormControl size="small" sx={{ minWidth: { xs: 120, sm: 140 } }}>
+              <FormControl size="small" className="doctor-filter-select" sx={{ minWidth: { xs: 120, sm: 140 } }}>
                 <InputLabel
                   sx={{
                     color: isDark ? '#94a3b8' : '#64748b',
@@ -536,7 +536,7 @@ const DashboardPage: React.FC = () => {
                 </Select>
               </FormControl>
 
-              <FormControl size="small" sx={{ minWidth: { xs: 160, sm: 180 } }}>
+              <FormControl size="small" className="doctor-filter-select" sx={{ minWidth: { xs: 160, sm: 180 } }}>
                 <InputLabel
                   sx={{
                     color: isDark ? '#94a3b8' : '#64748b',
@@ -616,7 +616,7 @@ const DashboardPage: React.FC = () => {
             </Button>
           </div>
           <div className="flex flex-col gap-4">
-            <FormControl size="small" fullWidth>
+            <FormControl size="small" fullWidth className="doctor-filter-select">
               <InputLabel sx={{ color: isDark ? '#94a3b8' : '#64748b', '&.Mui-focused': { color: '#2563EB' } }}>Symptom Type</InputLabel>
               <Select
                 value={symptomTypeFilter}
@@ -636,7 +636,7 @@ const DashboardPage: React.FC = () => {
                 <MenuItem value="breathing">Breathing Issues</MenuItem>
               </Select>
             </FormControl>
-            <FormControl size="small" fullWidth>
+            <FormControl size="small" fullWidth className="doctor-filter-select">
               <InputLabel sx={{ color: isDark ? '#94a3b8' : '#64748b', '&.Mui-focused': { color: '#2563EB' } }}>Severity</InputLabel>
               <Select
                 value={severityFilter}
@@ -656,7 +656,7 @@ const DashboardPage: React.FC = () => {
                 <MenuItem value="urgent">Urgent</MenuItem>
               </Select>
             </FormControl>
-            <FormControl size="small" fullWidth>
+            <FormControl size="small" fullWidth className="doctor-filter-select">
               <InputLabel sx={{ color: isDark ? '#94a3b8' : '#64748b', '&.Mui-focused': { color: '#2563EB' } }}>Last Chatbot Check-in</InputLabel>
               <Select
                 value={checkInFilter}
