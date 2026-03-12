@@ -106,26 +106,34 @@ const Layout: React.FC = () => {
   //   return null;
   // }
 
-  // Header colors based on dark mode (same as sidebar colors for consistency).
-  // Use fallbacks so header always shows correct colors in production when theme/palette may not be ready yet.
+  // Header colors: use fallback only for now so live server shows correct colours (theme not applied on server).
+  // TODO: Re-enable theme-based colours when theme/palette is reliable in production.
   const fallback = isDark ? HEADER_FALLBACK.dark : HEADER_FALLBACK.light;
-  const headerBg = isDark
-    ? (theme.palette?.background?.paper ?? fallback.bg)
-    : (theme.palette?.primary?.main ?? fallback.bg);
-  const headerText = isDark
-    ? (theme.palette?.text?.primary ?? fallback.text)
-    : (theme.palette?.primary?.contrastText ?? fallback.text);
-  const headerTextMuted = isDark
-    ? (theme.palette?.text?.secondary ?? fallback.textMuted)
-    : fallback.textMuted;
-  const headerDivider = isDark
-    ? (theme.palette?.divider ?? fallback.divider)
-    : fallback.divider;
-  const headerHover = isDark
-    ? (theme.palette?.action?.hover ?? fallback.hover)
-    : fallback.hover;
-  const primaryMain = theme.palette?.primary?.main ?? (isDark ? '#3B82F6' : '#1E3A5F');
-  const headerActive = isDark ? `${primaryMain}20` : fallback.active;
+  const headerBg = fallback.bg;
+  const headerText = fallback.text;
+  const headerTextMuted = fallback.textMuted;
+  const headerDivider = fallback.divider;
+  const headerHover = fallback.hover;
+  const headerActive = fallback.active;
+
+  // (Commented out: theme-based header colours – not showing on live)
+  // const headerBg = isDark
+  //   ? (theme.palette?.background?.paper ?? fallback.bg)
+  //   : (theme.palette?.primary?.main ?? fallback.bg);
+  // const headerText = isDark
+  //   ? (theme.palette?.text?.primary ?? fallback.text)
+  //   : (theme.palette?.primary?.contrastText ?? fallback.text);
+  // const headerTextMuted = isDark
+  //   ? (theme.palette?.text?.secondary ?? fallback.textMuted)
+  //   : fallback.textMuted;
+  // const headerDivider = isDark
+  //   ? (theme.palette?.divider ?? fallback.divider)
+  //   : fallback.divider;
+  // const headerHover = isDark
+  //   ? (theme.palette?.action?.hover ?? fallback.hover)
+  //   : fallback.hover;
+  // const primaryMain = theme.palette?.primary?.main ?? (isDark ? '#3B82F6' : '#1E3A5F');
+  // const headerActive = isDark ? `${primaryMain}20` : fallback.active;
 
   // Sidebar colors based on dark mode (commented out - kept for reference, used in commented sidebar code below)
   const sidebarBg = isDark ? theme.palette.background.paper : theme.palette.primary.main;
