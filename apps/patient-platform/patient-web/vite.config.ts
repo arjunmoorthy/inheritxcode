@@ -12,7 +12,16 @@ export default defineConfig(({ mode }) => {
       alias: {
         '@': path.resolve(__dirname, './src'),
       },
-      dedupe: ['react', 'react-dom', 'react-router-dom'],
+      // Prevent duplicate React/Emotion/MUI so theme and sx styles apply on live (shared package otherwise can use different instances)
+      dedupe: [
+        'react',
+        'react-dom',
+        'react-router-dom',
+        '@emotion/react',
+        '@emotion/styled',
+        '@mui/material',
+        '@mui/system',
+      ],
     },
     server: {
       host: true,
