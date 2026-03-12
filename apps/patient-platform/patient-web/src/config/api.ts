@@ -35,7 +35,7 @@ export const API_CONFIG = {
       LOGIN: '/auth/login',
       SIGNUP: '/auth/signup/staff',
       COMPLETE_NEW_PASSWORD: '/auth/complete-new-password',
-      CHANGE_PASSWORD: '/fax/change-password',
+      CHANGE_PASSWORD: '/auth/change-password',
       LOGOUT: '/auth/logout',
       DELETE: '/auth/delete-patient',
       FORGOT_PASSWORD: '/auth/forgot-password',

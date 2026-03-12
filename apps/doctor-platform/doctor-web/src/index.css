@@ -274,16 +274,17 @@
     padding-left: 24px;
     padding-right: 24px;
 }
+/* Only Typography, IconButton, Avatar inherit header color; nav Buttons keep sx (active=white, inactive=muted) */
 .doctor-app-header .MuiTypography-root,
-.doctor-app-header .MuiButton-root,
 .doctor-app-header .MuiIconButton-root,
-.doctor-app-header .MuiAvatar-root,
-.doctor-app-header * {
+.doctor-app-header .MuiAvatar-root {
     color: inherit !important;
     font-family: inherit !important;
 }
 .doctor-app-header .MuiButton-root {
+    font-family: inherit !important;
     border-radius: 12px !important;
+    /* do not force color - Layout sx sets active=white, inactive=headerTextMuted */
 }
 .doctor-app-header .MuiIconButton-root {
     border-radius: 12px !important;

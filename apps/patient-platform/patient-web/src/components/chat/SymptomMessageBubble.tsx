@@ -459,10 +459,8 @@ export const SymptomMessageBubble: React.FC<SymptomMessageBubbleProps> = ({
           <h2>EMERGENCY</h2>
         </div>
         <div className="emergency-result-content" dangerouslySetInnerHTML={formatContent(message.content)} />
+        <p className="emergency-call-911-text">If you need emergency help, call 911.</p>
         <div className="emergency-result-actions">
-          <a href="tel:911" className="call-911-btn">
-            📞 Call 911
-          </a>
           <button 
             className="acknowledge-btn"
             onClick={() => onSummaryAction && onSummaryAction('acknowledge')}
