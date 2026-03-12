@@ -52,18 +52,30 @@ services:
       - LOG_LEVEL=DEBUG
       - LOG_FORMAT=text
       - LOCAL_DEV_MODE=true
-      # Patient Database
-      - PATIENT_DB_HOST=postgres
-      - PATIENT_DB_PORT=5432
-      - PATIENT_DB_USER=oncolife_admin
-      - PATIENT_DB_PASSWORD=oncolife_dev_password
-      - PATIENT_DB_NAME=oncolife_patient
-      # Doctor Database (read-only)
-      - DOCTOR_DB_HOST=postgres
+      # # Patient Database
+      # - PATIENT_DB_HOST=postgres
+      # - PATIENT_DB_PORT=5432
+      # - PATIENT_DB_USER=oncolife_admin
+      # - PATIENT_DB_PASSWORD=oncolife_dev_password
+      # - PATIENT_DB_NAME=oncolife_patient
+      # # Doctor Database (read-only)
+      # - DOCTOR_DB_HOST=postgres
+      # - DOCTOR_DB_PORT=5432
+      # - DOCTOR_DB_USER=oncolife_admin
+      # - DOCTOR_DB_PASSWORD=oncolife_dev_password
+      # - DOCTOR_DB_NAME=oncolife_doctor
+      # Doctor Database (primary) - LIVE RDS
+      - DOCTOR_DB_HOST=oncolife-uat.c1om2gk4ycxn.us-east-2.rds.amazonaws.com
       - DOCTOR_DB_PORT=5432
-      - DOCTOR_DB_USER=oncolife_admin
-      - DOCTOR_DB_PASSWORD=oncolife_dev_password
-      - DOCTOR_DB_NAME=oncolife_doctor
+      - DOCTOR_DB_USER=oncoife-doctor
+      - DOCTOR_DB_PASSWORD=1FeusXaVR6JMP272Fgbb
+      - DOCTOR_DB_NAME=oncolife-doctor-db
+      # Patient Database (read-only) - LIVE RDS
+      - PATIENT_DB_HOST=oncolife-uat.c1om2gk4ycxn.us-east-2.rds.amazonaws.com
+      - PATIENT_DB_PORT=5432
+      - PATIENT_DB_USER=oncolife-patient
+      - PATIENT_DB_PASSWORD=f1HV9hz823qcmeVap2i4
+      - PATIENT_DB_NAME=oncolife-patient-db
       # AWS
       - AWS_REGION=${AWS_REGION:-us-west-2}
       - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID:-}
