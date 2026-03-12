@@ -35,9 +35,9 @@ Copyright:
 from typing import Dict, Any, List, Tuple, Optional, AsyncGenerator
 from uuid import UUID
 from datetime import datetime, time
-
 from sqlalchemy.orm import Session
 import pytz
+from services.symptom_analytics_service import save_symptom_analytics
 
 # Symptom checker engine
 from routers.chat.symptom_checker import SymptomCheckerEngine, TriageLevel
@@ -54,6 +54,7 @@ from db.patient_models import (
     Messages as MessageModel,
     PatientDiaryEntries as DiaryEntry,
 )
+
 
 # Core
 from core.logging import get_logger
@@ -395,6 +396,19 @@ class ChatService:
                 chat.triage_level = engine_response.triage_level.value if engine_response.triage_level else 'none'
                 chat.is_complete = "true"
                 chat.completed_at = datetime.utcnow()
+
+                try:
+                    # symptom_details/symptom_time_series use patient_id as UUID (FK to patients.uuid).
+                    # chat.patient_uuid is the same identity as doctor-api User.uuid for the fax patient.
+                    save_symptom_analytics(
+                        db=self.db,
+                        patient_id=chat.patient_uuid,
+                        conversation_id=chat_uuid,
+                        engine_state=engine_response.state.to_dict()
+                    )
+                except Exception as e:
+                    self.db.rollback()
+                    logger.error(f"Failed to save symptom analytics: {e}", exc_info=True)
                 
                 # Generate summaries for the conversation
                 summaries = self._generate_conversation_summaries(

@@ -469,6 +469,7 @@ def patient_listing_dashboard(
                 "age": p.age,
                 "phone_number": p.phone_number,
                 "email": p.email,
+                "mrn": p.mrn,
                 "plan_name": p.plan_name,
                 "start_date": p.start_date,
                 "end_date": p.end_date,

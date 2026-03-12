@@ -13,6 +13,13 @@ _ENV_PATH = Path(__file__).resolve().parent.parent.parent / ".env"  # helpers/ -
 load_dotenv(_ENV_PATH)
 
 
+def is_mail_configured() -> bool:
+    """Return True if MAIL_USERNAME and MAIL_PASSWORD are set (email can be sent)."""
+    mail_username = settings.mail_username or os.getenv("MAIL_USERNAME")
+    mail_password = settings.mail_password or os.getenv("MAIL_PASSWORD")
+    return bool(mail_username and mail_password)
+
+
 def _get_mail_conf() -> ConnectionConfig:
     """Build FastAPI-Mail config from settings/env. Raises if credentials not configured."""
     mail_username = settings.mail_username or os.getenv("MAIL_USERNAME")

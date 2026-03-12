@@ -14,7 +14,7 @@ from datetime import datetime
 from typing import Optional, List, Any, Dict
 
 from sqlalchemy import (
-    Column, String, DateTime, ForeignKey, Text, Integer, Enum
+    Column, Float, String, DateTime, ForeignKey, Text, Integer, Enum
 )
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import relationship
@@ -291,6 +291,96 @@ class Message(Base):
         )
 
 
+# Minimal ref so SymptomDetail/SymptomTimeSeries FK("chat_patients.uuid") can resolve.
+# chat_patients lives in the same DB; the full model is in db.patient_models (different Base).
+class ChatPatientRef(Base):
+    __tablename__ = "chat_patients"
+    uuid = Column(UUID(as_uuid=True), primary_key=True)
 
 
+class SymptomTimeSeries(Base):
+    __tablename__ = "symptom_time_series"
 
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+
+    # Chat patients (fax) may not exist in patients table; link to chat_patients.uuid
+    patient_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("chat_patients.uuid", ondelete="CASCADE"),
+        nullable=False
+    )
+
+    conversation_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("conversations.uuid", ondelete="CASCADE"),
+        nullable=False
+    )
+
+    symptom_id = Column(
+        String(50),
+        nullable=False
+    )
+
+    metric_name = Column(
+        String(50),
+        nullable=False
+    )
+
+    metric_value = Column(
+        Float,
+        nullable=False
+    )
+
+    recorded_at = Column(
+        DateTime(timezone=True),
+        server_default=func.now()
+    )
+
+    # Relationships
+    conversation = relationship("Conversation", backref="symptom_metrics")
+
+
+class SymptomDetail(Base):
+    __tablename__ = "symptom_details"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+
+    # Chat patients (fax) may not exist in patients table; link to chat_patients.uuid
+    patient_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("chat_patients.uuid", ondelete="CASCADE"),
+        nullable=False,
+        index=True
+    )
+
+    conversation_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("conversations.uuid", ondelete="CASCADE"),
+        nullable=False,
+        index=True
+    )
+
+    symptom_id = Column(
+        String(50),
+        nullable=False
+    )
+
+    severity = Column(String(20))
+
+    triage_level = Column(
+        String(30),
+        default="none"
+    )
+
+    answers_json = Column(
+        JSONB,
+        nullable=True
+    )
+
+    created_at = Column(
+        DateTime(timezone=True),
+        server_default=func.now()
+    )
+
+    # Relationships
+    conversation = relationship("Conversation", backref="symptoms")
