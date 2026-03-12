@@ -407,7 +407,7 @@ def add_staff_simple(
     clinic_repo = ClinicRepository(db)
 
     email_clean = request.email.strip().lower()
-    login_link = f"{settings.doctor_set_password_base_url}?email={email_clean}"
+    login_link = settings.doctor_set_password_base_url.format(email=email_clean)
 
     # 🔒 Email uniqueness check
     if user_repo.email_exists(email_clean) or staff_repo.email_exists(email_clean):
