@@ -21,7 +21,7 @@ import bcrypt
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from fastapi.responses import JSONResponse
 from jose import jwt
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field, model_validator
 from sqlalchemy.orm import Session
 from typing import Any, Dict, List, Optional
 
@@ -350,6 +350,74 @@ async def login(
         ),
     )
     return JSONResponse(status_code=200, content=payload.model_dump())
+
+
+class ChangePasswordRequest(BaseModel):
+    """Request body for changing password. Same shape as doctor-api; targets doctor DB users table."""
+    email: EmailStr
+    current_password: str
+    new_password: str = Field(..., min_length=8)
+    confirm_password: str = Field(..., min_length=8)
+
+    @model_validator(mode="after")
+    def passwords_match(self):
+        if self.new_password != self.confirm_password:
+            raise ValueError("New password and confirm password do not match.")
+        return self
+
+
+@router.post(
+    "/change-password",
+    summary="Change password",
+    description="Change password for patient users. Targets the doctor-api users table (same as login).",
+)
+@limiter.limit(PASSWORD_RESET_LIMIT)
+async def change_password(
+    request: Request,
+    body: ChangePasswordRequest,
+    doctor_db: Session = Depends(get_doctor_db),
+):
+    """
+    Change password for patient users.
+    Uses the doctor DB users table (same as login); patient users are stored there.
+    Uses temp password sent via email as current_password for first-time setup.
+    """
+    logger.info(f"Change password request: email={body.email}")
+
+    current_password = (body.current_password or "").strip()
+    if not current_password:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Current password is required.",
+        )
+
+    user = (
+        doctor_db.query(DoctorUser)
+        .filter(DoctorUser.email == body.email)
+        .first()
+    )
+
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found.",
+        )
+
+    # 🔐 Validate current password (same bcrypt verification as login)
+    if not user.password_hash or not verify_password(current_password, user.password_hash):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Current password is incorrect.",
+        )
+
+    user.password_hash = hash_password(body.new_password)
+    user.is_first_login = False
+    doctor_db.commit()
+
+    return JSONResponse(
+        status_code=200,
+        content={"status": "success", "message": "Password changed successfully."},
+    )
 
 
 @router.post(
