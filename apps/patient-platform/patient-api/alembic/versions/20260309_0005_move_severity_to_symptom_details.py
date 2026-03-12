@@ -1,19 +1,21 @@
 """Move severity from symptom_time_series to symptom_details
 
 Revision ID: 20260309_0005
-Revises: 20260308_0004
+Revises: 20260226_0003
 Create Date: 2026-03-09
 
 This migration moves the `severity` column out of the time-series table
 into `symptom_details` (one row per symptom per conversation). It copies
 existing severity values where present (taking the latest per symptom)
 and then drops the column from `symptom_time_series`.
+
+If symptom_details or symptom_time_series do not exist (e.g. fresh DB or
+missing earlier migration), they are created here so this migration can run.
 """
 from typing import Sequence, Union
 
 from alembic import op
 import sqlalchemy as sa
-
 
 
 # revision identifiers, used by Alembic.
@@ -23,14 +25,48 @@ branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
 
+def _ensure_symptom_tables(conn) -> None:
+    """Create symptom_details and symptom_time_series if they do not exist."""
+    # symptom_details: one row per symptom per conversation (no severity yet; added below)
+    # Constraint names match 0006 so it can drop/recreate FKs to chat_patients.
+    conn.execute(sa.text("""
+        CREATE TABLE IF NOT EXISTS symptom_details (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            patient_id UUID NOT NULL CONSTRAINT symptom_details_patient_id_fkey REFERENCES chat_patients(uuid) ON DELETE CASCADE,
+            conversation_id UUID NOT NULL REFERENCES conversations(uuid) ON DELETE CASCADE,
+            symptom_id VARCHAR(50) NOT NULL,
+            triage_level VARCHAR(30) DEFAULT 'none',
+            answers_json JSONB,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+        )
+    """))
+    conn.execute(sa.text("CREATE INDEX IF NOT EXISTS ix_symptom_details_patient_id ON symptom_details (patient_id)"))
+    conn.execute(sa.text("CREATE INDEX IF NOT EXISTS ix_symptom_details_conversation_id ON symptom_details (conversation_id)"))
+
+    # symptom_time_series: time-series metrics per symptom (with severity; dropped below)
+    conn.execute(sa.text("""
+        CREATE TABLE IF NOT EXISTS symptom_time_series (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            patient_id UUID NOT NULL CONSTRAINT symptom_time_series_patient_id_fkey REFERENCES chat_patients(uuid) ON DELETE CASCADE,
+            conversation_id UUID NOT NULL REFERENCES conversations(uuid) ON DELETE CASCADE,
+            symptom_id VARCHAR(50) NOT NULL,
+            metric_name VARCHAR(50) NOT NULL,
+            metric_value DOUBLE PRECISION NOT NULL,
+            recorded_at TIMESTAMPTZ DEFAULT now(),
+            severity VARCHAR(20)
+        )
+    """))
+
+
 def upgrade() -> None:
     """Add severity to symptom_details, copy data, drop from symptom_time_series."""
+    conn = op.get_bind()
+    _ensure_symptom_tables(conn)
 
-    # 1) Add column to symptom_details
-    op.add_column(
-        "symptom_details",
-        sa.Column("severity", sa.String(20), nullable=True),
-    )
+    # 1) Add column to symptom_details (IF NOT EXISTS for idempotency)
+    conn.execute(sa.text(
+        "ALTER TABLE symptom_details ADD COLUMN IF NOT EXISTS severity VARCHAR(20)"
+    ))
 
     # 2) Backfill: copy latest non-null severity per (patient_id, conversation_id, symptom_id)
     # Use DISTINCT ON to pick the latest recorded_at for each grouping.
@@ -52,9 +88,10 @@ def upgrade() -> None:
     )
     """)
 
-    # 3) Drop severity column from symptom_time_series
-    # Some Postgres installations require CASCADE for dependent objects; keep simple drop.
-    op.drop_column("symptom_time_series", "severity")
+    # 3) Drop severity column from symptom_time_series (IF EXISTS for idempotency)
+    conn.execute(sa.text(
+        "ALTER TABLE symptom_time_series DROP COLUMN IF EXISTS severity"
+    ))
 
 
 def downgrade() -> None:
