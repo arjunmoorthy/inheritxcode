@@ -109,7 +109,9 @@ class ConversationState:
             'next_physician_visit': self.next_physician_visit,
             'patient_context_step': self.patient_context_step,
             'dehydration_questions_asked': self.dehydration_questions_asked,
-            'dehydration_signs_present': self.dehydration_signs_present
+            'dehydration_signs_present': self.dehydration_signs_present,
+            'session_temperature': self.session_temperature,
+            'session_vomiting_answer': self.session_vomiting_answer,
         }
 
     @classmethod
