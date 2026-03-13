@@ -82,6 +82,11 @@ class ConversationState:
     # Prevents asking same dehydration questions multiple times in one session
     dehydration_questions_asked: bool = False
     dehydration_signs_present: bool = False
+    # Cross-symptom temperature tracking (per spec FEV-202 / vitals UX)
+    # Reuses a single temperature reading across symptoms in one session
+    session_temperature: Optional[float] = None
+    # Cross-symptom vomiting: reuse "Have you been vomiting?" answer (e.g. ABD-211 then DEH-201)
+    session_vomiting_answer: Optional[bool] = None
 
     def to_dict(self) -> Dict[str, Any]:
         """Serialize state to dictionary."""
@@ -129,7 +134,9 @@ class ConversationState:
             next_physician_visit=data.get('next_physician_visit'),
             patient_context_step=data.get('patient_context_step', 0),
             dehydration_questions_asked=data.get('dehydration_questions_asked', False),
-            dehydration_signs_present=data.get('dehydration_signs_present', False)
+            dehydration_signs_present=data.get('dehydration_signs_present', False),
+            session_temperature=data.get('session_temperature'),
+            session_vomiting_answer=data.get('session_vomiting_answer'),
         )
 
 
@@ -538,6 +545,16 @@ class SymptomCheckerEngine:
             'dia_urine', 'dia_thirsty', 'dia_lightheaded', 'dia_vitals',
         ]
         return any(pattern in question_id for pattern in dehydration_patterns)
+    
+    def _is_temperature_question(self, question_id: str) -> bool:
+        """Check if a question is a temperature-related numeric question (cross-symptom vitals tracking)."""
+        q_id = question_id.lower()
+        # Match generic and symptom-specific temperature IDs (temp, cough_temp, abd_temp, pain_temp, etc.)
+        return 'temp' in q_id
+
+    def _is_vomiting_question(self, question_id: str) -> bool:
+        """Check if question is 'Have you been vomiting?' (ABD-211 uses 'vomiting', DEH-201 uses 'vomiting_check')."""
+        return question_id in ('vomiting', 'vomiting_check')
 
     def _get_next_question(self, symptom: SymptomDef, prefix_message: Optional[str] = None) -> EngineResponse:
         """Get the next applicable question for the current symptom."""
@@ -553,6 +570,35 @@ class SymptomCheckerEngine:
             #         and self.state.current_symptom_id != 'DEH-201'):
             if self._is_dehydration_question(question.id) and self.state.dehydration_questions_asked:
                 logger.info(f"Skipping dehydration question {question.id} - already asked in session")
+                self.state.current_question_index += 1
+                continue
+
+            # Cross-symptom temperature reuse: if we've already captured a temperature
+            # this session, auto-fill subsequent temperature questions instead of re-asking.
+            if (
+                question.input_type == InputType.NUMBER
+                and self._is_temperature_question(question.id)
+                and self.state.session_temperature is not None
+            ):
+                logger.info(
+                    f"Reusing session temperature for question {question.id}: "
+                    f"{self.state.session_temperature}"
+                )
+                self.state.answers[question.id] = self.state.session_temperature
+                self.state.current_question_index += 1
+                continue
+
+            # Cross-symptom vomiting reuse: if we already asked "Have you been vomiting?" this session
+            # (e.g. in ABD-211), reuse that answer when DEH-201 or others ask again (vomiting_check).
+            if (
+                self._is_vomiting_question(question.id)
+                and self.state.session_vomiting_answer is not None
+            ):
+                logger.info(
+                    f"Reusing session vomiting answer for question {question.id}: "
+                    f"{self.state.session_vomiting_answer}"
+                )
+                self.state.answers[question.id] = self.state.session_vomiting_answer
                 self.state.current_question_index += 1
                 continue
             
@@ -752,6 +798,9 @@ class SymptomCheckerEngine:
                     )
                 self.state.answers[question.id] = validated_value
                 # self._store_answer(question.id, validated_value)
+                # Store temperature once per session for cross-symptom reuse
+                if self._is_temperature_question(question.id):
+                    self.state.session_temperature = validated_value
                 logger.info(f"Stored validated {question.id}: {validated_value}")
             
             # Validate TEXT inputs
@@ -774,6 +823,8 @@ class SymptomCheckerEngine:
             else:
                 self.state.answers[question.id] = user_response
                 # self._store_answer(question.id, user_response)
+                if self._is_vomiting_question(question.id):
+                    self.state.session_vomiting_answer = bool(user_response)
                 logger.info(f"Stored answer for {question.id}: {user_response}")
 
         self.state.current_question_index += 1
@@ -803,6 +854,9 @@ class SymptomCheckerEngine:
                     )
                 self.state.answers[question.id] = validated_value
                 # self._store_answer(question.id, validated_value)
+                # Store temperature once per session for cross-symptom reuse
+                if self._is_temperature_question(question.id):
+                    self.state.session_temperature = validated_value
                 logger.info(f"Stored validated {question.id}: {validated_value}")
             
             # Validate TEXT inputs
@@ -821,10 +875,12 @@ class SymptomCheckerEngine:
                 # self._store_answer(question.id, user_response)
                 logger.info(f"Stored follow-up answer for {question.id}: {user_response}")
             
-            # Other input types - no validation needed
+                        # Other input types - no validation needed
             else:
                 self.state.answers[question.id] = user_response
                 # self._store_answer(question.id, user_response)
+                if self._is_vomiting_question(question.id):
+                    self.state.session_vomiting_answer = bool(user_response)
                 logger.info(f"Stored follow-up answer for {question.id}: {user_response}")
 
         self.state.current_question_index += 1
