@@ -558,7 +558,7 @@ def add_staff_simple(
 )
 def list_doctors(
     db: Session = Depends(get_doctor_db_session),
-    current_user: TokenData = Depends(require_roles("admin")),
+    current_user: TokenData = Depends(require_roles("physician", "nurse", "admin")),
 ):
     doctors = (
         db.query(Staff)
@@ -744,8 +744,9 @@ def get_all_staff(
                     if clinic else None
                 ),
             )
-        )    
-        return APIResponse(
+        )
+
+    return APIResponse(
         success=True,
         message="All active staff fetched successfully",
         data=staff_list,
