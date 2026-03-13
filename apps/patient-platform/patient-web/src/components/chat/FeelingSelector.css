@@ -16,12 +16,16 @@
   gap: 5px;
   padding: 10px;
   border-radius: 10px;
-  transition: background-color 0.2s ease-in-out, transform 0.2s ease-in-out;
+  transition: background-color 0.2s ease-in-out, transform 0.2s ease-in-out, color 0.2s ease-in-out;
 }
 
 .feeling-option:hover {
-  background-color: #f0f0f0;
+  background-color: var(--app-bg, #f0f0f0);
   transform: translateY(-5px);
+}
+
+[data-theme="dark"] .feeling-option:hover {
+  background-color: var(--app-surface, #2A2725);
 }
 
 .feeling-option img {
@@ -31,5 +35,10 @@
 
 .feeling-option span {
   font-size: 0.8rem;
-  color: #555;
+  color: var(--app-text-muted, #64748b);
+  transition: color 0.2s ease-in-out;
+}
+
+[data-theme="dark"] .feeling-option span {
+  color: var(--app-text-muted, #B8B3A8);
 } 

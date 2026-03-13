@@ -5,8 +5,8 @@
  * Enhanced with Tailwind CSS and dark mode support
  */
 
-import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -17,8 +17,8 @@ import { Input } from '../../components/ui';
 import { useThemeMode } from '@oncolife/ui-components';
 
 // Check if demo mode should be shown
-const showDemoButton = 
-  import.meta.env.VITE_DEMO_MODE === 'true' || 
+const showDemoButton =
+  import.meta.env.VITE_DEMO_MODE === 'true' ||
   (import.meta.env.DEV && window.location.hostname === 'localhost');
 
 // Validation Schemas
@@ -40,9 +40,18 @@ const LoginPage: React.FC = () => {
   const [isForgotPassword, setIsForgotPassword] = useState(false);
   const [forgotSuccess, setForgotSuccess] = useState(false);
   const { isDark, toggleTheme } = useThemeMode();
-  const { authenticateLogin } = useAuth();
+  const { authenticateLogin, isAuthenticated, isLoading: authLoading } = useAuth();
   const forgotPasswordMutation = useForgotPassword();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // Redirect to app when already authenticated
+  useEffect(() => {
+    if (!authLoading && isAuthenticated) {
+      const from = (location.state as { from?: { pathname: string } })?.from?.pathname;
+      navigate(from || '/chat', { replace: true });
+    }
+  }, [isAuthenticated, authLoading, navigate, location.state]);
 
   // React Hook Form for Login
   const {
@@ -81,9 +90,10 @@ const LoginPage: React.FC = () => {
         // Successful login: tokens (access_token) are stored in login service; header uses Bearer access_token
         navigate('/chat');
       }
-    } catch (err: any) {
-      // Use API message when present (e.g. {"success":false,"message":"Invalid email or password.","data":null})
-      const apiMessage = err?.response?.data?.message ?? err?.message;
+    } catch (err: unknown) {
+      // Show API message dynamically (e.g. 401: "Invalid email or password.")
+      const e = err as { response?: { data?: { message?: string } }; message?: string };
+      const apiMessage = e?.response?.data?.message ?? e?.message;
       const message =
         typeof apiMessage === 'string' && apiMessage.trim()
           ? apiMessage
@@ -101,7 +111,7 @@ const LoginPage: React.FC = () => {
       } else {
         setError(result.message || 'Unable to process request. Please try again.');
       }
-    } catch (err: any) {
+    } catch {
       setError('An error occurred. Please verify your email and try again.');
     }
   };
@@ -117,11 +127,10 @@ const LoginPage: React.FC = () => {
       {/* Dark Mode Toggle */}
       <button
         onClick={toggleTheme}
-        className={`fixed top-4 right-4 z-50 p-3 rounded-full transition-all duration-200 ${
-          isDark 
-            ? 'bg-[#2A2725] text-white hover:bg-[#3A3835] border border-slate-700 shadow-lg' 
+        className={`fixed top-4 right-4 z-50 p-3 rounded-full transition-all duration-200 ${isDark
+            ? 'bg-[#2A2725] text-white hover:bg-[#3A3835] border border-slate-700 shadow-lg'
             : 'bg-white text-slate-700 hover:bg-slate-50 border border-slate-200 shadow-lg'
-        }`}
+          }`}
         aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
       >
         {isDark ? <Sun size={20} /> : <Moon size={20} />}
@@ -218,11 +227,10 @@ const LoginPage: React.FC = () => {
                   <button
                     type="submit"
                     disabled={isLoading || (isForgotPassword && forgotSuccess)}
-                    className={`group relative w-full overflow-hidden rounded-xl font-bold text-[15px] transition-all duration-300 ${
-                      isLoading || (isForgotPassword && forgotSuccess)
+                    className={`group relative w-full overflow-hidden rounded-xl font-bold text-[15px] transition-all duration-300 ${isLoading || (isForgotPassword && forgotSuccess)
                         ? 'opacity-60 cursor-not-allowed'
                         : 'hover:scale-[1.02] active:scale-[0.98]'
-                    } bg-primary text-white shadow-lg hover:shadow-xl hover:bg-primary-dark py-3.5 px-6 flex items-center justify-center gap-2`}
+                      } bg-primary text-white shadow-lg hover:shadow-xl hover:bg-primary-dark py-3.5 px-6 flex items-center justify-center gap-2`}
                   >
                     {isLoading ? (
                       <>
@@ -285,56 +293,56 @@ const LoginPage: React.FC = () => {
 
               {!isForgotPassword && !forgotSuccess && (
                 <>
-                  <div className={`mt-6 text-center text-sm transition-colors duration-300 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                  {/* <div className={`mt-6 text-center text-sm transition-colors duration-300 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
                     Don't have an account?
                     <Link to="/signup" className="text-primary ml-2 font-bold hover:underline">
                       Sign up
                     </Link>
-                  </div>
+                  </div> */}
 
                   {/* Demo Mode Quick Login - Shows in local dev or when VITE_DEMO_MODE=true */}
-                  {showDemoButton && (
-                    <div className="mt-8 animate-fade-in">
-                      {/* HIPAA Notice */}
-                      <div className="flex items-center justify-center gap-2 mb-4">
-                        <Shield size={16} className="text-primary" />
-                        <span className={`text-xs font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
-                          Secure, HIPAA-compliant access
-                        </span>
-                      </div>
 
-                      {/* Local Development Mode Card */}
-                      <div className={`rounded-2xl border-2 p-5 transition-all duration-300 ${
-                        isDark 
-                          ? 'bg-emerald-900/20 border-emerald-700/40' 
-                          : 'bg-emerald-50 border-emerald-200'
-                      }`}>
-                        <div className="flex items-center gap-2 mb-3">
-                          <Wrench size={16} className={isDark ? 'text-emerald-400' : 'text-emerald-700'} />
-                          <h3 className={`font-bold text-sm ${isDark ? 'text-emerald-300' : 'text-emerald-800'}`}>
-                            Local Development Mode
-                          </h3>
-                        </div>
-                        
-                        <button
-                          onClick={handleDevLogin}
-                          className={`w-full py-3 px-4 rounded-xl font-bold text-sm transition-all duration-300 active:scale-[0.98] flex items-center justify-center gap-2 ${
-                            isDark
-                              ? 'bg-gradient-to-r from-primary to-secondary text-white hover:from-primary-dark hover:to-secondary-dark shadow-lg shadow-primary/30 hover:shadow-xl hover:shadow-primary/40'
-                              : 'bg-gradient-to-r from-primary to-secondary text-white hover:from-primary-dark hover:to-secondary-dark shadow-md hover:shadow-lg'
-                          }`}
-                        >
-                          <Rocket size={16} className="shrink-0" />
-                          <span>Quick Dev Login (No Password)</span>
-                        </button>
-                      </div>
-
-                      {/* Copyright Notice */}
-                      <div className={`mt-4 text-center text-[10px] ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
-                        © 2025 HealthAI - OncoLife. All rights reserved.
-                      </div>
+                  <div className="mt-8 animate-fade-in">
+                    {/* HIPAA Notice */}
+                    <div className="flex items-center justify-center gap-2 mb-4">
+                      <Shield size={16} className="text-primary" />
+                      <span className={`text-xs font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                        Secure, HIPAA-compliant access
+                      </span>
                     </div>
-                  )}
+                    {showDemoButton && (
+                      <>
+                        {/* Local Development Mode Card */}
+                        <div className={`rounded-2xl border-2 p-5 transition-all duration-300 ${isDark
+                            ? 'bg-emerald-900/20 border-emerald-700/40'
+                            : 'bg-emerald-50 border-emerald-200'
+                          }`}>
+                          <div className="flex items-center gap-2 mb-3">
+                            <Wrench size={16} className={isDark ? 'text-emerald-400' : 'text-emerald-700'} />
+                            <h3 className={`font-bold text-sm ${isDark ? 'text-emerald-300' : 'text-emerald-800'}`}>
+                              Local Development Mode
+                            </h3>
+                          </div>
+
+                          <button
+                            onClick={handleDevLogin}
+                            className={`w-full py-3 px-4 rounded-xl font-bold text-sm transition-all duration-300 active:scale-[0.98] flex items-center justify-center gap-2 ${isDark
+                                ? 'bg-gradient-to-r from-primary to-secondary text-white hover:from-primary-dark hover:to-secondary-dark shadow-lg shadow-primary/30 hover:shadow-xl hover:shadow-primary/40'
+                                : 'bg-gradient-to-r from-primary to-secondary text-white hover:from-primary-dark hover:to-secondary-dark shadow-md hover:shadow-lg'
+                              }`}
+                          >
+                            <Rocket size={16} className="shrink-0" />
+                            <span>Quick Dev Login (No Password)</span>
+                          </button>
+                        </div>
+                      </>
+                    )}
+                    {/* Copyright Notice */}
+                    <div className={`mt-4 text-center text-[10px] ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
+                      © 2025 HealthAI - OncoLife. All rights reserved.
+                    </div>
+                  </div>
+
                 </>
               )}
             </div>

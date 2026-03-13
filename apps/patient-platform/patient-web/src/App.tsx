@@ -43,7 +43,7 @@ import Acknowledgement from './pages/LoginPage/Acknowledgement';
 
 // Patient-specific pages
 import SignUpPage from './pages/SignUpPage';
-import Layout from './components/Layout';
+import ProtectedLayout from './components/ProtectedLayout';
 import ChatsPage from './pages/ChatsPage';
 import { SummariesPage, SummariesDetailsPage } from './pages/SummariesPage';
 import NotesPage from './pages/NotesPage';
@@ -71,7 +71,7 @@ function App() {
               <Route path="/set-password" element={<SetPasswordPage />} />
               <Route path="/acknowledgement" element={<Acknowledgement />} />
               <Route path="/signup" element={<SignUpPage />} />
-              <Route element={<Layout />}>
+              <Route element={<ProtectedLayout />}>
                 <Route path="/chat" element={<ChatsPage />} />
                 <Route path="/summaries" element={<SummariesPage />} />
                 <Route path="/summaries/:id" element={<SummariesDetailsPage />} />
@@ -80,7 +80,7 @@ function App() {
                 <Route path="/education" element={<EducationPage />} />
                 <Route path="/profile" element={<ProfilePage />} />
               </Route>
-              <Route path="/" element={<Navigate to="/login" />} />
+              <Route path="/" element={<RootRedirect />} />
             </Routes>
         </UserProvider>
       </AuthProvider>

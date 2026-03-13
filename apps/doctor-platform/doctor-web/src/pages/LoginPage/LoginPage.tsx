@@ -104,10 +104,13 @@ const LoginPage: React.FC = () => {
       if (result?.success) {
         window.location.href = '/dashboard';
       }
-    } catch (err: any) {
-      const errorMessage = err?.response?.data?.message 
-        || err?.message 
-        || 'Invalid credentials. Please check your email and password.';
+    } catch (err: unknown) {
+      // Show API message dynamically (e.g. 401: "Invalid email or password.")
+      const e = err as { response?: { data?: { message?: string } }; message?: string };
+      const errorMessage =
+        (typeof e?.response?.data?.message === 'string' && e.response.data.message.trim()
+          ? e.response.data.message
+          : null) ?? (typeof e?.message === 'string' && e.message.trim() ? e.message : null) ?? 'Invalid credentials. Please check your email and password.';
       setError(errorMessage);
     }
   };
