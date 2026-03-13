@@ -1,4 +1,5 @@
 import React from 'react';
+import { useThemeMode } from '../../contexts/ThemeContext';
 
 interface SessionTimeoutModalProps {
   show: boolean;
@@ -18,8 +19,7 @@ const backdropStyle: React.CSSProperties = {
   zIndex: 1000,
 };
 
-const modalStyle: React.CSSProperties = {
-  background: '#fff',
+const modalStyleBase: React.CSSProperties = {
   borderRadius: 8,
   padding: '2rem',
   minWidth: 320,
@@ -28,11 +28,9 @@ const modalStyle: React.CSSProperties = {
   textAlign: 'center',
 };
 
-const buttonStyle: React.CSSProperties = {
+const buttonStyleBase: React.CSSProperties = {
   marginTop: '1.5rem',
   padding: '0.5rem 1.5rem',
-  background: '#1976d2',
-  color: '#fff',
   border: 'none',
   borderRadius: 4,
   fontSize: 16,
@@ -40,7 +38,24 @@ const buttonStyle: React.CSSProperties = {
 };
 
 const SessionTimeoutModal: React.FC<SessionTimeoutModalProps> = ({ show, onLoginAgain }) => {
+  const { isDark } = useThemeMode();
+
   if (!show) return null;
+
+  const modalStyle: React.CSSProperties = {
+    ...modalStyleBase,
+    background: isDark ? '#2A2725' : '#ffffff',
+    color: isDark ? '#F5F3EE' : '#111827',
+    boxShadow: isDark ? '0 20px 40px rgba(0,0,0,0.7)' : modalStyleBase.boxShadow,
+    border: isDark ? '1px solid #3D3A35' : 'none',
+  };
+
+  const buttonStyle: React.CSSProperties = {
+    ...buttonStyleBase,
+    background: isDark ? '#00897B' : '#1976d2',
+    color: '#ffffff',
+  };
+
   return (
     <div style={backdropStyle}>
       <div style={modalStyle}>
@@ -56,4 +71,4 @@ const SessionTimeoutModal: React.FC<SessionTimeoutModalProps> = ({ show, onLogin
   );
 };
 
-export default SessionTimeoutModal; 
+export default SessionTimeoutModal;

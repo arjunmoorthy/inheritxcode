@@ -9,9 +9,13 @@
   height: 8px;
   width: 8px;
   border-radius: 50%;
-  background-color: #9E9E9E;
+  background-color: var(--text-muted, #9E9E9E);
   margin: 0 4px;
   animation: bounce 1s infinite;
+}
+
+[data-theme="dark"] .typing-indicator span {
+  background-color: var(--text-muted, #8A857A);
 }
 
 .typing-indicator span:nth-child(2) {

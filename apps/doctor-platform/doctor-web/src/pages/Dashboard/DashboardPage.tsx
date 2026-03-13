@@ -44,6 +44,8 @@ import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
 import Skeleton from '@mui/material/Skeleton';
+import Snackbar from '@mui/material/Snackbar';
+import Alert from '@mui/material/Alert';
 import {
   Search,
   User,
@@ -106,6 +108,11 @@ const DashboardPage: React.FC = () => {
   const [isAddPatientModalOpen, setIsAddPatientModalOpen] = useState(false);
   const [filtersDrawerOpen, setFiltersDrawerOpen] = useState(false);
   const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' | 'info' }>({
+    open: false,
+    message: '',
+    severity: 'success',
+  });
 
   // Debounce search: wait 400ms after typing stops; clear triggers API immediately
   useEffect(() => {
@@ -906,7 +913,31 @@ const DashboardPage: React.FC = () => {
           const payload = toAddManualPatientPayload(formData);
           await addPatientMutation.mutateAsync(payload);
         }}
+        onSuccess={() => {
+          setSnackbar({
+            open: true,
+            message: 'Patient added successfully.',
+            severity: 'success',
+          });
+        }}
       />
+
+      {/* Success / error notification */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={6000}
+        onClose={() => setSnackbar((s) => ({ ...s, open: false }))}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert
+          onClose={() => setSnackbar((s) => ({ ...s, open: false }))}
+          severity={snackbar.severity}
+          variant="filled"
+          sx={{ width: '100%' }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </div>
   );
 };

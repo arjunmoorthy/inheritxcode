@@ -39,6 +39,7 @@ import {
   MessageCircleQuestion
 } from 'lucide-react';
 import { DarkModeToggle, useThemeMode } from '@oncolife/ui-components';
+import { useAuth } from '../contexts/AuthContext';
 
 // Sidebar width
 const DRAWER_WIDTH = 260;
@@ -84,6 +85,7 @@ const Layout: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { isDark } = useThemeMode();
+  const { logout } = useAuth();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
   const p = isDark ? PATIENT_LAYOUT_FALLBACK.dark : PATIENT_LAYOUT_FALLBACK.light;
@@ -107,8 +109,7 @@ const Layout: React.FC = () => {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('authToken');
-    sessionStorage.clear();
+    logout();
     navigate('/login');
   };
 

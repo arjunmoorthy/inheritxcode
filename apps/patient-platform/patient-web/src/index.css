@@ -1,12 +1,41 @@
 /**
  * OncoLife Patient Portal - Tailwind CSS Entry Point
- * Enhanced with smooth transitions and focus states
- * Matches the original styled-components behavior
+ * Enhanced with smooth transitions and focus states.
+ * Theme: default follows system (light/dark); colors respect data-theme.
  */
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Theme-aware CSS variables (default = light; overridden by data-theme="dark") */
+:root {
+    --app-bg: #F8FAFC;
+    --app-surface: #ffffff;
+    --app-text: #0f172a;
+    --app-text-muted: #64748b;
+    --app-border: #e2e8f0;
+    --app-primary: #00897B;
+    --app-primary-dark: #00695C;
+    --app-focus-ring: #00897B;
+    --app-input-bg: #f8fafc;
+    --app-card-bg: #ffffff;
+    --app-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+}
+
+[data-theme="dark"] {
+    --app-bg: #1A1917;
+    --app-surface: #2A2725;
+    --app-text: #F5F3EE;
+    --app-text-muted: #B8B3A8;
+    --app-border: #3D3A35;
+    --app-primary: #4DB6AC;
+    --app-primary-dark: #00897B;
+    --app-focus-ring: #4DB6AC;
+    --app-input-bg: #1A1917;
+    --app-card-bg: #2A2725;
+    --app-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.3), 0 2px 4px -2px rgb(0 0 0 / 0.2);
+}
 
 /* Custom base styles */
 @layer base {
@@ -18,6 +47,9 @@
         font-family: 'Source Sans Pro', sans-serif;
         -webkit-font-smoothing: antialiased;
         -moz-osx-font-smoothing: grayscale;
+        background-color: var(--app-bg);
+        color: var(--app-text);
+        transition: background-color 0.3s ease, color 0.3s ease;
     }
 
     h1,
@@ -53,7 +85,7 @@
     /* Better focus visible for accessibility (except inputs) */
     button:focus-visible,
     a:focus-visible {
-        outline: 2px solid #00897B;
+        outline: 2px solid var(--app-focus-ring);
         outline-offset: 2px;
     }
 
@@ -79,24 +111,31 @@
 
 /* Custom component styles */
 @layer components {
-    /* Enhanced Input Wrapper with smooth transitions */
+    /* Enhanced Input Wrapper - theme-aware */
     .input-wrapper {
-        @apply flex items-center bg-slate-50 rounded-lg px-3.5 py-1 border border-slate-200;
-        @apply transition-all duration-200 ease-in-out;
+        display: flex;
+        align-items: center;
+        background-color: var(--app-input-bg);
+        border-radius: 0.5rem;
+        padding: 0.25rem 0.875rem;
+        border: 1px solid var(--app-border);
+        transition: all 0.2s ease-in-out;
     }
 
     .input-wrapper:focus-within {
-        @apply border-primary bg-white;
-        box-shadow: 0 0 0 3px rgba(0, 137, 123, 0.08);
+        border-color: var(--app-primary);
+        background-color: var(--app-surface);
+        box-shadow: 0 0 0 3px color-mix(in srgb, var(--app-primary) 15%, transparent);
     }
 
     .input-wrapper.error {
-        @apply border-red-500 bg-red-50/30;
+        border-color: #ef4444;
+        background-color: color-mix(in srgb, #ef4444 8%, var(--app-input-bg));
     }
 
     .input-wrapper.error:focus-within {
-        @apply border-red-500;
-        box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.08);
+        border-color: #ef4444;
+        box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15);
     }
 
     /* Enhanced Button with smooth hover/active states */
@@ -124,8 +163,10 @@
 
     /* Enhanced Link with smooth underline */
     .link-primary {
-        @apply text-primary no-underline font-medium;
-        @apply transition-all duration-150;
+        color: var(--app-primary);
+        text-decoration: none;
+        font-weight: 500;
+        transition: color 0.15s ease;
         position: relative;
     }
 
@@ -136,7 +177,7 @@
         height: 1px;
         bottom: -2px;
         left: 0;
-        background-color: #00897B;
+        background-color: var(--app-primary);
         transition: width 0.2s ease-in-out;
     }
 
@@ -144,14 +185,21 @@
         width: 100%;
     }
 
-    /* Card with subtle shadow */
+    /* Card - theme-aware */
     .card-elevated {
-        @apply bg-white rounded-2xl shadow-sm border border-slate-200;
-        @apply transition-shadow duration-200;
+        background-color: var(--app-card-bg);
+        border-radius: 1rem;
+        border: 1px solid var(--app-border);
+        box-shadow: var(--app-shadow);
+        transition: box-shadow 0.2s ease, background-color 0.3s ease, border-color 0.3s ease;
     }
 
     .card-elevated:hover {
-        @apply shadow-md;
+        box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.15), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+    }
+
+    [data-theme="dark"] .card-elevated:hover {
+        box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.4), 0 2px 4px -2px rgb(0 0 0 / 0.3);
     }
 }
 

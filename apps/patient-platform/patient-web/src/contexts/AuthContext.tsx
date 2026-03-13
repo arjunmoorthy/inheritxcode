@@ -101,9 +101,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         throw new Error(result.message || result.error || 'Login failed');
       }
     } catch (err: unknown) {
-      const message = err && typeof err === 'object' && 'message' in err && typeof (err as { message: unknown }).message === 'string'
-        ? (err as Error).message
-        : 'Login failed';
+      // Prefer API error body (e.g. 401: { success, status_code, message, details })
+      const ax = err as { response?: { data?: { message?: string; details?: string | null } }; message?: string };
+      const apiMessage = ax?.response?.data?.message;
+      const message =
+        typeof apiMessage === 'string' && apiMessage.trim()
+          ? apiMessage
+          : err && typeof err === 'object' && 'message' in err && typeof (err as Error).message === 'string'
+            ? (err as Error).message
+            : 'Login failed';
       throw new Error(message);
     }
   };

@@ -24,6 +24,7 @@ import {
   MapPin,
   Stethoscope,
   Pill,
+  AlertCircle,
 } from 'lucide-react';
 import { useStaffListDoctors } from '../../../services/staff';
 
@@ -56,6 +57,8 @@ interface AddPatientModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSubmit?: (data: PatientFormValues) => void | Promise<void>;
+  /** Called after a successful add (before modal closes). Use to show success notification. */
+  onSuccess?: () => void;
 }
 
 // Select Options
@@ -83,16 +86,27 @@ const genderOptions: SelectOption[] = [
   { value: 'Other', label: 'Other' },
 ];
 
+/** Extract user-facing message from API error (e.g. { error, error_code, message, details }) or axios shape */
+function getApiErrorMessage(err: unknown): string {
+  const ax = err as { response?: { data?: { message?: string; error_code?: string; details?: unknown } }; message?: string };
+  const msg = ax?.response?.data?.message;
+  if (typeof msg === 'string' && msg.trim()) return msg.trim();
+  if (typeof ax?.message === 'string' && ax.message.trim()) return ax.message.trim();
+  return 'Something went wrong. Please try again.';
+}
+
 export const AddPatientModal: React.FC<AddPatientModalProps> = ({
   isOpen,
   onClose,
-  onSubmit
+  onSubmit,
+  onSuccess,
 }) => {
   const theme = useTheme();
   const { isDark } = useThemeMode();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const { data: doctors = [], isLoading: isLoadingDoctors } = useStaffListDoctors(isOpen);
   const { user } = useAuth();
+  const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
 
   const {
     control,
@@ -125,33 +139,23 @@ export const AddPatientModal: React.FC<AddPatientModalProps> = ({
     },
   });
 
-  // Pre-fill doctor/oncologist if the logged in user is a physician
+  // Clear error when modal opens
   useEffect(() => {
-    if (isOpen && user && (user.role === 'physician' || user.role === 'doctor' || user.role === 'admin')) {
-      // Find the doctor in the list that matches the user
-      const matchingDoctor = doctors.find((d: any) => d.id === user.staff_id);
-
-      const docId = matchingDoctor ? matchingDoctor.id : user.staff_id;
-      const docName = matchingDoctor
-        ? (matchingDoctor.full_name || `${matchingDoctor.first_name || ''} ${matchingDoctor.last_name || ''}`.trim() || matchingDoctor.email || `Doctor #${matchingDoctor.id}`)
-        : (`${user.first_name || ''} ${user.last_name || ''}`.trim() || user.email || `Doctor #${user.staff_id}`);
-
-      if (docId) {
-        setValue('physicianIds', [docId]);
-        setValue('oncologist', `Dr. ${docName}`.replace('Dr. Dr.', 'Dr.'));
-      }
-    }
-  }, [isOpen, user, doctors.length, setValue]);
+    if (isOpen) setErrorMessage(null);
+  }, [isOpen]);
 
   const handleFormSubmit = async (data: PatientFormValues) => {
+    setErrorMessage(null);
     try {
       if (onSubmit) {
         await onSubmit(data);
       }
+      onSuccess?.();
       reset();
       onClose();
-    } catch (error) {
-      console.error('Error adding patient:', error);
+    } catch (err) {
+      console.error('Error adding patient:', err);
+      setErrorMessage(getApiErrorMessage(err));
     }
   };
 
@@ -551,6 +555,21 @@ export const AddPatientModal: React.FC<AddPatientModalProps> = ({
               </div>
             </div>
           </div>
+
+          {/* API error message shown above the buttons; icon and text aligned */}
+          {errorMessage && (
+            <div
+              className={`flex items-center gap-3 rounded-xl border px-4 py-3 text-sm ${
+                isDark
+                  ? 'border-red-800/40 bg-red-900/20 text-red-400'
+                  : 'border-red-200 bg-red-50 text-red-700'
+              }`}
+              role="alert"
+            >
+              <AlertCircle size={20} className="shrink-0 self-center" aria-hidden />
+              <span className="font-medium leading-snug">{errorMessage}</span>
+            </div>
+          )}
 
           <ModalFooter>
             <Button

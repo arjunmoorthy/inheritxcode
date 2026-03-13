@@ -1,11 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Moon, Sun } from 'lucide-react';
 import { useThemeMode } from '@oncolife/ui-components';
 import { useSignUp } from '../services/signup';
+import { useAuth } from '../contexts/AuthContext';
 
 const SignUpPage = () => {
   const { isDark, toggleTheme } = useThemeMode();
+  const { isAuthenticated, isLoading } = useAuth();
+  const navigate = useNavigate();
   const [formData, setFormData] = useState({
     emailAddress: '',
     firstName: '',
@@ -14,7 +17,13 @@ const SignUpPage = () => {
   const [error, setError] = useState('');
   
   const signUpMutation = useSignUp();
-  const navigate = useNavigate();
+
+  // Redirect to app when already authenticated
+  useEffect(() => {
+    if (!isLoading && isAuthenticated) {
+      navigate('/chat', { replace: true });
+    }
+  }, [isAuthenticated, isLoading, navigate]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({
