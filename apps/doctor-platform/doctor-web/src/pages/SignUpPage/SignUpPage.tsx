@@ -339,14 +339,14 @@ const SignUpPage: React.FC = () => {
                                 <div className="mt-8">
                                     <div className="relative mb-6">
                                         <div className="absolute inset-0 flex items-center">
-                                            <div className={`w-full border-t border ${isDark ? 'border-[#3A3835]' : 'border-slate-300'}`}></div>
+                                            <div className={`w-full`}></div>
                                         </div>
-                                        <div className="relative flex justify-center text-[11px] uppercase">
+                                        {/* <div className="relative flex justify-center text-[11px] uppercase">
                                             <span className={`px-4 font-bold tracking-widest ${isDark ? 'bg-[#2A2725] text-slate-500' : 'bg-white text-slate-500'
                                                 }`}>
                                                 Or continue with
                                             </span>
-                                        </div>
+                                        </div> */}
                                     </div>
 
                                     {/* Google Sign Up */}
