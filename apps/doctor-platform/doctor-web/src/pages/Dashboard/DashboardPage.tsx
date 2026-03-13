@@ -364,12 +364,18 @@ const DashboardPage: React.FC = () => {
           <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 items-stretch sm:items-center">
             {/* Search - doctor-search-bar forces rounded + font on live */}
             <div className="doctor-search-bar flex-1 min-w-0 w-full">
-              <TextField
+            <TextField
                 fullWidth
                 placeholder={isMobile ? 'Search patients...' : 'Search by first name, last name, or full name...'}
                 value={search}
                 onChange={handleSearchChange}
                 size="small"
+                inputProps={{
+                  style: {
+                    color: isDark ? '#f9fafb' : '#0f172a',
+                    caretColor: isDark ? '#f9fafb' : '#0f172a',
+                  },
+                }}
                 InputProps={{
                   startAdornment: (
                     <InputAdornment position="start">
