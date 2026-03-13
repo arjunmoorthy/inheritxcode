@@ -300,6 +300,18 @@ async def login(
             ).model_dump(),
         )
 
+    # Only users with role "patient" can log in to the patient portal
+    if (user.role or "").lower() != "patient":
+        return JSONResponse(
+            status_code=403,
+            content=ErrorResponse(
+                success=False,
+                message="Only patient users can log in to the patient portal.",
+                details=None,
+                status_code=403,
+            ).model_dump(),
+        )
+
     user.last_login_at = datetime.now(timezone.utc)
     doctor_db.commit()
 

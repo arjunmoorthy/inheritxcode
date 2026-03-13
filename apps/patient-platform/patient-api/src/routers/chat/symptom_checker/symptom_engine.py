@@ -931,7 +931,7 @@ class SymptomCheckerEngine:
             "or go to your nearest emergency room.\n\n"
             "If you cannot call yourself, please ask someone nearby to help you.\n\n"
             "---\n\n"
-            "*Your care team has also been notified of this emergency.*"
+            "*Please call your care team immediately, or 911 at your discretion*"
         )
         
         self._add_to_chat_history('ruby', emergency_text)
@@ -1050,7 +1050,15 @@ class SymptomCheckerEngine:
             # Generate concise 2-3 sentence summary
             concise_summary = f"You reported {symptoms_list}. "
             if alerts:
-                alert_names = [r['symptom_name'] for r in alerts]
+                # Deduplicate by symptom_id so the same symptom is not listed twice
+                # (e.g. when one symptom has both screening + follow-up and both trigger an alert)
+                seen_ids: List[str] = []
+                alert_names: List[str] = []
+                for r in alerts:
+                    sid = r.get('symptom_id')
+                    if sid not in seen_ids:
+                        seen_ids.append(sid)
+                        alert_names.append(r['symptom_name'])
                 concise_summary += f"Please call your care team regarding the reported symptoms: {', '.join(alert_names)}. "
             # concise_summary += "They will follow up with you soon."
             
@@ -1058,7 +1066,7 @@ class SymptomCheckerEngine:
                 "📋 **Assessment Complete**\n\n"
                 f"**Summary:** {concise_summary}\n\n"
                 "---\n\n"
-                "⚠️ **Please call your care team** - they will review and follow up.\n\n"
+                "⚠️ **Please call your care team** - they will assist you further.\n\n"
                 "📔 **Saved to your diary** automatically for your records.\n\n"
                 "💬 **Want to add anything?** You can add personal notes.\n\n"
                 "What would you like to do?"
@@ -1068,7 +1076,7 @@ class SymptomCheckerEngine:
         else:
             # Generate concise 2-3 sentence summary for no concerns
             concise_summary = f"You reported {symptoms_list}. "
-            concise_summary += "No urgent concerns were identified but if you are concerned please call your care team "
+            concise_summary += "No urgent concerns were identified but if you are concerned please call your care team. "
             concise_summary += "Continue monitoring and reach out if symptoms change."
             
             summary_message = (
