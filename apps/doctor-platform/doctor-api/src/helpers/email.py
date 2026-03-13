@@ -221,7 +221,7 @@ async def send_welcome_email_staff(
     """
 
     message = MessageSchema(
-        subject="Welcome to the Patient Portal",
+        subject="Welcome to the Provider's Portal",
         recipients=[email],
         body=html,
         subtype="html",
