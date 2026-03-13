@@ -2872,11 +2872,11 @@ SYMPTOMS['ABD-211'] = SymptomDef(
             text='Have you been vomiting?',
             input_type=InputType.YES_NO
         ),
-        Question(
-            id='blood_stool',
-            text='Is there any blood in your stool?',
-            input_type=InputType.YES_NO
-        ),
+        # Question(
+        #     id='blood_stool',
+        #     text='Is there any blood in your stool?',
+        #     input_type=InputType.YES_NO
+        # ),
         Question(
             id='dehydration',
             text='Are you experiencing signs of dehydration (dark urine, thirsty, lightheaded)?',
