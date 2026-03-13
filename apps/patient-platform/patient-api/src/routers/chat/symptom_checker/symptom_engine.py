@@ -191,6 +191,16 @@ class SymptomCheckerEngine:
             sender='system',
             state=self.state
         )
+    
+    # def _store_answer(self, question_id, value):
+    #     symptom_id = self.state.current_symptom_id
+
+    #     if symptom_id not in self.state.answers:
+    #         self.state.answers[symptom_id] = {}
+
+    #     self.state.answers[symptom_id][question_id] = value
+
+    #     logger.info(f"Stored answer for {symptom_id} → {question_id}: {value}")
 
     def process_response(self, user_response: Any) -> EngineResponse:
         """
@@ -367,7 +377,8 @@ class SymptomCheckerEngine:
                 # No emergencies, continue to symptom selection
                 self.state.phase = ConversationPhase.SYMPTOM_SELECTION
                 return self._show_symptom_selection()
-            selected = [user_response]
+            # Frontend may send multiple emergent IDs as comma-separated string
+            selected = [s.strip() for s in user_response.split(',') if s.strip()]
         elif isinstance(user_response, list):
             selected = [s for s in user_response if s != 'none']
         else:
@@ -535,7 +546,11 @@ class SymptomCheckerEngine:
         while self.state.current_question_index < len(questions):
             question = questions[self.state.current_question_index]
             
-            # DEH-201: Skip dehydration questions if already asked in this session
+            # DEH-201: Skip dehydration questions if already asked in this session (e.g. in Diarrhea/Vomiting).
+            # Do NOT skip when we're inside DEH-201 itself - those are its core screening questions.
+            # TODO: Re-enable tomorrow - and self.state.current_symptom_id != 'DEH-201'
+            # if (self._is_dehydration_question(question.id) and self.state.dehydration_questions_asked
+            #         and self.state.current_symptom_id != 'DEH-201'):
             if self._is_dehydration_question(question.id) and self.state.dehydration_questions_asked:
                 logger.info(f"Skipping dehydration question {question.id} - already asked in session")
                 self.state.current_question_index += 1
@@ -619,7 +634,9 @@ class SymptomCheckerEngine:
             return INPUT_HINTS.get('temperature', '')
         if 'bp' in q_id or 'blood_pressure' in q_id or 'pressure' in q_id:
             return INPUT_HINTS.get('blood_pressure', '')
-        if 'hr' in q_id or 'heart_rate' in q_id or 'pulse' in q_id:
+        # Heart rate: match hr/heart_rate/pulse but not "hours" (e.g. sleep_hrs)
+        if ('heart_rate' in q_id or 'pulse' in q_id or
+                ('hr' in q_id and 'hrs' not in q_id and 'hour' not in q_id)):
             return INPUT_HINTS.get('heart_rate', '')
         if 'o2' in q_id or 'oxygen' in q_id or 'spo2' in q_id or 'sat' in q_id:
             return INPUT_HINTS.get('oxygen', '')
@@ -661,8 +678,9 @@ class SymptomCheckerEngine:
                 return False, None, msg
             return True, value, None
         
-        # Heart rate validation
-        if 'hr' in q_id or 'heart_rate' in q_id or 'pulse' in q_id:
+        # Heart rate validation (exclude "hours" questions e.g. sleep_hrs)
+        if ('heart_rate' in q_id or 'pulse' in q_id or
+                ('hr' in q_id and 'hrs' not in q_id and 'hour' not in q_id)):
             is_valid, value, msg = validate_heart_rate(response_str)
             if not is_valid:
                 return False, None, msg
@@ -733,6 +751,7 @@ class SymptomCheckerEngine:
                         state=self.state
                     )
                 self.state.answers[question.id] = validated_value
+                # self._store_answer(question.id, validated_value)
                 logger.info(f"Stored validated {question.id}: {validated_value}")
             
             # Validate TEXT inputs
@@ -748,11 +767,13 @@ class SymptomCheckerEngine:
                         state=self.state
                     )
                 self.state.answers[question.id] = user_response
+                # self._store_answer(question.id, user_response)
                 logger.info(f"Stored answer for {question.id}: {user_response}")
             
             # Other input types (CHOICE, YES_NO, MULTISELECT) - no validation needed
             else:
                 self.state.answers[question.id] = user_response
+                # self._store_answer(question.id, user_response)
                 logger.info(f"Stored answer for {question.id}: {user_response}")
 
         self.state.current_question_index += 1
@@ -781,6 +802,7 @@ class SymptomCheckerEngine:
                         state=self.state
                     )
                 self.state.answers[question.id] = validated_value
+                # self._store_answer(question.id, validated_value)
                 logger.info(f"Stored validated {question.id}: {validated_value}")
             
             # Validate TEXT inputs
@@ -796,11 +818,13 @@ class SymptomCheckerEngine:
                         state=self.state
                     )
                 self.state.answers[question.id] = user_response
+                # self._store_answer(question.id, user_response)
                 logger.info(f"Stored follow-up answer for {question.id}: {user_response}")
             
             # Other input types - no validation needed
             else:
                 self.state.answers[question.id] = user_response
+                # self._store_answer(question.id, user_response)
                 logger.info(f"Stored follow-up answer for {question.id}: {user_response}")
 
         self.state.current_question_index += 1
@@ -1027,14 +1051,14 @@ class SymptomCheckerEngine:
             concise_summary = f"You reported {symptoms_list}. "
             if alerts:
                 alert_names = [r['symptom_name'] for r in alerts]
-                concise_summary += f"Your care team has been notified about: {', '.join(alert_names)}. "
-            concise_summary += "They will follow up with you soon."
+                concise_summary += f"Please call your care team regarding the reported symptoms: {', '.join(alert_names)}. "
+            # concise_summary += "They will follow up with you soon."
             
             summary_message = (
                 "📋 **Assessment Complete**\n\n"
                 f"**Summary:** {concise_summary}\n\n"
                 "---\n\n"
-                "⚠️ **Care team notified** - they will review and follow up.\n\n"
+                "⚠️ **Please call your care team** - they will review and follow up.\n\n"
                 "📔 **Saved to your diary** automatically for your records.\n\n"
                 "💬 **Want to add anything?** You can add personal notes.\n\n"
                 "What would you like to do?"
@@ -1044,7 +1068,7 @@ class SymptomCheckerEngine:
         else:
             # Generate concise 2-3 sentence summary for no concerns
             concise_summary = f"You reported {symptoms_list}. "
-            concise_summary += "No urgent concerns were identified. "
+            concise_summary += "No urgent concerns were identified but if you are concerned please call your care team "
             concise_summary += "Continue monitoring and reach out if symptoms change."
             
             summary_message = (

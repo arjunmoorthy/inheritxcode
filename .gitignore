@@ -52,3 +52,6 @@ next-env.d.ts
 .idea/
 *.swp
 *.swo
+
+# Local ngrok config (copy from ngrok.example.yml and add your authtoken)
+apps/ngrok.yml
