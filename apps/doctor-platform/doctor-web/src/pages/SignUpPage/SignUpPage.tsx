@@ -350,7 +350,7 @@ const SignUpPage: React.FC = () => {
                                     </div>
 
                                     {/* Google Sign Up */}
-                                    <div className="flex justify-center">
+                                    {/* <div className="flex justify-center">
                                         <GoogleLogin
                                             onSuccess={async (credentialResponse) => {
                                                 if (credentialResponse.credential) {
@@ -406,7 +406,7 @@ const SignUpPage: React.FC = () => {
                                             shape="pill"
                                             width="100%"
                                         />
-                                    </div>
+                                    </div> */}
 
                                     {/* Sign In Link */}
                                     <div className={`mt-6 text-center text-sm transition-colors duration-300 ${isDark ? 'text-slate-400' : 'text-slate-500'
