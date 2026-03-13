@@ -2872,26 +2872,26 @@ SYMPTOMS['ABD-211'] = SymptomDef(
             text='Have you been vomiting?',
             input_type=InputType.YES_NO
         ),
-        Question(
-            id='blood_stool',
-            text='Is there any blood in your stool?',
-            input_type=InputType.YES_NO
-        ),
+        # Question(
+        #     id='blood_stool',
+        #     text='Is there any blood in your stool?',
+        #     input_type=InputType.YES_NO
+        # ),
         Question(
             id='dehydration',
             text='Are you experiencing signs of dehydration (dark urine, thirsty, lightheaded)?',
             input_type=InputType.YES_NO
         ),
-        Question(
-            id='last_bm',
-            text='When was your last bowel movement?',
-            input_type=InputType.CHOICE,
-            options=[
-                create_option('Today', 'today'),
-                create_option('Yesterday', 'yesterday'),
-                create_option('2+ days ago', '>2d')
-            ]
-        )
+        # Question(
+        #     id='last_bm',
+        #     text='When was your last bowel movement?',
+        #     input_type=InputType.CHOICE,
+        #     options=[
+        #         create_option('Today', 'today'),
+        #         create_option('Yesterday', 'yesterday'),
+        #         create_option('2+ days ago', '>2d')
+        #     ]
+        # )
     ],
     evaluate_follow_up=_eval_abdominal_followup
 )
