@@ -165,9 +165,12 @@ const Layout: React.FC = () => {
 
   const getUserName = () => {
     if (profile) {
-      return `Dr. ${profile.first_name || ''} ${profile.last_name || ''}`.trim() || 'Doctor';
+      const fullName = `${profile.first_name || ''} ${profile.last_name || ''}`.trim();
+      const r = profile.role?.toLowerCase();
+      const isDoctor = r === 'doctor' || r === 'physician';
+      return fullName ? (isDoctor ? `Dr. ${fullName}` : fullName) : isDoctor ? 'Doctor' : 'User';
     }
-    return 'Doctor';
+    return 'User';
   };
 
   const handleNavigation = (path: string) => {

@@ -339,7 +339,7 @@ const LoginPage: React.FC = () => {
                     )}
                     {/* Copyright Notice */}
                     <div className={`mt-4 text-center text-[10px] ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
-                      © 2025 HealthAI - OncoLife. All rights reserved.
+                      © 2026 HealthAI - OncoLife. All rights reserved.
                     </div>
                   </div>
 

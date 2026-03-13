@@ -229,11 +229,10 @@ const LoginPage: React.FC = () => {
                   <button
                     type="submit"
                     disabled={isLoading || (isForgotPassword && forgotSuccess)}
-                    className={`group relative w-full overflow-hidden rounded-xl font-bold text-[15px] transition-all duration-300 ${
-                      isLoading || (isForgotPassword && forgotSuccess)
-                        ? 'opacity-60 cursor-not-allowed'
-                        : 'hover:scale-[1.02] active:scale-[0.98]'
-                    } bg-[#1E3A5F] text-white shadow-lg hover:shadow-xl hover:bg-[#1a4a7f] py-3.5 px-6 flex items-center justify-center gap-2`}
+                    className={`group relative w-full overflow-hidden rounded-xl font-bold text-[15px] transition-all duration-300 ${isLoading || (isForgotPassword && forgotSuccess)
+                      ? 'opacity-60 cursor-not-allowed'
+                      : 'hover:scale-[1.02] active:scale-[0.98]'
+                      } bg-[#1E3A5F] text-white shadow-lg hover:shadow-xl hover:bg-[#1a4a7f] py-3.5 px-6 flex items-center justify-center gap-2`}
                   >
                     {isLoading ? (
                       <>
@@ -299,16 +298,17 @@ const LoginPage: React.FC = () => {
                 <div className="mt-8">
                   <div className="relative mb-6">
                     <div className="absolute inset-0 flex items-center">
-                      <div className={`w-full border-t border ${isDark ? 'border-[#3A3835]' : 'border-slate-300'}`}></div>
+                      <div className={`w-full`}></div>
+                      {/* border-t border ${isDark ? 'border-[#3A3835]' : 'border-slate-300'} */}
                     </div>
-                    <div className="relative flex justify-center text-[11px] uppercase">
+                    {/* <div className="relative flex justify-center text-[11px] uppercase">
                       <span className={`px-4 font-bold tracking-widest ${isDark ? 'bg-[#2A2725] text-slate-500' : 'bg-white text-slate-500'}`}>
                         Or continue with
                       </span>
-                    </div>
+                    </div> */}
                   </div>
 
-                  <div className="flex justify-center">
+                  {/* <div className="flex justify-center">
                     <GoogleLogin
                       onSuccess={async (credentialResponse) => {
                         if (credentialResponse.credential) {
@@ -377,7 +377,7 @@ const LoginPage: React.FC = () => {
                       shape="pill"
                       width="100%"
                     />
-                  </div>
+                  </div> */}
 
                   <div className={`mt-6 text-center text-sm transition-colors duration-300 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
                     Don't have an account?
@@ -387,48 +387,48 @@ const LoginPage: React.FC = () => {
                   </div>
 
                   {/* Development Mode Card */}
-                  {showDemoButton && (
-                    <div className="mt-8 animate-fade-in">
-                      {/* HIPAA Notice */}
-                      <div className="flex items-center justify-center gap-2 mb-4">
-                        <Shield size={16} className="text-teal-400" />
-                        <span className={`text-xs font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
-                          Secure, HIPAA-compliant access
-                        </span>
-                      </div>
 
-                      {/* Local Development Mode Card */}
-                      <div className={`rounded-2xl border-2 p-5 transition-all duration-300 ${
-                        isDark 
-                          ? 'bg-emerald-900/20 border-emerald-700/40' 
+                  <div className="mt-8 animate-fade-in">
+                    {/* HIPAA Notice */}
+                    <div className="flex items-center justify-center gap-2 mb-4">
+                      <Shield size={16} className="text-teal-400" />
+                      <span className={`text-xs font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                        Secure, HIPAA-compliant access
+                      </span>
+                    </div>
+                    {showDemoButton && (
+                      <>
+                        {/* Local Development Mode Card */}
+                        <div className={`rounded-2xl border-2 p-5 transition-all duration-300 ${isDark
+                          ? 'bg-emerald-900/20 border-emerald-700/40'
                           : 'bg-emerald-50 border-emerald-200'
-                      }`}>
-                        <div className="flex items-center gap-2 mb-3">
-                          <Wrench size={16} className={isDark ? 'text-emerald-400' : 'text-emerald-700'} />
-                          <h3 className={`font-bold text-sm ${isDark ? 'text-emerald-300' : 'text-emerald-800'}`}>
-                            Local Development Mode
-                          </h3>
-                        </div>
-                        
-                        <button
-                          onClick={handleDevLogin}
-                          className={`w-full py-3 px-4 rounded-xl font-bold text-sm transition-all duration-300 active:scale-[0.98] flex items-center justify-center gap-2 ${
-                            isDark
+                          }`}>
+                          <div className="flex items-center gap-2 mb-3">
+                            <Wrench size={16} className={isDark ? 'text-emerald-400' : 'text-emerald-700'} />
+                            <h3 className={`font-bold text-sm ${isDark ? 'text-emerald-300' : 'text-emerald-800'}`}>
+                              Local Development Mode
+                            </h3>
+                          </div>
+
+                          <button
+                            onClick={handleDevLogin}
+                            className={`w-full py-3 px-4 rounded-xl font-bold text-sm transition-all duration-300 active:scale-[0.98] flex items-center justify-center gap-2 ${isDark
                               ? 'bg-gradient-to-r from-teal-500 to-blue-500 text-white hover:from-teal-400 hover:to-blue-400 shadow-lg shadow-teal-500/30 hover:shadow-xl hover:shadow-teal-500/40'
                               : 'bg-gradient-to-r from-teal-500 to-blue-500 text-white hover:from-teal-600 hover:to-blue-600 shadow-md hover:shadow-lg'
-                          }`}
-                        >
-                          <Rocket size={16} className="shrink-0" />
-                          <span>Quick Dev Login (No Password)</span>
-                        </button>
-                      </div>
-
-                      {/* Copyright Notice */}
-                      <div className={`mt-4 text-center text-[10px] ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
-                        © 2025 HEALTHAI - ONCOLIFE PHYSICIAN PORTAL
-                      </div>
+                              }`}
+                          >
+                            <Rocket size={16} className="shrink-0" />
+                            <span>Quick Dev Login (No Password)</span>
+                          </button>
+                        </div>
+                      </>
+                    )}
+                    {/* Copyright Notice */}
+                    <div className={`mt-4 text-center text-[10px] ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
+                      © 2026 HEALTHAI - ONCOLIFE PHYSICIAN PORTAL
                     </div>
-                  )}
+                  </div>
+
                 </div>
               )}
 

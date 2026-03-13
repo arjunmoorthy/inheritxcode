@@ -82,8 +82,8 @@ export const Select = React.forwardRef<any, SelectProps>(({
         }),
         placeholder: (base) => ({
             ...base,
-            color: '#64748B',
-            opacity: 0.6,
+            color: isDark ? '#94A3B8' : '#64748B',
+            opacity: 0.9,
             fontSize: '15px',
         }),
         singleValue: (base) => ({
@@ -150,11 +150,14 @@ export const Select = React.forwardRef<any, SelectProps>(({
                 color: '#EF4444',
             },
         }),
-        // Multi-select tags: align label and close icon vertically
+        // Multi-select tags: theme-aware background and text for light/dark
         multiValue: (base) => ({
             ...base,
             display: 'flex',
             alignItems: 'center',
+            backgroundColor: isDark ? 'rgba(51, 65, 85, 0.9)' : '#E2E8F0',
+            borderRadius: '0.375rem',
+            border: isDark ? '1px solid rgba(71, 85, 105, 0.6)' : 'none',
         }),
         multiValueLabel: (base) => ({
             ...base,
@@ -164,6 +167,7 @@ export const Select = React.forwardRef<any, SelectProps>(({
             lineHeight: 1.5,
             paddingTop: 0,
             paddingBottom: 0,
+            color: isDark ? '#F1F5F9' : '#0F172A',
         }),
         multiValueRemove: (base) => ({
             ...base,

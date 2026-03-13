@@ -48,7 +48,7 @@ const staffSchema = z.object({
     role: z.string().min(1, 'Role is required'),
     fullName: z.string().min(1, 'Full name is required'),
     email: z.string().email('Please enter a valid email address'),
-    phone: z.string().optional(),
+    phone: z.string().min(1, 'Phone number is required'),
     doctorIds: z.array(z.number()).optional(),
 });
 
@@ -171,9 +171,12 @@ const ProfilePage: React.FC = () => {
 
     const getUserName = () => {
         if (profile) {
-            return `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || 'Doctor';
+            const fullName = `${profile.first_name || ''} ${profile.last_name || ''}`.trim();
+            const r = profile.role?.toLowerCase();
+            const isDoctor = r === 'doctor' || r === 'physician';
+            return fullName ? (isDoctor ? `Dr. ${fullName}` : fullName) : isDoctor ? 'Doctor' : 'User';
         }
-        return 'Doctor';
+        return 'User';
     };
 
     // Close dropdown when clicking outside
@@ -504,7 +507,7 @@ const ProfilePage: React.FC = () => {
                                 />
 
                                 <Input
-                                    label="Phone"
+                                    label="Phone *"
                                     type="tel"
                                     placeholder="(555) 234-5678"
                                     icon={<Phone size={18} />}
@@ -677,7 +680,7 @@ const ProfilePage: React.FC = () => {
                     />
 
                     <Input
-                        label="Phone"
+                        label="Phone *"
                         type="tel"
                         placeholder="(555) 000-0000"
                         icon={<Phone size={18} />}
@@ -872,7 +875,7 @@ const ProfilePage: React.FC = () => {
                         />
 
                         <Input
-                            label="Phone"
+                            label="Phone *"
                             type="tel"
                             placeholder="e.g. (555) 000-0000"
                             icon={<Phone size={18} />}
