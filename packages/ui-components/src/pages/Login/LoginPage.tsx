@@ -25,7 +25,7 @@ const LoginPage: React.FC = () => {
           <Login />
         </MainContent>
         
-        <Footer>© 2025 OncoLife - All Right Reserved</Footer>
+        <Footer>© 2026 OncoLife - All Right Reserved</Footer>
       </WrapperStyle>
     </Background>
   );

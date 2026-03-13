@@ -130,7 +130,7 @@ const DashboardPage: React.FC = () => {
 
   // Helper functions - defined before use
   const formatDOB = (dateString: string) => {
-    if (!dateString) return 'N/A';
+    if (!dateString || dateString === 'None' || dateString === 'Invalid Date') return 'N/A';
     try {
       const date = new Date(dateString);
       return date.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' });
@@ -140,7 +140,7 @@ const DashboardPage: React.FC = () => {
   };
 
   const formatDateShort = (dateString: string) => {
-    if (!dateString || dateString === 'None') return 'N/A';
+    if (!dateString || dateString === 'None' || dateString === 'Invalid Date') return 'N/A';
     try {
       const date = new Date(dateString);
       return date.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
@@ -841,13 +841,17 @@ const DashboardPage: React.FC = () => {
                               <span className={`text-sm ${isDark ? 'text-[#F5F3EE]' : 'text-slate-900'}`}>{lastChatbot ? formatDateShort(lastChatbot) : 'N/A'}</span>
                             </div>
                           </div>
-                          <div className="flex items-center gap-2">
-                            <Pill size={14} className={`flex-shrink-0 ${isDark ? 'text-sky-400' : 'text-sky-600'}`} />
-                            <div className="flex items-center gap-1">
-                              <span className={`text-xs shrink-0 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Last Chemo: </span>
-                              <span className={`text-sm ${isDark ? 'text-[#F5F3EE]' : 'text-slate-900'}`}>{lastChemo && lastChemo !== 'None' ? formatDateShort(lastChemo) : 'N/A'}</span>
+                          {lastChemo && lastChemo !== 'None' && lastChemo !== 'Invalid Date' && (
+                            <div className="flex items-center gap-2">
+                              <Pill size={14} className={`flex-shrink-0 ${isDark ? 'text-sky-400' : 'text-sky-600'}`} />
+                              <div className="flex items-center gap-1">
+                                <span className={`text-xs shrink-0 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Last Chemo: </span>
+                                {/* <span className={`text-sm ${isDark ? 'text-[#F5F3EE]' : 'text-slate-900'}`}>{formatDateShort(lastChemo)}</span> */}
+                                <span className={`text-sm ${isDark ? 'text-[#F5F3EE]' : 'text-slate-900'}`}>N/A</span>
+
+                              </div>
                             </div>
-                          </div>
+                          )}
                         </div>
                       </div>
 

@@ -80,7 +80,7 @@ const transformListingToPatient = (item: PatientListingApiItem): Patient => ({
   firstName: item.first_name || '',
   lastName: item.last_name || '',
   email: item.email || '',
-  mrn: String(item.patient_id),
+  mrn: (item.mrn && String(item.mrn)) || String(item.patient_id),
   dateOfBirth: item.date_of_birth || '',
   sex: (item.gender === 'Male' ? 'Male' : item.gender === 'Female' ? 'Female' : 'Other') as 'Male' | 'Female' | 'Other',
   race: '',

@@ -40,6 +40,8 @@ export interface PatientListingApiItem {
   age: number;
   phone_number: string;
   email: string;
+  /** Medical Record Number from API when available */
+  mrn?: string | null;
   plan_name: string;
   start_date: string | null;
   end_date: string | null;
@@ -207,7 +209,7 @@ const transformListingToSummary = (item: PatientListingApiItem): PatientSummary 
   id: String(item.patient_id),
   patientName: `${item.first_name || ''} ${item.last_name || ''}`.trim() || 'Unknown',
   dateOfBirth: item.date_of_birth || '',
-  mrn: String(item.patient_id),
+  mrn: (item.mrn && String(item.mrn)) || String(item.patient_id),
   symptoms: '—',
   summary: item.plan_name || '—',
   lastUpdated: item.created_at || '',
