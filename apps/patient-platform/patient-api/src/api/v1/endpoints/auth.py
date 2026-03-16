@@ -300,6 +300,18 @@ async def login(
             ).model_dump(),
         )
 
+    # Reject login if user has not set a new password (still on temp password from welcome email)
+    if user.is_first_login:
+        return JSONResponse(
+            status_code=403,
+            content=ErrorResponse(
+                success=False,
+                message="You must set a new password before you can log in. Use the link in your welcome email.",
+                details={"requires_password_change": True},
+                status_code=403,
+            ).model_dump(),
+        )
+
     # Only users with role "patient" can log in to the patient portal
     if (user.role or "").lower() != "patient":
         return JSONResponse(

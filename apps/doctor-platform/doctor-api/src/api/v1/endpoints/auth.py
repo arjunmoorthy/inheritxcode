@@ -18,6 +18,7 @@ Rate Limiting:
 """
 
 from fastapi import APIRouter, Depends, HTTPException, status, Request
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, EmailStr, Field, model_validator
 from sqlalchemy.orm import Session
 from typing import Optional
@@ -1022,6 +1023,18 @@ async def login(
             message="Invalid email or password.",
             details=None,
             status_code=401
+        )
+
+    # Reject login if user has not set a new password (still on temp password from welcome email)
+    if user.is_first_login:
+        return JSONResponse(
+            status_code=403,
+            content=ErrorResponse(
+                success=False,
+                message="You must set a new password before you can log in. Use the link in your welcome email.",
+                details={"requires_password_change": True},
+                status_code=403,
+            ).model_dump(),
         )
 
     # Update last login
