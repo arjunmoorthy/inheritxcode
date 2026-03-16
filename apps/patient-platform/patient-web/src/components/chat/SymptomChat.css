@@ -1185,6 +1185,94 @@
 }
 
 /* =============================================================================
+   CHEMO TODAY CHECK + NEXT CHEMO DATE (USA format calendar)
+   ============================================================================= */
+
+.chemo-today-check {
+  margin-top: 12px;
+}
+
+.chemo-today-check.chemo-date-picker {
+  padding: 16px;
+  background: var(--ruby-bg);
+  border-radius: 16px;
+  border: 1px solid var(--ruby-border);
+  margin-top: 12px;
+}
+
+.chemo-date-picker-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 12px 0;
+}
+
+.chemo-date-input {
+  display: block;
+  width: 100%;
+  max-width: 240px;
+  margin: 0 0 16px 0;
+  padding: 12px 14px;
+  font-size: 16px;
+  border: 1px solid var(--border-light);
+  border-radius: 10px;
+  background: var(--ruby-bubble);
+  color: var(--text-primary);
+  box-sizing: border-box;
+}
+
+.chemo-date-input:focus {
+  outline: none;
+  border-color: var(--ruby-primary);
+  box-shadow: 0 0 0 2px rgba(0, 137, 123, 0.2);
+}
+
+/* USA locale: native date input shows MM/DD/YYYY in most browsers */
+.chemo-date-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.chemo-date-back {
+  padding: 10px 20px;
+  font-size: 14px;
+  font-weight: 600;
+  border: 1px solid var(--border-light);
+  border-radius: 10px;
+  background: var(--ruby-bubble);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.chemo-date-back:hover {
+  background: var(--border-light);
+  border-color: var(--text-muted);
+}
+
+.chemo-date-confirm {
+  padding: 10px 24px;
+  font-size: 14px;
+  font-weight: 600;
+  border: none;
+  border-radius: 10px;
+  background: var(--ruby-primary);
+  color: white;
+  cursor: pointer;
+  transition: background 0.2s, opacity 0.2s;
+}
+
+.chemo-date-confirm:hover:not(:disabled) {
+  background: #00796B;
+}
+
+.chemo-date-confirm:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* =============================================================================
    GROUPED SYMPTOM SELECTOR
    ============================================================================= */
 

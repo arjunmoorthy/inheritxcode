@@ -57,6 +57,11 @@ export interface LoginResponse {
   success: boolean;
   message: string;
   error?: string;
+  status_code?: number;
+  details?: {
+    requires_password_change?: boolean;
+    [key: string]: unknown;
+  };
   data?: {
     user_status?: string;
     message?: string;

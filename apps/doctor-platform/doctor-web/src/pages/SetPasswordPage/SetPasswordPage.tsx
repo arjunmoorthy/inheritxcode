@@ -216,9 +216,9 @@ const SetPasswordPage: React.FC = () => {
                   >
                     <Info size={18} className="shrink-0 mt-0.5" />
                     <p>
-                      Your account was created by an administrator. Enter the
-                      temporary password from your welcome email below, then set
-                      a new password.
+                      Your account was created by an administrator. Before you can
+                      sign in, you must first change your temporary password from
+                      your welcome email, then set a new password below.
                     </p>
                   </div>
 

@@ -11,6 +11,7 @@ interface SymptomGroup {
 interface SymptomMessageBubbleProps {
   message: Message;
   onOptionSelect?: (value: string | boolean) => void;
+  onTextSubmit?: (value: string) => void;
   onMultiSelectSubmit?: (values: string[]) => void;
   onSymptomSelect?: (symptomIds: string[]) => void;
   onDisclaimerAccept?: () => void;
@@ -84,6 +85,19 @@ const formatUserResponse = (content: string): string => {
     }
   }
   
+  // USA date format for next chemo (YYYY-MM-DD from API)
+  const isoDateMatch = /^\d{4}-\d{2}-\d{2}$/.exec(cleanContent);
+  if (isoDateMatch) {
+    try {
+      const d = new Date(cleanContent + 'T12:00:00');
+      if (!isNaN(d.getTime())) {
+        return d.toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: 'numeric' });
+      }
+    } catch {
+      // fall through
+    }
+  }
+  
   // Return cleaned content
   return cleanContent;
 };
@@ -91,6 +105,7 @@ const formatUserResponse = (content: string): string => {
 export const SymptomMessageBubble: React.FC<SymptomMessageBubbleProps> = ({
   message,
   onOptionSelect,
+  onTextSubmit,
   onMultiSelectSubmit,
   onSymptomSelect,
   onDisclaimerAccept,
@@ -101,6 +116,9 @@ export const SymptomMessageBubble: React.FC<SymptomMessageBubbleProps> = ({
   const [selectedOptions, setSelectedOptions] = useState<string[]>([]);
   const [selectedSymptoms, setSelectedSymptoms] = useState<string[]>([]);
   const [selectedEmergencies, setSelectedEmergencies] = useState<string[]>([]);
+  // Chemo today check: when user selects "No", show calendar for next chemo date
+  const [showNextChemoDatePicker, setShowNextChemoDatePicker] = useState(false);
+  const [nextChemoDate, setNextChemoDate] = useState<string>('');
   
   const isUser = message.sender === 'user';
   const frontendType = message.structured_data?.frontend_type || message.message_type;
@@ -262,6 +280,85 @@ export const SymptomMessageBubble: React.FC<SymptomMessageBubbleProps> = ({
               ✓ None of these - Continue
             </button>
           )}
+        </div>
+      </div>
+    );
+  };
+
+  // =========================================================================
+  // RENDER: Chemo Today Check (Yes/No + calendar for next chemo date when No)
+  // =========================================================================
+  const renderChemoTodayCheck = () => {
+    return (
+      <div className="chemo-today-check">
+        <div className="message-options">
+          {options.map((opt: any, index: number) => (
+            <button
+              key={index}
+              className={`option-btn ${opt.style || ''}`}
+              onClick={() => {
+                if (!onOptionSelect) return;
+                if (opt.value === 'yes') {
+                  onOptionSelect('yes');
+                } else if (opt.value === 'no') {
+                  onOptionSelect('no');
+                } else {
+                  onOptionSelect(String(opt.value));
+                }
+              }}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
+  // =========================================================================
+  // RENDER: Next Chemo Date Picker (after backend sends next-chemo-date message)
+  // =========================================================================
+  const renderNextChemoDatePicker = () => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const minDate = today.toISOString().split('T')[0]; // YYYY-MM-DD for input min
+
+    const handleConfirmDate = () => {
+      if (!nextChemoDate || !onTextSubmit) return;
+      // Send the selected date as a plain text message (YYYY-MM-DD)
+      onTextSubmit(nextChemoDate);
+      setNextChemoDate('');
+    };
+
+    return (
+      <div className="chemo-today-check chemo-date-picker">
+        {/* <p className="chemo-date-picker-label">
+          Select your next chemotherapy appointment date
+        </p> */}
+        <input
+          type="date"
+          value={nextChemoDate}
+          min={minDate}
+          onChange={(e) => setNextChemoDate(e.target.value)}
+          className="chemo-date-input"
+          aria-label="Next chemo date"
+        />
+        <div className="chemo-date-actions">
+          <button
+            type="button"
+            className="chemo-date-back"
+            onClick={() => setNextChemoDate('')}
+          >
+            Back
+          </button>
+          <button
+            type="button"
+            className="chemo-date-confirm"
+            onClick={handleConfirmDate}
+            disabled={!nextChemoDate}
+          >
+            Continue
+          </button>
         </div>
       </div>
     );
@@ -495,7 +592,19 @@ export const SymptomMessageBubble: React.FC<SymptomMessageBubbleProps> = ({
 
   // Render interactive options based on type
   const renderInteractive = () => {
-    if (!shouldShowInteractive || !options.length) return null;
+    if (!shouldShowInteractive) return null;
+
+    // Chemo today check: Yes/No then calendar for next chemo date when No
+    if (frontendType === 'chemo_today_check') {
+      return renderChemoTodayCheck();
+    }
+
+    // Next chemo date picker (after answering "No" to chemo today)
+    if (frontendType === 'next_chemo_date') {
+      return renderNextChemoDatePicker();
+    }
+
+    if (!options.length) return null;
 
     // Symptom selector (grouped)
     if (frontendType === 'symptom-select' || frontendType === 'symptom_select') {

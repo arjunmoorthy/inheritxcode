@@ -67,6 +67,24 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       const result = await loginMutation.mutateAsync({ email, password });
 
+      const requiresPasswordChangeFromError =
+        result.status_code === 403 && result.details?.requires_password_change;
+      const requiresPasswordChange =
+        result.data?.requiresPasswordChange || requiresPasswordChangeFromError;
+
+      // Special case: backend signals mandatory password change via 403 payload
+      if (requiresPasswordChange) {
+        setIsPasswordChangeRequired(true);
+        return {
+          ...result,
+          success: true,
+          data: {
+            ...(result.data ?? {}),
+            requiresPasswordChange: true,
+          },
+        };
+      }
+
       if (result.success) {
         sessionStorage.setItem(SESSION_START_KEY, Date.now().toString());
 
@@ -82,18 +100,32 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           setUser(result.data.user as User);
         }
 
-        if (result.data?.requiresPasswordChange) {
-          setIsPasswordChangeRequired(true);
-        }
         return result;
       } else {
         // Use API message (e.g. "Invalid email or password.") for UI display
         throw new Error(result.message || result.error || 'Login failed');
       }
     } catch (err: unknown) {
-      // Prefer API error body (e.g. 401: { success, status_code, message, details })
-      const ax = err as { response?: { data?: { message?: string; details?: string | null } }; message?: string };
-      const apiMessage = ax?.response?.data?.message;
+      // Prefer API error body (e.g. 401/403: { success, status_code, message, details })
+      const ax = err as {
+        response?: { data?: LoginResponse };
+        message?: string;
+      };
+      const apiData = ax.response?.data;
+
+      // Special case: backend signals mandatory password change via 403 payload (error response)
+      if (apiData?.status_code === 403 && apiData.details?.requires_password_change) {
+        setIsPasswordChangeRequired(true);
+        return {
+          ...(apiData as LoginResponse),
+          data: {
+            ...(apiData.data ?? {}),
+            requiresPasswordChange: true,
+          },
+        };
+      }
+
+      const apiMessage = apiData?.message;
       const message =
         typeof apiMessage === 'string' && apiMessage.trim()
           ? apiMessage
