@@ -177,7 +177,7 @@ def get_or_create_session(
     "/session/new",
     response_model=TodaySessionResponse,
     status_code=status.HTTP_201_CREATED,
-    summary="Force create a new chat session for the current day"
+    summary="Start a new check-in (fresh conversation)"
 )
 def force_create_new_session(
     db: Session = Depends(get_patient_db),
@@ -185,49 +185,79 @@ def force_create_new_session(
     timezone: str = Query(default="America/Los_Angeles", description="User's timezone")
 ):
     """
-    This endpoint forces the creation of a new chat session for the current day,
-    bypassing the check for an existing session. This is useful for allowing
-    a user to start a fresh conversation at any time.
+    Start a new check-in: creates a new chat and returns the first message (disclaimer).
+    Chemo question is skipped if already answered today in another check-in.
     """
     service = ConversationService(db)
     patient_uuid = UUID(current_user.sub)
-    
-    # Delete any existing conversations for today
-    user_tz = pytz.timezone(timezone)
-    user_now = datetime.now(user_tz)
-    today_start = datetime.combine(user_now.date(), time.min)
-    today_end = datetime.combine(user_now.date(), time.max)
-    
-    # Convert to UTC for database query
-    utc_today_start = user_tz.localize(today_start).astimezone(pytz.UTC)
-    utc_today_end = user_tz.localize(today_end).astimezone(pytz.UTC)
-    
-    existing_chats = db.query(ChatModel).filter(
-        ChatModel.patient_uuid == patient_uuid,
-        ChatModel.created_at >= utc_today_start,
-        ChatModel.created_at <= utc_today_end
-    ).all()
-    
-    for chat in existing_chats:
-        db.delete(chat)
-    
+
+    chat, initial_question = service.create_chat(patient_uuid, user_timezone=timezone, commit=True)
+
+    first_message = MessageModel(
+        chat_uuid=chat.uuid,
+        sender="assistant",
+        message_type=initial_question["type"],
+        content=initial_question["text"],
+        structured_data={
+            "options": initial_question.get("options", []),
+            "options_data": initial_question.get("options_data", []),
+            "frontend_type": initial_question.get("frontend_type", "text"),
+            "symptom_groups": initial_question.get("symptom_groups"),
+            "summary_data": initial_question.get("summary_data"),
+            "sender": initial_question.get("sender"),
+        },
+    )
+    db.add(first_message)
     db.commit()
-    
-    # Create a completely new chat with reset symptom list
-    chat, messages, is_new = service.get_or_create_today_session(patient_uuid, timezone)
-    
-    pydantic_messages = [convert_message_for_frontend(Message.from_orm(msg)) for msg in messages]
-    
-    # Convert timestamps to user timezone
+    db.refresh(first_message)
+
+    pydantic_messages = [convert_message_for_frontend(Message.from_orm(first_message))]
     convert_chat_to_user_timezone(chat, pydantic_messages, timezone)
-    
+
     return TodaySessionResponse(
         chat_uuid=chat.uuid,
         conversation_state=chat.conversation_state,
         messages=pydantic_messages,
-        is_new_session=is_new,
+        is_new_session=True,
         symptom_list=chat.symptom_list or []
     )
+    
+    # # Delete any existing conversations for today
+    # user_tz = pytz.timezone(timezone)
+    # user_now = datetime.now(user_tz)
+    # today_start = datetime.combine(user_now.date(), time.min)
+    # today_end = datetime.combine(user_now.date(), time.max)
+    
+    # # Convert to UTC for database query
+    # utc_today_start = user_tz.localize(today_start).astimezone(pytz.UTC)
+    # utc_today_end = user_tz.localize(today_end).astimezone(pytz.UTC)
+    
+    # existing_chats = db.query(ChatModel).filter(
+    #     ChatModel.patient_uuid == patient_uuid,
+    #     ChatModel.created_at >= utc_today_start,
+    #     ChatModel.created_at <= utc_today_end
+    # ).all()
+    
+    # for chat in existing_chats:
+    #     db.delete(chat)
+    
+    # db.commit()
+    
+    # Create a completely new chat with reset symptom list
+    # chat, messages, is_new = service.get_or_create_today_session(patient_uuid, timezone)
+    
+    # pydantic_messages = [convert_message_for_frontend(Message.from_orm(msg)) for msg in messages]
+    
+    # # Convert timestamps to user timezone
+    # convert_chat_to_user_timezone(chat, pydantic_messages, timezone)
+    
+    # return TodaySessionResponse(
+    #     chat_uuid=chat.uuid,
+    #     conversation_state=chat.conversation_state,
+    #     messages=pydantic_messages,
+    #     is_new_session=is_new,
+    #     symptom_list=chat.symptom_list or []
+    # )
 
 @router.post(
     "/create-dummy",
