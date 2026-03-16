@@ -28,6 +28,7 @@ const SymptomChatPage: React.FC = () => {
   const [isThinking, setIsThinking] = useState(false);
   const [textInput, setTextInput] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
 
   // Handle incoming WebSocket messages
   const handleNewMessage = useCallback((wsMessage: any) => {
@@ -58,9 +59,20 @@ const SymptomChatPage: React.FC = () => {
     handleNewMessage
   );
 
-  // Auto-scroll to bottom
+  // Auto-scroll to bottom (after layout so initial load shows latest message)
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    const scrollToBottom = () => {
+      const container = messagesContainerRef.current;
+      if (container) {
+        container.scrollTop = container.scrollHeight;
+      } else {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      }
+    };
+    const rafId = requestAnimationFrame(() => {
+      requestAnimationFrame(scrollToBottom);
+    });
+    return () => cancelAnimationFrame(rafId);
   }, [messages, isThinking]);
 
   // Load today's session
@@ -127,6 +139,11 @@ const SymptomChatPage: React.FC = () => {
   const handleOptionSelect = (value: string | boolean) => {
     const content = typeof value === 'boolean' ? (value ? 'Yes' : 'No') : value;
     sendUserMessage(content, 'button_response');
+  };
+
+  // Handle text submission (e.g. chemo date YYYY-MM-DD) — sends as message_type "text"
+  const handleTextSubmitFromBubble = (value: string) => {
+    sendUserMessage(value, 'text');
   };
 
   // Handle multi-select submission
@@ -326,12 +343,13 @@ const SymptomChatPage: React.FC = () => {
       )}
 
       {/* Messages */}
-      <div className="symptom-messages-container">
+      <div ref={messagesContainerRef} className="symptom-messages-container">
         {messages.map((message, index) => (
           <SymptomMessageBubble
             key={`${message.id}-${index}`}
             message={message}
             onOptionSelect={handleOptionSelect}
+            onTextSubmit={handleTextSubmitFromBubble}
             onMultiSelectSubmit={handleMultiSelectSubmit}
             onSymptomSelect={handleSymptomSelect}
             onDisclaimerAccept={() => handleOptionSelect('accept')}

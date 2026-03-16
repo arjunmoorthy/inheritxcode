@@ -77,8 +77,13 @@ const LoginPage: React.FC = () => {
       const result = await authenticateLogin(values.email, values.password);
 
       // Handle navigation based on user status
-      if (result?.data?.requiresPasswordChange) {
-        navigate('/set-password', { state: { email: values.email } });
+      const requiresPasswordChange =
+        result?.data?.requiresPasswordChange ||
+        result?.details?.requires_password_change;
+      if (requiresPasswordChange) {
+        navigate(`/set-password?email=${encodeURIComponent(values.email)}`, {
+          state: { email: values.email },
+        });
         return;
       }
 
