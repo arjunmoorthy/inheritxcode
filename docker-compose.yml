@@ -135,10 +135,12 @@ services:
       - PATIENT_DB_USER=oncolife-patient
       - PATIENT_DB_PASSWORD=f1HV9hz823qcmeVap2i4
       - PATIENT_DB_NAME=oncolife-patient-db
-      # AWS
-      - AWS_REGION=${AWS_REGION:-us-west-2}
-      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID:-}
-      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY:-}
+      # AWS (bucket in us-east-1; S3 URL and Textract must use same region)
+      # Credentials come from env_file (.env) above. Do NOT uncomment the next 2 lines
+      # unless you set AWS_ACCESS_KEY_ID/SECRET on the host—otherwise they override .env with empty and break S3/Textract.
+      - AWS_REGION=${AWS_REGION:-us-east-1}
+      # - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID:-}
+      # - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY:-}
       # Cognito
       - COGNITO_USER_POOL_ID=${COGNITO_USER_POOL_ID:-}
       - COGNITO_CLIENT_ID=${COGNITO_CLIENT_ID:-}
