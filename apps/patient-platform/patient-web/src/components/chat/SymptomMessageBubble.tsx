@@ -319,10 +319,6 @@ export const SymptomMessageBubble: React.FC<SymptomMessageBubbleProps> = ({
   // RENDER: Next Chemo Date Picker (after backend sends next-chemo-date message)
   // =========================================================================
   const renderNextChemoDatePicker = () => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const minDate = today.toISOString().split('T')[0]; // YYYY-MM-DD for input min
-
     const handleConfirmDate = () => {
       if (!nextChemoDate || !onTextSubmit) return;
       // Send the selected date as a plain text message (YYYY-MM-DD)
@@ -338,10 +334,9 @@ export const SymptomMessageBubble: React.FC<SymptomMessageBubbleProps> = ({
         <input
           type="date"
           value={nextChemoDate}
-          min={minDate}
           onChange={(e) => setNextChemoDate(e.target.value)}
           className="chemo-date-input"
-          aria-label="Next chemo date"
+          aria-label="Chemo date"
         />
         <div className="chemo-date-actions">
           <button

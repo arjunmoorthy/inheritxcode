@@ -283,7 +283,9 @@ export const AddPatientModal: React.FC<AddPatientModalProps> = ({
                     {...field}
                     label="Date of Birth"
                     type="date"
+                    lang="en-US"
                     icon={<Calendar size={18} />}
+                    error={errors.dateOfBirth?.message}
                     fullWidth
                   />
                 )}
@@ -471,7 +473,9 @@ export const AddPatientModal: React.FC<AddPatientModalProps> = ({
                     {...field}
                     label="Treatment Start Date"
                     type="date"
+                    lang="en-US"
                     icon={<Calendar size={18} />}
+                    error={errors.treatmentStartDate?.message}
                     fullWidth
                   />
                 )}
@@ -486,7 +490,9 @@ export const AddPatientModal: React.FC<AddPatientModalProps> = ({
                     {...field}
                     label="Next Chemotherapy Treatment"
                     type="date"
+                    lang="en-US"
                     icon={<Calendar size={18} />}
+                    error={errors.nextChemoDate?.message}
                     fullWidth
                   />
                 )}
@@ -501,7 +507,9 @@ export const AddPatientModal: React.FC<AddPatientModalProps> = ({
                     {...field}
                     label="Treatment End Date"
                     type="date"
+                    lang="en-US"
                     icon={<Calendar size={18} />}
+                    error={errors.endDate?.message}
                     fullWidth
                   />
                 )}
