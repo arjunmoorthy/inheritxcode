@@ -38,7 +38,9 @@ class SymptomCategory(str, Enum):
 class ConversationPhase(str, Enum):
     """Phases of the symptom checker conversation."""
     DISCLAIMER = "disclaimer"                    # Medical disclaimer
-    PATIENT_CONTEXT = "patient_context"          # NEW: Last chemo date, physician visit
+    CHEMO_TODAY_CHECK = "chemo_today_check"      # Ask once per day: do you have chemo today?
+    NEXT_CHEMO_DATE = "next_chemo_date"          # If no: when is your next chemo? (FE shows date picker)
+    PATIENT_CONTEXT = "patient_context"          # Legacy: Last chemo date, physician visit          # NEW: Last chemo date, physician visit
     EMERGENCY_CHECK = "emergency_check"          # Urgent safety check
     SYMPTOM_SELECTION = "symptom_selection"      # Grouped symptom selection
     SCREENING = "screening"                      # Per-symptom questions
@@ -262,6 +264,17 @@ PHYSICIAN_VISIT_OPTIONS = [
     {"label": "In 2+ weeks", "value": ">2w"},
     {"label": "Not scheduled yet", "value": "not_scheduled"},
 ]
+
+# Chemo today check (asked once per day at first check-in)
+CHEMO_TODAY_MESSAGE = """📅 **Do you have chemotherapy today?**"""
+CHEMO_TODAY_OPTIONS = [
+    {"label": "Yes", "value": "yes", "style": "primary"},
+    {"label": "No", "value": "no", "style": "secondary"},
+]
+# When user says No: FE shows date picker; user selects next chemo date
+NEXT_CHEMO_DATE_MESSAGE = """📅 **When was your last chemotherapy appointment?**
+
+Please select the date using the calendar below."""
 
 
 # =============================================================================

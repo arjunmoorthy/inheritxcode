@@ -4,7 +4,7 @@ Chat/Symptom Checker Endpoints - Patient API
 
 Complete endpoints for the symptom checker chat:
 - GET /session/today: Get or create today's session
-- POST /session/new: Force create new session
+- POST /session/new: Start a new check-in (fresh conversation; chemo skipped if already answered today)
 - GET /{chat_uuid}/full: Get full chat history
 - GET /{chat_uuid}/state: Get chat state
 - POST /{chat_uuid}/feeling: Update overall feeling
@@ -248,8 +248,8 @@ def get_or_create_session(
     "/session/new",
     response_model=TodaySessionResponse,
     status_code=status.HTTP_201_CREATED,
-    summary="Force create new session",
-    description="Create a new chat session, deleting any existing ones for today."
+    summary="Start a new check-in (fresh conversation)",
+    description="Creates a new chat and starts from the beginning (disclaimer). Chemo question is skipped if already answered today in another check-in."
 )
 def force_create_new_session(
     db: Session = Depends(get_patient_db),
@@ -258,41 +258,16 @@ def force_create_new_session(
     auth_uuid: Optional[UUID] = Depends(get_optional_patient_uuid),
 ):
     """
-    Force creation of a new chat session for today.
-    
-    This deletes any existing sessions for today and creates
-    a fresh conversation.
+    Start a new check-in: creates a new chat and returns the first message (disclaimer).
+    If the patient already answered the chemotherapy question today, that answer is
+    reused so the chemo question is not asked again in this new check-in.
     """
     patient_uuid = resolve_patient_uuid(patient_uuid, auth_uuid)
     
     logger.info(f"Force new session: patient={patient_uuid}")
-    
-    # # Delete existing chats for today
-    # user_tz = pytz.timezone(timezone)
-    # user_now = datetime.now(user_tz)
-    # today_start = datetime.combine(user_now.date(), time.min)
-    # today_end = datetime.combine(user_now.date(), time.max)
-    
-    # utc_today_start = user_tz.localize(today_start).astimezone(pytz.UTC)
-    # utc_today_end = user_tz.localize(today_end).astimezone(pytz.UTC)
-    
-    existing_chats = db.query(ChatModel).filter(
-        ChatModel.patient_uuid == UUID(patient_uuid),
-        # ChatModel.created_at >= utc_today_start,
-        # ChatModel.created_at <= utc_today_end,
-        ChatModel.is_complete == "false"
-    ).all()
-    
-    for chat in existing_chats:
-        chat.is_complete = True
-    db.commit()
-    
-    # Create new session
+
     chat_service = ChatService(db)
-    # chat, messages, is_new = chat_service.get_or_create_today_session(
-    #     UUID(patient_uuid), timezone
-    # )
-    chat, initial_question = chat_service.create_chat(patient_uuid)
+    chat, initial_question = chat_service.create_chat(UUID(patient_uuid), user_timezone=timezone)
 
     first_message = MessageModel(
         chat_uuid=chat.uuid,
@@ -308,27 +283,15 @@ def force_create_new_session(
             "sender": initial_question.get("sender"),
         },
     )
-
     db.add(first_message)
     db.commit()
     db.refresh(first_message)
 
-    messages = [first_message]
-
-    # ---------------------------------------------------------------------
-    # Step 4: Convert messages for frontend
-    # ---------------------------------------------------------------------
-    pydantic_messages = [
-        convert_message_for_frontend(Message.from_orm(first_message))
-    ]
-
+    pydantic_messages = [convert_message_for_frontend(Message.from_orm(first_message))]
     convert_chat_to_user_timezone(chat, pydantic_messages, timezone)
 
-    logger.info(f"New session created: chat={chat.uuid}")
+    logger.info(f"New check-in created: chat={chat.uuid}")
 
-    # ---------------------------------------------------------------------
-    # Step 5: Return response
-    # ---------------------------------------------------------------------
     return TodaySessionResponse(
         chat_uuid=chat.uuid,
         conversation_state=chat.conversation_state,
@@ -336,6 +299,67 @@ def force_create_new_session(
         is_new_session=True,
         symptom_list=chat.symptom_list or [],
     )
+
+    # existing_chats = db.query(ChatModel).filter(
+    #     ChatModel.patient_uuid == UUID(patient_uuid),
+    #     # ChatModel.created_at >= utc_today_start,
+    #     # ChatModel.created_at <= utc_today_end,
+    #     ChatModel.is_complete == "false"
+    # ).all()
+    
+    # for chat in existing_chats:
+    #     chat.is_complete = True
+    # db.commit()
+    
+    # # Create new session
+    # chat_service = ChatService(db)
+    # # chat, messages, is_new = chat_service.get_or_create_today_session(
+    # #     UUID(patient_uuid), timezone
+    # # )
+    # chat, initial_question = chat_service.create_chat(patient_uuid)
+
+    # first_message = MessageModel(
+    #     chat_uuid=chat.uuid,
+    #     sender="assistant",
+    #     message_type=initial_question["type"],
+    #     content=initial_question["text"],
+    #     structured_data={
+    #         "options": initial_question.get("options", []),
+    #         "options_data": initial_question.get("options_data", []),
+    #         "frontend_type": initial_question.get("frontend_type", "text"),
+    #         "symptom_groups": initial_question.get("symptom_groups"),
+    #         "summary_data": initial_question.get("summary_data"),
+    #         "sender": initial_question.get("sender"),
+    #     },
+    # )
+
+    # db.add(first_message)
+    # db.commit()
+    # db.refresh(first_message)
+
+    # messages = [first_message]
+
+    # # ---------------------------------------------------------------------
+    # # Step 4: Convert messages for frontend
+    # # ---------------------------------------------------------------------
+    # pydantic_messages = [
+    #     convert_message_for_frontend(Message.from_orm(first_message))
+    # ]
+
+    # convert_chat_to_user_timezone(chat, pydantic_messages, timezone)
+
+    # logger.info(f"New session created: chat={chat.uuid}")
+
+    # # ---------------------------------------------------------------------
+    # # Step 5: Return response
+    # # ---------------------------------------------------------------------
+    # return TodaySessionResponse(
+    #     chat_uuid=chat.uuid,
+    #     conversation_state=chat.conversation_state,
+    #     messages=pydantic_messages,
+    #     is_new_session=True,
+    #     symptom_list=chat.symptom_list or [],
+    # )
     
     # pydantic_messages = [convert_message_for_frontend(Message.from_orm(msg)) for msg in messages]
     # convert_chat_to_user_timezone(chat, pydantic_messages, timezone)

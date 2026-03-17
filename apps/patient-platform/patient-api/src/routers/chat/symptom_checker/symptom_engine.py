@@ -36,7 +36,7 @@ Copyright:
 """
 from typing import Dict, List, Any, Optional
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, date
 import logging
 
 from .constants import (
@@ -44,6 +44,7 @@ from .constants import (
     MEDICAL_DISCLAIMER, EMERGENCY_CHECK_MESSAGE, RUBY_GREETING,
     EMERGENCY_SYMPTOMS, SYMPTOM_GROUPS, SUMMARY_ACTIONS,
     PATIENT_CONTEXT_MESSAGE, LAST_CHEMO_OPTIONS, PHYSICIAN_VISIT_OPTIONS,
+    CHEMO_TODAY_MESSAGE, CHEMO_TODAY_OPTIONS, NEXT_CHEMO_DATE_MESSAGE,
     validate_temperature, validate_text_input, TEMP_FEVER_THRESHOLD,
     validate_blood_pressure, validate_heart_rate, validate_oxygen_saturation,
     validate_days, validate_times_per_day, validate_blood_sugar, validate_weight,
@@ -78,6 +79,9 @@ class ConversationState:
     last_chemo_date: Optional[str] = None  # When was last chemotherapy
     next_physician_visit: Optional[str] = None  # Scheduled physician visit
     patient_context_step: int = 0  # 0=chemo, 1=physician visit
+    # Chemo today check (asked once per day at first check-in)
+    chemo_today: Optional[bool] = None  # True=yes, False=no
+    next_chemo_date: Optional[str] = None  # ISO date when user said no and picked next appointment
     # Cross-symptom dehydration tracking (per spec DEH-201)
     # Prevents asking same dehydration questions multiple times in one session
     dehydration_questions_asked: bool = False
@@ -108,6 +112,8 @@ class ConversationState:
             'last_chemo_date': self.last_chemo_date,
             'next_physician_visit': self.next_physician_visit,
             'patient_context_step': self.patient_context_step,
+            'chemo_today': self.chemo_today,
+            'next_chemo_date': self.next_chemo_date,
             'dehydration_questions_asked': self.dehydration_questions_asked,
             'dehydration_signs_present': self.dehydration_signs_present,
             'session_temperature': self.session_temperature,
@@ -135,6 +141,8 @@ class ConversationState:
             last_chemo_date=data.get('last_chemo_date'),
             next_physician_visit=data.get('next_physician_visit'),
             patient_context_step=data.get('patient_context_step', 0),
+            chemo_today=data.get('chemo_today'),
+            next_chemo_date=data.get('next_chemo_date'),
             dehydration_questions_asked=data.get('dehydration_questions_asked', False),
             dehydration_signs_present=data.get('dehydration_signs_present', False),
             session_temperature=data.get('session_temperature'),
@@ -229,6 +237,12 @@ class SymptomCheckerEngine:
         if self.state.phase == ConversationPhase.DISCLAIMER:
             return self._handle_disclaimer(user_response)
         
+        elif self.state.phase == ConversationPhase.CHEMO_TODAY_CHECK:
+            return self._handle_chemo_today_check(user_response)
+
+        elif self.state.phase == ConversationPhase.NEXT_CHEMO_DATE:
+            return self._handle_next_chemo_date(user_response)
+        
         # DEPRECATED: Patient context is now in Profile page, not symptom checker
         # Kept for backwards compatibility with old sessions
         elif self.state.phase == ConversationPhase.PATIENT_CONTEXT:
@@ -277,10 +291,12 @@ class SymptomCheckerEngine:
     def _handle_disclaimer(self, user_response: Any) -> EngineResponse:
         """Handle the disclaimer acceptance."""
         if user_response == 'accept':
-            # Skip patient context - now stored in Profile page
-            # Go directly to emergency check
-            self.state.phase = ConversationPhase.EMERGENCY_CHECK
-            return self._show_emergency_check()
+            # If chemo was already answered today (e.g. in another check-in), skip and go to emergency
+            if self.state.chemo_today is not None:
+                self.state.phase = ConversationPhase.EMERGENCY_CHECK
+                return self._show_emergency_check()
+            self.state.phase = ConversationPhase.CHEMO_TODAY_CHECK
+            return self._show_chemo_today_check()
         else:
             # User must accept to continue
             return EngineResponse(
@@ -297,6 +313,86 @@ class SymptomCheckerEngine:
                 state=self.state
             )
 
+# =========================================================================
+    # PHASE: CHEMO TODAY CHECK (once per day at first check-in)
+    # =========================================================================
+    def _show_chemo_today_check(self) -> EngineResponse:
+        """Ask: Do you have chemotherapy today? (Yes → emergency then symptoms; No → date picker then symptoms)."""
+        return EngineResponse(
+            message=CHEMO_TODAY_MESSAGE,
+            message_type='chemo_today_check',
+            options=CHEMO_TODAY_OPTIONS,
+            sender='system',
+            state=self.state
+        )
+
+    def _handle_chemo_today_check(self, user_response: Any) -> EngineResponse:
+        """Handle chemo today: Yes → emergency check; No → next chemo date (FE shows date picker)."""
+        normalized = str(user_response).strip().lower() if user_response is not None else ''
+        if normalized in ('yes', 'true', '1'):
+            self.state.chemo_today = True
+            self.state.phase = ConversationPhase.EMERGENCY_CHECK
+            return self._show_emergency_check()
+        if normalized in ('no', 'false', '0'):
+            self.state.chemo_today = False
+            self.state.phase = ConversationPhase.NEXT_CHEMO_DATE
+            return self._show_next_chemo_date()
+        # Unclear answer: re-ask
+        return EngineResponse(
+            message="Please choose **Yes** or **No**: Do you have chemotherapy today?",
+            message_type='chemo_today_check',
+            options=CHEMO_TODAY_OPTIONS,
+            sender='system',
+            state=self.state
+        )
+
+    def _show_next_chemo_date(self) -> EngineResponse:
+        """Ask for next chemo date; FE shows calendar/date picker."""
+        return EngineResponse(
+            message=NEXT_CHEMO_DATE_MESSAGE,
+            message_type='next_chemo_date',
+            options=[],  # FE uses frontend_type / phase to show date picker
+            sender='system',
+            state=self.state
+        )
+
+    def _parse_next_chemo_date(self, value: Any) -> Optional[date]:
+        """Parse user input as ISO date (YYYY-MM-DD). Returns None if invalid."""
+        if value is None:
+            return None
+        s = str(value).strip()
+        if not s:
+            return None
+        # Try YYYY-MM-DD first
+        if len(s) >= 10:
+            try:
+                return datetime.strptime(s[:10], '%Y-%m-%d').date()
+            except (ValueError, TypeError):
+                pass
+        try:
+            dt = datetime.fromisoformat(s.replace('Z', '+00:00'))
+            return dt.date()
+        except (ValueError, TypeError):
+            pass
+        return None
+
+    def _handle_next_chemo_date(self, user_response: Any) -> EngineResponse:
+        """Accept date from FE date picker; then go to emergency check before symptoms."""
+        parsed = self._parse_next_chemo_date(user_response)
+        if parsed is None:
+            return EngineResponse(
+                message="Please select a valid date using the calendar (e.g. YYYY-MM-DD).",
+                message_type='next_chemo_date',
+                options=[],
+                sender='system',
+                state=self.state
+            )
+        self.state.next_chemo_date = parsed.isoformat()
+        self.state.answers['next_chemo_date'] = self.state.next_chemo_date
+        # After date: go to emergency safety check, then grouped symptom selection
+        self.state.phase = ConversationPhase.EMERGENCY_CHECK
+        return self._show_emergency_check()
+    
     # =========================================================================
     # PHASE 2: PATIENT CONTEXT (Critical Physician Data)
     # =========================================================================
@@ -1015,10 +1111,9 @@ class SymptomCheckerEngine:
             # User acknowledged the emergency - complete the session
             self.state.phase = ConversationPhase.COMPLETED
             return EngineResponse(
-                message="✅ **Acknowledged**\n\n"
-                        "Your care team has been notified of this emergency.\n\n"
+                message="✅ **Emergency Alert**\n\n"
                         "**Please seek immediate medical attention.**\n\n"
-                        "If your condition worsens, call 911 immediately.",
+                        "If your condition worsens, please call your care team immediately, or 911 at your discretion",
                 message_type='text',
                 is_complete=True,
                 triage_level=TriageLevel.CALL_911,

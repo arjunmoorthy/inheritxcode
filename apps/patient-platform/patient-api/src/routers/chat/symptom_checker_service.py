@@ -172,9 +172,16 @@ class SymptomCheckerService:
         self.db = db
         self.engine = None
 
-    def create_chat(self, patient_uuid: UUID, commit: bool = True) -> Tuple[ChatModel, Dict[str, Any]]:
+    def create_chat(
+        self,
+        patient_uuid: UUID,
+        commit: bool = True,
+        user_timezone: str = "America/Los_Angeles",
+    ) -> Tuple[ChatModel, Dict[str, Any]]:
         """
-        Creates a new symptom checker chat session.
+        Creates a new symptom checker chat session (e.g. for "New Check-In").
+        If the patient already answered the chemo question today in another chat,
+        that answer is copied so we skip the chemo question in this new session.
         """
         # Create the conversation record
         new_chat = ChatModel(
@@ -195,6 +202,27 @@ class SymptomCheckerService:
         # Store engine state in chat metadata
         new_chat.engine_state = response.state.to_dict() if response.state else {}
         new_chat.conversation_state = "disclaimer"  # New initial phase
+
+        # If patient already answered chemo today in another check-in, copy so we skip chemo
+        user_tz = pytz.timezone(user_timezone)
+        user_now = datetime.now(user_tz)
+        today_start = datetime.combine(user_now.date(), time.min)
+        today_end = datetime.combine(user_now.date(), time.max)
+        utc_today_start = user_tz.localize(today_start).astimezone(pytz.UTC)
+        utc_today_end = user_tz.localize(today_end).astimezone(pytz.UTC)
+        other_today = self.db.query(ChatModel).filter(
+            ChatModel.patient_uuid == patient_uuid,
+            ChatModel.uuid != new_chat.uuid,
+            ChatModel.created_at >= utc_today_start,
+            ChatModel.created_at <= utc_today_end,
+        ).first()
+        if other_today and getattr(other_today, "engine_state", None):
+            es = other_today.engine_state or {}
+            if es.get("chemo_today") is not None or es.get("next_chemo_date"):
+                new_chat.engine_state["chemo_today"] = es.get("chemo_today")
+                new_chat.engine_state["next_chemo_date"] = es.get("next_chemo_date")
+                logger.info(f"Copied chemo answer from existing today chat for patient {patient_uuid}")
+
         self.db.commit()
 
         initial_message = {
@@ -255,7 +283,7 @@ class SymptomCheckerService:
             return today_chat, messages, False
         else:
             # Create new chat
-            new_chat, initial_question = self.create_chat(patient_uuid, commit=True)
+            new_chat, initial_question = self.create_chat(patient_uuid, commit=True, user_timezone=user_timezone)
             
             # Create the first assistant message
             first_message = MessageModel(
@@ -349,24 +377,28 @@ class SymptomCheckerService:
         self.db.commit()
 
         # 6. Create and save the assistant message
+        structured = {
+            "options": [opt['label'] for opt in engine_response.options] if engine_response.options else None,
+            "options_data": engine_response.options,
+            "frontend_type": engine_response.message_type,
+            "triage_level": engine_response.triage_level.value if engine_response.triage_level else None,
+            "is_complete": engine_response.is_complete,
+            "symptom_groups": engine_response.symptom_groups,
+            "summary_data": engine_response.summary_data,
+            "sender": engine_response.sender,
+            "avatar": getattr(engine_response, "avatar", None),
+            "timestamp": getattr(engine_response, "timestamp", None),
+        }
+        if engine_response.message_type == "next_chemo_date":
+            structured["show_date_picker"] = True
+            structured["input_type"] = "date_picker"
+
         assistant_msg = MessageModel(
             chat_uuid=chat_uuid,
             sender="assistant",
             message_type=self._map_message_type(engine_response.message_type),
             content=engine_response.message,
-            structured_data={
-                "options": [opt['label'] for opt in engine_response.options] if engine_response.options else None,
-                "options_data": engine_response.options,
-                "frontend_type": engine_response.message_type,
-                "triage_level": engine_response.triage_level.value if engine_response.triage_level else None,
-                "is_complete": engine_response.is_complete,
-                # New fields for updated UX
-                "symptom_groups": engine_response.symptom_groups,
-                "summary_data": engine_response.summary_data,
-                "sender": engine_response.sender,
-                "avatar": engine_response.avatar,
-                "timestamp": engine_response.timestamp,
-            }
+            structured_data=structured,
         )
         self.db.add(assistant_msg)
         self.db.commit()

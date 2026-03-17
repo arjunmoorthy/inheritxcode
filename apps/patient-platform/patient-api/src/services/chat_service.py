@@ -34,10 +34,11 @@ Copyright:
 
 from typing import Dict, Any, List, Tuple, Optional, AsyncGenerator
 from uuid import UUID
-from datetime import datetime, time
+from datetime import datetime, time, date
 from sqlalchemy.orm import Session
 import pytz
 from services.symptom_analytics_service import save_symptom_analytics
+from services.chemo_service import ChemoService
 
 # Symptom checker engine
 from routers.chat.symptom_checker import SymptomCheckerEngine, TriageLevel
@@ -144,7 +145,7 @@ class ChatService:
             return today_chat, messages, False
         
         # Create new chat
-        new_chat, initial_question = self.create_chat(patient_uuid)
+        new_chat, initial_question = self.create_chat(patient_uuid, user_timezone=user_timezone)
         
         # Create the first assistant message
         first_message = MessageModel(
@@ -172,12 +173,16 @@ class ChatService:
     def create_chat(
         self,
         patient_uuid: UUID,
+        user_timezone: str = "America/Los_Angeles",
     ) -> Tuple[ChatModel, Dict[str, Any]]:
         """
-        Create a new symptom checker chat session.
+        Create a new symptom checker chat session (e.g. for "New Check-In").
+        If the patient already answered the chemo question today in another chat,
+        that answer is copied so we skip the chemo question in this new session.
         
         Args:
             patient_uuid: The patient's UUID
+            user_timezone: Timezone for "today" when checking existing same-day chemo answer
             
         Returns:
             Tuple of (chat, initial_question)
@@ -195,12 +200,34 @@ class ChatService:
         self.db.commit()
         self.db.refresh(new_chat)
         
-        # Initialize the engine and get the greeting
+        # Initialize the engine and get the greeting (disclaimer first, then chemo today check)
         engine = SymptomCheckerEngine()
         response = engine.start_conversation()
         
-        # Store engine state in chat metadata
+        # Store engine state in chat metadata; conversation_state tracks current phase
         new_chat.engine_state = response.state.to_dict() if response.state else {}
+        new_chat.conversation_state = response.state.phase.value if response.state else "disclaimer"
+
+        # If patient already answered chemo today in another check-in, copy so we skip chemo in this one
+        user_tz = pytz.timezone(user_timezone)
+        user_now = datetime.now(user_tz)
+        today_start = datetime.combine(user_now.date(), time.min)
+        today_end = datetime.combine(user_now.date(), time.max)
+        utc_today_start = user_tz.localize(today_start).astimezone(pytz.UTC)
+        utc_today_end = user_tz.localize(today_end).astimezone(pytz.UTC)
+        other_today = self.db.query(ChatModel).filter(
+            ChatModel.patient_uuid == patient_uuid,
+            ChatModel.uuid != new_chat.uuid,
+            ChatModel.created_at >= utc_today_start,
+            ChatModel.created_at <= utc_today_end,
+        ).first()
+        if other_today and getattr(other_today, "engine_state", None):
+            es = other_today.engine_state or {}
+            if es.get("chemo_today") is not None or es.get("next_chemo_date"):
+                new_chat.engine_state["chemo_today"] = es.get("chemo_today")
+                new_chat.engine_state["next_chemo_date"] = es.get("next_chemo_date")
+                logger.info(f"Copied chemo answer from existing today chat for patient {patient_uuid}")
+
         self.db.commit()
         
         initial_message = {
@@ -385,6 +412,17 @@ class ChatService:
         if engine_response.state:
             chat.engine_state = engine_response.state.to_dict()
             chat.symptom_list = engine_response.state.selected_symptoms
+
+            # When user just submitted next chemo date (previous phase was NEXT_CHEMO_DATE), persist it
+            prev_phase = (engine_state_data or {}).get("phase")
+            next_chemo = getattr(engine_response.state, "next_chemo_date", None)
+            if prev_phase == "next_chemo_date" and next_chemo:
+                try:
+                    chemo_date_parsed = date.fromisoformat(next_chemo) if isinstance(next_chemo, str) else next_chemo
+                    ChemoService(self.db).log_chemo_date(chat.patient_uuid, chemo_date_parsed)
+                    logger.info(f"Logged next chemo date for patient: {next_chemo}")
+                except Exception as e:
+                    logger.warning(f"Could not log next chemo date: {e}")
             
             if engine_response.is_complete:
                 if engine_response.triage_level == TriageLevel.CALL_911:
@@ -433,26 +471,28 @@ class ChatService:
         self.db.commit()
         
         # 6. Create and save the assistant message
+        structured = {
+            "options": [opt['label'] for opt in engine_response.options] if engine_response.options else None,
+            "options_data": engine_response.options,
+            "frontend_type": engine_response.message_type,
+            "triage_level": engine_response.triage_level.value if engine_response.triage_level else None,
+            "is_complete": engine_response.is_complete,
+            "symptom_groups": engine_response.symptom_groups,
+            "summary_data": engine_response.summary_data,
+            "sender": engine_response.sender,
+            "phase": engine_response.state.phase.value if engine_response.state else None,
+        }
+        # Explicit flag for FE: show calendar when asking for next chemo date
+        if engine_response.message_type == "next_chemo_date":
+            structured["show_date_picker"] = True
+            structured["input_type"] = "date_picker"
+
         assistant_msg = MessageModel(
             chat_uuid=chat_uuid,
             sender="assistant",
             message_type=self._map_message_type(engine_response.message_type),
             content=engine_response.message,
-            structured_data={
-                "options": [opt['label'] for opt in engine_response.options] if engine_response.options else None,
-                "options_data": engine_response.options,
-                "frontend_type": engine_response.message_type,
-                "triage_level": engine_response.triage_level.value if engine_response.triage_level else None,
-                "is_complete": engine_response.is_complete,
-                # Include symptom groups for grouped symptom selection
-                "symptom_groups": engine_response.symptom_groups,
-                # Include summary data for assessment complete screen
-                "summary_data": engine_response.summary_data,
-                # Include sender info (ruby or system)
-                "sender": engine_response.sender,
-                # Include phase for frontend (needed for ADDING_NOTES text input)
-                "phase": engine_response.state.phase.value if engine_response.state else None,
-            },
+            structured_data=structured,
         )
         self.db.add(assistant_msg)
         self.db.commit()
@@ -504,6 +544,8 @@ class ChatService:
             'number': 'text',
             'symptom_select': 'multi_select',
             'triage_result': 'text',
+            'chemo_today_check': 'single_select',
+            'next_chemo_date': 'text',
         }
         return mapping.get(engine_type, 'text')
     
@@ -517,6 +559,8 @@ class ChatService:
             'number': 'text',
             'symptom_select': 'symptom-select',
             'triage_result': 'text',
+            'chemo_today_check': 'single-select',
+            'next_chemo_date': 'next_chemo_date',
         }
         return mapping.get(engine_type, 'text')
     
