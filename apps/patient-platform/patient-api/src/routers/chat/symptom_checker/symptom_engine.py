@@ -1111,10 +1111,9 @@ class SymptomCheckerEngine:
             # User acknowledged the emergency - complete the session
             self.state.phase = ConversationPhase.COMPLETED
             return EngineResponse(
-                message="✅ **Acknowledged**\n\n"
-                        "Your care team has been notified of this emergency.\n\n"
+                message="✅ **Emergency Alert**\n\n"
                         "**Please seek immediate medical attention.**\n\n"
-                        "If your condition worsens, call 911 immediately.",
+                        "If your condition worsens, please call your care team immediately, or 911 at your discretion",
                 message_type='text',
                 is_complete=True,
                 triage_level=TriageLevel.CALL_911,

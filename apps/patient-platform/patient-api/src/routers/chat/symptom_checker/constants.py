@@ -272,7 +272,7 @@ CHEMO_TODAY_OPTIONS = [
     {"label": "No", "value": "no", "style": "secondary"},
 ]
 # When user says No: FE shows date picker; user selects next chemo date
-NEXT_CHEMO_DATE_MESSAGE = """📅 **When is your next chemotherapy appointment?**
+NEXT_CHEMO_DATE_MESSAGE = """📅 **When was your last chemotherapy appointment?**
 
 Please select the date using the calendar below."""
 
