@@ -284,49 +284,64 @@ SYMPTOMS['URG-108'] = SymptomDef(
 # FEV-202: Fever
 def _eval_fever(answers: Dict[str, Any]) -> LogicResult:
     temp = answers.get('temp')
-    meds = answers.get('fever_meds')
+    # Previous behavior (kept for reference; now disabled):
+    # meds = answers.get('fever_meds')  # (commented out per updated fever flow - do not ask meds)
     
-    if meds is None:
-        return LogicResult(action='continue')
+    # If medication questions are disabled, don't block evaluation waiting for them.
+    # Previous behavior (kept for reference; now disabled):
+    # if meds is None:
+    #     return LogicResult(action='continue')
     
     try:
         t = float(temp) if temp else 0
     except (ValueError, TypeError):
         t = 0
+
+    # Updated flow: ask follow-up questions (except meds) for both low/high temps,
+    # then show the final alert based on temperature.
+    required_followups = ['fever_duration', 'high_temp_symptoms', 'fever_intake', 'fever_adl']
+    if any(answers.get(k) is None for k in required_followups):
+        return LogicResult(action='continue')
     
     # Low grade (≤100.3)
     if t <= 100.3:
-        message = f"Temperature {t}°F is below fever threshold (100.3°F). "
-        if meds and meds != 'none':
-            detail = answers.get('fever_meds_detail', '')
-            message += f"Patient taking {meds}{': ' + detail if detail else ''}."
-        else:
-            message += 'No fever medications taken.'
-        message += ' Continue to monitor temperature.'
+        # Previous behavior (kept for reference; now disabled):
+        # message = f"Temperature {t}°F is below fever threshold (100.3°F). "
+        # if meds and meds != 'none':
+        #     detail = answers.get('fever_meds_detail', '')
+        #     message += f"Patient taking {meds}{': ' + detail if detail else ''}."
+        # else:
+        #     message += 'No fever medications taken.'
+        # message += ' Continue to monitor temperature.'
+
+        message = (
+            "Please continue to monitor and let us know if your temperature is 100.3 or higher. ")
         return LogicResult(action='stop', triage_level=TriageLevel.NONE, triage_message=message)
     
     # High grade (>100.3)
     if t > 100.3:
-        if 'high_temp_symptoms' not in answers:
-            return LogicResult(action='continue')
-        
-        symps = answers.get('high_temp_symptoms', [])
-        duration = answers.get('fever_duration', 'unknown')
-        
-        message = f"Fever {t}°F (Duration: {duration}). "
-        if meds and meds != 'none':
-            detail = answers.get('fever_meds_detail', '')
-            message += f"Taking {meds}{': ' + detail if detail else ''}. "
-        else:
-            message += 'No fever medications taken. '
-        
-        # Check for concerning symptoms
-        if symps and 'none' not in symps:
-            filtered = [s for s in symps if s != 'none']
-            message += f"Associated symptoms: {', '.join(filtered)}."
-            return LogicResult(action='stop', triage_level=TriageLevel.NOTIFY_CARE_TEAM, triage_message=message)
-        
-        message += 'No additional symptoms reported.'
+        # Previous behavior (kept for reference; now disabled):
+        # if 'high_temp_symptoms' not in answers:
+        #     return LogicResult(action='continue')
+        # symps = answers.get('high_temp_symptoms', [])
+        # duration = answers.get('fever_duration', 'unknown')
+        # message = f"Fever {t}°F (Duration: {duration}). "
+        # ...
+
+        # Previous behavior (kept for reference; now disabled):
+        # duration = answers.get('fever_duration', 'unknown')
+        # symps = answers.get('high_temp_symptoms', []) or []
+        # message = (
+        #     "Your temperature is 100.3°F or higher. Please call your care team. "
+        #     f"Fever {t}°F (Duration: {duration})."
+        # )
+        # if symps and 'none' not in symps:
+        #     filtered = [s for s in symps if s != 'none']
+        #     message += f" Associated symptoms: {', '.join(filtered)}."
+        # return LogicResult(action='stop', triage_level=TriageLevel.NOTIFY_CARE_TEAM, triage_message=message)
+
+        # Keep the user-facing alert concise to avoid duplicate-looking messaging in the summary UI.
+        message = "Your temperature is 100.3°F or higher. Please call your care team."
         return LogicResult(action='stop', triage_level=TriageLevel.NOTIFY_CARE_TEAM, triage_message=message)
     
     return LogicResult(action='continue')
@@ -352,24 +367,24 @@ SYMPTOMS['FEV-202'] = SymptomDef(
             ],
             condition=lambda a: float(a.get('temp', 0) or 0) > 100.3
         ),
-        Question(
-            id='fever_meds',
-            text='What medications have you taken to lower your temperature?',
-            input_type=InputType.CHOICE,
-            options=[
-                create_option('Tylenol (Acetaminophen)', 'tylenol'),
-                create_option('Advil/Motrin (Ibuprofen)', 'ibuprofen'),
-                create_option('Aspirin', 'aspirin'),
-                create_option('Other medication', 'other'),
-                create_option('None - I have not taken anything', 'none')
-            ]
-        ),
-        Question(
-            id='fever_meds_detail',
-            text='What did you take and how often?',
-            input_type=InputType.TEXT,
-            condition=lambda a: a.get('fever_meds') and a.get('fever_meds') != 'none'
-        ),
+        # Question(
+        #     id='fever_meds',
+        #     text='What medications have you taken to lower your temperature?',
+        #     input_type=InputType.CHOICE,
+        #     options=[
+        #         create_option('Tylenol (Acetaminophen)', 'tylenol'),
+        #         create_option('Advil/Motrin (Ibuprofen)', 'ibuprofen'),
+        #         create_option('Aspirin', 'aspirin'),
+        #         create_option('Other medication', 'other'),
+        #         create_option('None - I have not taken anything', 'none')
+        #     ]
+        # ),
+        # Question(
+        #     id='fever_meds_detail',
+        #     text='What did you take and how often?',
+        #     input_type=InputType.TEXT,
+        #     condition=lambda a: a.get('fever_meds') and a.get('fever_meds') != 'none'
+        # ),
         Question(
             id='high_temp_symptoms',
             text='Are you experiencing any of these additional symptoms?',
@@ -389,26 +404,30 @@ SYMPTOMS['FEV-202'] = SymptomDef(
                 create_option('Other', 'other'),
                 create_option('None of these', 'none')
             ],
-            condition=lambda a: float(a.get('temp', 0) or 0) > 100.3
+            # condition=lambda a: float(a.get('temp', 0) or 0) > 100.3
+            condition=lambda a: a.get('temp') is not None
         ),
         Question(
             id='high_temp_symptoms_other',
             text='Please describe the other symptom:',
             input_type=InputType.TEXT,
-            condition=lambda a: float(a.get('temp', 0) or 0) > 100.3 and 'other' in (a.get('high_temp_symptoms') or [])
+            condition=lambda a: 'other' in (a.get('high_temp_symptoms') or [])
+            # condition=lambda a: float(a.get('temp', 0) or 0) > 100.3 and 'other' in (a.get('high_temp_symptoms') or [])
         ),
         Question(
             id='fever_intake',
             text='Have you been able to eat/drink normally?',
             input_type=InputType.CHOICE,
             options=opts_from_dicts(ORAL_INTAKE_OPTIONS),
-            condition=lambda a: float(a.get('temp', 0) or 0) > 100.3
+            condition=lambda a: a.get('temp') is not None
+            # condition=lambda a: float(a.get('temp', 0) or 0) > 100.3
         ),
         Question(
             id='fever_adl',
             text='Are you able to perform daily self care like bathing, using the toilet, eating independently?',
             input_type=InputType.YES_NO,
-            condition=lambda a: float(a.get('temp', 0) or 0) > 100.3
+            condition=lambda a: a.get('temp') is not None
+            # condition=lambda a: float(a.get('temp', 0) or 0) > 100.3
         )
     ],
     evaluate_screening=_eval_fever

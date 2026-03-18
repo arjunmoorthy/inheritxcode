@@ -169,7 +169,7 @@ async def send_welcome_email_staff(
 
     html = f"""
     <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
-        <h2 style="color: #007bff;">Welcome to the Patient Portal</h2>
+        <h2 style="color: #007bff;">Welcome to the Provider's Portal</h2>
 
         <p>Hi,</p>
 
