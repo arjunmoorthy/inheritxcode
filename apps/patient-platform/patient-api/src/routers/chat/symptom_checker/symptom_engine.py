@@ -614,7 +614,9 @@ class SymptomCheckerEngine:
             remaining = [s for s in self.state.selected_symptoms 
                         if s not in self.state.completed_symptoms]
             if not remaining:
-                return self._generate_summary()
+                # return self._generate_summary()
+                # Pass through a final, non-urgent guidance message (e.g. low-temp fever monitoring).
+                return self._generate_summary(prefix_message=greeting_message)
             next_symptom_id = remaining[0]
 
         symptom = get_symptom_by_id(next_symptom_id)
@@ -1063,13 +1065,21 @@ class SymptomCheckerEngine:
         if remaining > 0:
             # Show transition message
             transition = f"✅ Got it! I've recorded your **{symptom.name}** responses.\n\n"
+            # Previous behavior (kept for reference; now disabled):
+            # (did not display `message` inline)
+
+            if message:
+                transition += f"{message}\n\n"
             if remaining == 1:
                 transition += "One more symptom to go..."
             else:
                 transition += f"{remaining} more symptoms to go..."
             
             return self._start_next_symptom(greeting_message=transition)
-        
+        # If this was the last symptom, only carry non-urgent guidance into the summary
+        # to avoid duplicate-looking "call care team" blocks.
+        if message and self.state.highest_triage_level == TriageLevel.NONE:
+            return self._start_next_symptom(greeting_message=message)
         return self._start_next_symptom()
 
     # =========================================================================
@@ -1167,7 +1177,9 @@ class SymptomCheckerEngine:
     # =========================================================================
     # PHASE 6: SUMMARY
     # =========================================================================
-    def _generate_summary(self) -> EngineResponse:
+    # Previous signature (kept for reference; now disabled):
+    # def _generate_summary(self) -> EngineResponse:
+    def _generate_summary(self, prefix_message: Optional[str] = None) -> EngineResponse:
         """Generate the final summary of the symptom check."""
         self.state.phase = ConversationPhase.SUMMARY
         
@@ -1242,6 +1254,15 @@ class SymptomCheckerEngine:
                 "What would you like to do?"
             )
             triage_level = TriageLevel.NONE
+
+        # Keep the summary generation/wording the same, but for non-urgent sessions
+        # we include the final temperature guidance inside the card so it isn't "lost".
+        if prefix_message and triage_level == TriageLevel.NONE:
+            summary_message = summary_message.replace(
+                "✅ **Good news!** No urgent concerns identified.\n\n",
+                "✅ **Good news!** No urgent concerns identified.\n\n"
+                f"🌡️ **Temperature guidance:** {prefix_message}\n\n"
+            )
         
         # Store the concise summary for later use
         summary_data['concise_summary'] = concise_summary
