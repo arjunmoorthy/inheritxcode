@@ -54,10 +54,27 @@ const LoginPage: React.FC = () => {
   });
 
   // Dev mode auto-login function
-  const handleDevLogin = () => {
-    localStorage.setItem('authToken', 'dev-mode-token-22222222-2222-2222-2222-222222222222');
-    navigate('/dashboard');
-    window.location.reload();
+  const handleDevLogin = async () => {
+    // Preferred: real login using demo credentials from env (dev/demo only).
+    // Fallback: public demo mode (read-only, no real API token).
+    const demoEmail = "demo-doctor@yopmail.com";
+    const demoPassword =  "Inx@!123";
+
+    if (demoEmail && demoPassword) {
+      try {
+        setError(null);
+        const result = await authenticateLogin(demoEmail, demoPassword);
+        if (result?.success) {
+          window.location.href = '/dashboard';
+          return;
+        }
+      } catch (e: unknown) {
+        const err = e as { message?: string };
+        setError(err?.message || 'Demo login failed. Falling back to read-only demo.');
+      }
+    }
+
+    navigate('/demo', { replace: true });
   };
 
   // React Hook Form for Forgot Password
@@ -401,7 +418,7 @@ const LoginPage: React.FC = () => {
                         Secure, HIPAA-compliant access
                       </span>
                     </div>
-                    {showDemoButton && (
+                    {/* {showDemoButton && ( */}
                       <>
                         {/* Local Development Mode Card */}
                         <div className={`rounded-2xl border-2 p-5 transition-all duration-300 ${isDark
@@ -427,7 +444,7 @@ const LoginPage: React.FC = () => {
                           </button>
                         </div>
                       </>
-                    )}
+                    {/* )} */}
                     {/* Copyright Notice */}
                     <div className={`mt-4 text-center text-[10px] ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
                       © 2026 HEALTHAI - ONCOLIFE PHYSICIAN PORTAL

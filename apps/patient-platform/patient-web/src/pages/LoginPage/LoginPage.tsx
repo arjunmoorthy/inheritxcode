@@ -74,10 +74,25 @@ const LoginPage: React.FC = () => {
   const isLoading = isLoginSubmitting || isForgotSubmitting;
 
   // Dev mode auto-login function
-  const handleDevLogin = () => {
-    localStorage.setItem('authToken', 'dev-mode-token-11111111-1111-1111-1111-111111111111');
-    navigate('/chat');
-    window.location.reload();
+  const handleDevLogin = async () => {
+    const demoEmail = "demopatient@yopmail.com";
+    const demoPassword = "Inx@!123";
+
+    if (demoEmail && demoPassword) {
+      try {
+        setError(null);
+        const result = await authenticateLogin(demoEmail, demoPassword);
+        if (result?.success) {
+          navigate('/chat');
+          return;
+        }
+      } catch (e: unknown) {
+        const err = e as { message?: string };
+        setError(err?.message || 'Demo login failed. Please try again.');
+      }
+    } else {
+      setError('Demo credentials are not configured. Set VITE_DEMO_LOGIN_EMAIL and VITE_DEMO_LOGIN_PASSWORD.');
+    }
   };
 
   const onLoginSubmit = async (values: LoginFormValues) => {
@@ -315,7 +330,7 @@ const LoginPage: React.FC = () => {
                         Secure, HIPAA-compliant access
                       </span>
                     </div>
-                    {showDemoButton && (
+                    {/* {showDemoButton && ( */}
                       <>
                         {/* Local Development Mode Card */}
                         <div className={`rounded-2xl border-2 p-5 transition-all duration-300 ${isDark
@@ -341,7 +356,7 @@ const LoginPage: React.FC = () => {
                           </button>
                         </div>
                       </>
-                    )}
+                    {/* )} */}
                     {/* Copyright Notice */}
                     <div className={`mt-4 text-center text-[10px] ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
                       © 2026 HealthAI - OncoLife. All rights reserved.
