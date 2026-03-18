@@ -614,9 +614,27 @@ class SymptomCheckerEngine:
             remaining = [s for s in self.state.selected_symptoms 
                         if s not in self.state.completed_symptoms]
             if not remaining:
-                # return self._generate_summary()
-                # Pass through a final, non-urgent guidance message (e.g. low-temp fever monitoring).
-                return self._generate_summary(prefix_message=greeting_message)
+                def _build_temperature_guidance() -> Optional[str]:
+                    temp = self.state.session_temperature
+                    if temp is None:
+                        return None
+
+                    threshold = TEMP_FEVER_THRESHOLD
+                    if temp >= threshold:
+                        return (
+                            f"You reported **{temp:.1f}°F**. Because this meets or exceeds **{threshold:.1f}°F**, "
+                            "please contact your care team right away."
+                        )
+
+                    return (
+                        f"You reported **{temp:.1f}°F**. Continue to monitor your temperature. "
+                        f"If it reaches **{threshold:.1f}°F** or higher, please contact your care team."
+                    )
+
+                # Prefer explicitly passed non-urgent guidance (from last symptom completion),
+                # otherwise fall back to temperature guidance derived from the session temp.
+                prefix_message = greeting_message or _build_temperature_guidance()
+                return self._generate_summary(prefix_message=prefix_message)
             next_symptom_id = remaining[0]
 
         symptom = get_symptom_by_id(next_symptom_id)
