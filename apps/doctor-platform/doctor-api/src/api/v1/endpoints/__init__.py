@@ -19,6 +19,10 @@ from . import auth
 from . import clinics
 from . import staff
 from . import patients
+from . import dashboard
+from . import registration
+from . import docs
+from . import fax
 
 __all__ = [
     "health",
@@ -26,6 +30,10 @@ __all__ = [
     "clinics",
     "staff",
     "patients",
+    "dashboard",
+    "registration",
+    "docs",
+    "fax"
 ]
 
 

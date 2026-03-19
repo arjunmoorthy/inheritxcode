@@ -45,8 +45,11 @@ from services.audit_service import AuditService
 from core.logging import get_logger
 from core.exceptions import NotFoundError, AuthorizationError
 from db.models.fax_models import Patient as FaxPatient
-from sqlalchemy import or_, and_
+from db.models.user import User
+from sqlalchemy import or_, and_, text
 from api.deps import require_roles
+from datetime import time, timedelta
+from typing import Dict, Any, Literal, Optional
 from db.models.staff import PhysicianNurseAssignment, PhysicianPatient, Staff
 
 
@@ -462,6 +465,8 @@ def patient_listing_dashboard(
         response = [
             {
                 "patient_id": p.id,
+                # UUID used by dashboard trends endpoint: /dashboard/patient/{patient_uuid}/trends
+                "patient_uuid": str(p.user.uuid) if getattr(p, "user", None) and getattr(p.user, "uuid", None) else None,
                 "first_name": p.first_name,
                 "last_name": p.last_name,
                 "gender": p.gender,
@@ -493,3 +498,279 @@ def patient_listing_dashboard(
 
 
 
+
+# =============================================================================
+# Patient Dashboard Trends (Severity + Temperature + Medications)
+# =============================================================================
+
+SeverityLabel = Literal["mild", "moderate", "severe", "urgent", "none"]
+
+
+def _symptom_name(symptom_id: str) -> str:
+    symptom_map = {
+        "FEV-202": "Fever",
+        "COU-215": "Cough",
+        "NAU-203": "Nausea",
+        "VOM-204": "Vomiting",
+        "CON-210": "Constipation",
+        "DIA-205": "Diarrhea",
+        "ABD-211": "Abdominal Pain",
+        "PAI-213": "Pain / General Aches",
+        "FAT-206": "Fatigue / Weakness",
+        "NEU-216": "Neuropathy",
+    }
+    return symptom_map.get(symptom_id, symptom_id)
+
+
+def _severity_from_detail(row: Dict[str, Any]) -> SeverityLabel:
+    severity_val = row.get("severity")
+    triage_level = row.get("triage_level")
+    if severity_val:
+        s = str(severity_val).strip().lower()
+        if s in ("mild", "moderate", "severe", "urgent", "none"):
+            return s  # type: ignore[return-value]
+    tl = (triage_level or "").strip().lower()
+    if tl in ("call_911", "urgent"):
+        return "severe"
+    if tl in ("notify_care_team",):
+        return "moderate"
+    if tl in ("none", ""):
+        return "mild"
+    return "mild"
+
+
+def _severity_rank(label: SeverityLabel) -> int:
+    return {"none": 0, "mild": 1, "moderate": 2, "severe": 3, "urgent": 4}.get(label, 1)
+
+
+def _med_label_map() -> Dict[str, str]:
+    # Keep this local to doctor-api to avoid cross-service imports.
+    return {
+        "compazine": "Compazine (prochlorperazine) 5 mg every 6 hours",
+        "zofran": "Zofran (ondansetron) 8 mg every 8 hours",
+        "olanzapine": "Olanzapine 5 mg daily",
+        "robitussin_10_20": "Robitussin (dextromethorphan) 10-20 mg every 4 hours",
+        "robitussin_30": "Robitussin (dextromethorphan) 30 mg every 6-8 hours",
+        "imodium": "Imodium (loperamide) 4 mg then 2 mg after each loose stool",
+        "lomotil": "Lomotil (diphenoxylate/atropine) 1-2 tablets up to 4 times daily",
+        "miralax_qd": "Miralax 17g once daily",
+        "miralax_bid": "Miralax 17g twice daily",
+        "senna": "Senna 8.6mg",
+        "bisacodyl": "Bisacodyl (Dulcolax)",
+        "docusate": "Docusate (Colace)",
+        "gabapentin": "Gabapentin",
+        "duloxetine": "Duloxetine (Cymbalta)",
+        "pregabalin": "Pregabalin (Lyrica)",
+    }
+
+
+MED_LABELS = _med_label_map()
+
+
+class SeverityPoint(BaseModel):
+    date: str
+    value: SeverityLabel
+
+
+class SeveritySeries(BaseModel):
+    symptom_id: str
+    symptom_name: str
+    points: List[SeverityPoint]
+
+
+class TemperaturePoint(BaseModel):
+    date: str
+    value: float
+
+
+class MedicationRow(BaseModel):
+    date: str
+    symptom_id: str
+    symptom_name: str
+    severity: SeverityLabel
+    medication_name: Optional[str] = None
+    medication_frequency: Optional[str] = None
+    severity_after_medication: Optional[str] = None
+
+
+class PatientTrendsResponse(BaseModel):
+    patient_uuid: str
+    start_date: str
+    end_date: str
+    severity_series: List[SeveritySeries]
+    temperature_series: List[TemperaturePoint]
+    medications: List[MedicationRow]
+
+
+@router.get(
+    "/patient/{patient_uuid}/trends",
+    response_model=PatientTrendsResponse,
+    summary="Patient dashboard trends (severity + daily temp + meds)",
+)
+def get_patient_trends(
+    patient_uuid: UUID,
+    start_date: Optional[date] = Query(default=None, description="Start date (YYYY-MM-DD)"),
+    end_date: Optional[date] = Query(default=None, description="End date (YYYY-MM-DD)"),
+    current_user=Depends(require_roles("physician", "nurse", "admin")),
+    patient_db: Session = Depends(get_patient_db_session),
+    doctor_db: Session = Depends(get_doctor_db_session),
+):
+    """
+    Returns backend-only data for the doctor-side patient dashboard graph:
+    - Symptom severity series: string values per day (worst severity per day)
+    - Temperature series: one point per day (latest recorded temp per day)
+    - Medications table rows: extracted from answers_json when present
+    """
+    # Defaults: last 30 days
+    today = datetime.utcnow().date()
+    start = start_date or (today - timedelta(days=30))
+    end = end_date or today
+    if end < start:
+        raise HTTPException(status_code=400, detail="end_date must be >= start_date")
+
+    # Authorization: physician/nurse must have access to patient (admin allowed).
+    # Best-effort check using fax patient id mapping via UUID.
+    if getattr(current_user, "role", None) != "admin":
+        # `require_roles()` returns the doctor-api `User` model. Other endpoints use `current_user.id`.
+        staff = doctor_db.query(Staff).filter(Staff.user_id == getattr(current_user, "id", None)).first()
+        if staff:
+            if getattr(current_user, "role", None) == "physician":
+                allowed = (
+                    doctor_db.query(PhysicianPatient)
+                    .join(FaxPatient, FaxPatient.id == PhysicianPatient.patient_id)
+                    .join(User, User.id == FaxPatient.user_id)
+                    .filter(
+                        PhysicianPatient.physician_id == staff.id,
+                        User.uuid == patient_uuid,
+                    )
+                    .first()
+                )
+                if not allowed:
+                    raise HTTPException(status_code=403, detail="Not authorized for this patient")
+            elif getattr(current_user, "role", None) == "nurse":
+                physician_ids = doctor_db.query(PhysicianNurseAssignment.physician_id).filter(
+                    PhysicianNurseAssignment.nurse_id == staff.id
+                ).all()
+                physician_ids = [p[0] for p in physician_ids]
+                if physician_ids:
+                    allowed = (
+                        doctor_db.query(PhysicianPatient)
+                        .join(FaxPatient, FaxPatient.id == PhysicianPatient.patient_id)
+                        .join(User, User.id == FaxPatient.user_id)
+                        .filter(
+                            PhysicianPatient.physician_id.in_(physician_ids),
+                            User.uuid == patient_uuid,
+                        )
+                        .first()
+                    )
+                    if not allowed:
+                        raise HTTPException(status_code=403, detail="Not authorized for this patient")
+
+    start_dt = datetime.combine(start, time.min)
+    end_dt = datetime.combine(end, time.max)
+
+    # Symptom details (severity + meds)
+    details = patient_db.execute(
+        text(
+            """
+            SELECT symptom_id, severity, triage_level, answers_json, created_at
+            FROM symptom_details
+            WHERE patient_id = :patient_id
+              AND created_at >= :start_dt
+              AND created_at <= :end_dt
+            ORDER BY created_at ASC
+            """
+        ),
+        {"patient_id": str(patient_uuid), "start_dt": start_dt, "end_dt": end_dt},
+    ).mappings().all()
+
+    severity_by_symptom_day: Dict[str, Dict[str, SeverityLabel]] = {}
+    meds_rows: List[MedicationRow] = []
+    for row in details:
+        created_at = row.get("created_at")
+        if not created_at:
+            continue
+        day = created_at.date().isoformat()
+        sid = row.get("symptom_id")
+        if not sid:
+            continue
+        sev = _severity_from_detail(row)
+
+        by_day = severity_by_symptom_day.setdefault(sid, {})
+        prev = by_day.get(day)
+        if prev is None or _severity_rank(sev) > _severity_rank(prev):
+            by_day[day] = sev
+
+        answers = row.get("answers_json") if isinstance(row.get("answers_json"), dict) else {}
+        meds_val = answers.get("meds")
+        if isinstance(meds_val, str) and meds_val and meds_val != "none":
+            med_name = MED_LABELS.get(meds_val, meds_val)
+            freq = answers.get("meds_detail")
+            if not isinstance(freq, str):
+                freq = None
+            sev_after = (
+                answers.get("severity_post_meds")
+                or answers.get("severity_post_med")
+                or answers.get("severity_post_medication")
+            )
+            meds_rows.append(
+                MedicationRow(
+                    date=day,
+                    symptom_id=sid,
+                    symptom_name=_symptom_name(sid),
+                    severity=sev,
+                    medication_name=med_name,
+                    medication_frequency=freq,
+                    severity_after_medication=str(sev_after) if sev_after is not None else None,
+                )
+            )
+
+    severity_series: List[SeveritySeries] = []
+    for sid, day_map in severity_by_symptom_day.items():
+        pts = [SeverityPoint(date=d, value=v) for d, v in sorted(day_map.items(), key=lambda kv: kv[0])]
+        severity_series.append(SeveritySeries(symptom_id=sid, symptom_name=_symptom_name(sid), points=pts))
+    severity_series.sort(key=lambda s: s.symptom_name.lower())
+
+    # Temperature series: latest temp per day
+    temps = patient_db.execute(
+        text(
+            """
+            SELECT metric_value, recorded_at
+            FROM symptom_time_series
+            WHERE patient_id = :patient_id
+              AND symptom_id = 'FEV-202'
+              AND metric_name = 'temp'
+              AND recorded_at >= :start_dt
+              AND recorded_at <= :end_dt
+            ORDER BY recorded_at ASC
+            """
+        ),
+        {"patient_id": str(patient_uuid), "start_dt": start_dt, "end_dt": end_dt},
+    ).mappings().all()
+
+    latest_temp_by_day: Dict[str, tuple[datetime, float]] = {}
+    for t in temps:
+        recorded_at = t.get("recorded_at")
+        metric_value = t.get("metric_value")
+        if not recorded_at:
+            continue
+        day = recorded_at.date().isoformat()
+        prev = latest_temp_by_day.get(day)
+        if prev is None or recorded_at > prev[0]:
+            latest_temp_by_day[day] = (recorded_at, float(metric_value))
+
+    temperature_series = [
+        TemperaturePoint(date=day, value=val_ts[1])
+        for day, val_ts in sorted(latest_temp_by_day.items(), key=lambda kv: kv[0])
+    ]
+
+    meds_rows.sort(key=lambda r: r.date, reverse=True)
+
+    return PatientTrendsResponse(
+        patient_uuid=str(patient_uuid),
+        start_date=start.isoformat(),
+        end_date=end.isoformat(),
+        severity_series=severity_series,
+        temperature_series=temperature_series,
+        medications=meds_rows,
+    )
