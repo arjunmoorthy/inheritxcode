@@ -1076,6 +1076,8 @@ class SymptomCheckerEngine:
 
     def _complete_symptom(self, symptom: SymptomDef, message: Optional[str] = None) -> EngineResponse:
         """Complete processing of a symptom and move to the next."""
+        # Snapshot this symptom's answers before they get wiped in _start_next_symptom
+        self.state.symptom_answers[symptom.id] = dict(self.state.answers)
         self.state.completed_symptoms.append(symptom.id)
         
         # Count remaining
