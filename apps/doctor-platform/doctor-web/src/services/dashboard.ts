@@ -33,6 +33,8 @@ import { API_CONFIG } from '../config/api';
 // API response from /dashboard/patient-listing-dashboard
 export interface PatientListingApiItem {
   patient_id: number;
+  patient_uuid?: string | null;
+  uuid?: string | null;
   first_name: string;
   last_name: string;
   gender: string;
@@ -59,6 +61,7 @@ export interface PatientListingApiResponse {
 
 export interface PatientSummary {
   id: string;
+  patientUuid?: string;
   patientName: string;
   dateOfBirth: string;
   mrn: string;
@@ -98,6 +101,32 @@ export interface SymptomDataPoint {
   severity_numeric: number;
 }
 
+export interface SeveritySeriesPoint {
+  date: string;
+  value: string;
+}
+
+export interface SeveritySeriesItem {
+  symptom_id: string;
+  symptom_name: string;
+  points: SeveritySeriesPoint[];
+}
+
+export interface TemperatureSeriesPoint {
+  date: string;
+  value: number;
+}
+
+export interface MedicationItem {
+  date: string;
+  symptom_id: string;
+  symptom_name: string;
+  severity: string;
+  medication_name: string;
+  medication_frequency: string | null;
+  severity_after_medication: string | null;
+}
+
 export interface TreatmentEvent {
   event_type: string;
   event_date: string | null;
@@ -106,9 +135,11 @@ export interface TreatmentEvent {
 
 export interface PatientTimeline {
   patient_uuid: string;
-  period_days: number;
-  symptom_series: Record<string, SymptomDataPoint[]>;
-  treatment_events: TreatmentEvent[];
+  start_date: string;
+  end_date: string;
+  severity_series: SeveritySeriesItem[];
+  temperature_series: TemperatureSeriesPoint[];
+  medications: MedicationItem[];
 }
 
 export interface SharedQuestion {
@@ -174,6 +205,7 @@ const mapSeverityToPriority = (severity: string | null): 'high' | 'medium' | 'lo
 
 const transformPatientRankingToSummary = (ranking: PatientRanking): PatientSummary => ({
   id: ranking.patient_uuid,
+  patientUuid: ranking.patient_uuid,
   patientName: `${ranking.first_name || ''} ${ranking.last_name || ''}`.trim() || 'Unknown',
   dateOfBirth: '',
   mrn: '',
@@ -206,7 +238,14 @@ const fetchPatientListingDashboard = async (
 
 // Transform API item to PatientSummary for dashboard display
 const transformListingToSummary = (item: PatientListingApiItem): PatientSummary => ({
-  id: String(item.patient_id),
+  id:
+    (item.patient_uuid && String(item.patient_uuid)) ||
+    (item.uuid && String(item.uuid)) ||
+    String(item.patient_id),
+  patientUuid:
+    (item.patient_uuid && String(item.patient_uuid)) ||
+    (item.uuid && String(item.uuid)) ||
+    undefined,
   patientName: `${item.first_name || ''} ${item.last_name || ''}`.trim() || 'Unknown',
   dateOfBirth: item.date_of_birth || '',
   mrn: (item.mrn && String(item.mrn)) || String(item.patient_id),
@@ -280,20 +319,28 @@ const fetchPatientSummaries = async (
 // Fetch patient timeline data
 const fetchPatientTimeline = async (
   patientUuid: string,
-  days: number = 30
+  startDate?: string,
+  endDate?: string
 ): Promise<PatientTimeline> => {
   try {
+    const params = new URLSearchParams();
+    if (startDate) params.set('start_date', startDate);
+    if (endDate) params.set('end_date', endDate);
+    const query = params.toString();
     const response = await apiClient.get<PatientTimeline>(
-      `${API_CONFIG.ENDPOINTS.DASHBOARD.PATIENT_TIMELINE(patientUuid)}?days=${days}`
+      `${API_CONFIG.ENDPOINTS.DASHBOARD.PATIENT_TIMELINE(patientUuid)}/trends${query ? `?${query}` : ''}`
     );
     return response.data;
   } catch (error) {
     console.error('Error fetching patient timeline:', error);
+    const today = new Date().toISOString().split('T')[0];
     return {
       patient_uuid: patientUuid,
-      period_days: days,
-      symptom_series: {},
-      treatment_events: [],
+      start_date: startDate || today,
+      end_date: endDate || today,
+      severity_series: [],
+      temperature_series: [],
+      medications: [],
     };
   }
 };
@@ -385,10 +432,14 @@ export const usePatientSummaries = (
   });
 };
 
-export const usePatientTimeline = (patientUuid: string, days: number = 30) => {
+export const usePatientTimeline = (
+  patientUuid: string,
+  startDate?: string,
+  endDate?: string
+) => {
   return useQuery({
-    queryKey: ['patientTimeline', patientUuid, days],
-    queryFn: () => fetchPatientTimeline(patientUuid, days),
+    queryKey: ['patientTimeline', patientUuid, startDate, endDate],
+    queryFn: () => fetchPatientTimeline(patientUuid, startDate, endDate),
     enabled: !!patientUuid,
   });
 };
@@ -431,17 +482,21 @@ export const usePatientDetails = (patientId: string) => {
   return useQuery({
     queryKey: ['patientDetails', patientId],
     queryFn: async (): Promise<PatientSummary> => {
-      const timeline = await fetchPatientTimeline(patientId, 30);
+      const timeline = await fetchPatientTimeline(patientId);
       return {
         id: timeline.patient_uuid,
+        patientUuid: timeline.patient_uuid,
         patientName: '',
         dateOfBirth: '',
         mrn: '',
-        symptoms: Object.keys(timeline.symptom_series).join(', '),
+        symptoms: timeline.severity_series.map((item) => item.symptom_name).join(', '),
         summary: '',
         lastUpdated: '',
         status: 'active',
         priority: 'medium',
+        maxSeverity: null,
+        hasEscalation: false,
+        severityBadge: '',
       };
     },
     enabled: !!patientId,

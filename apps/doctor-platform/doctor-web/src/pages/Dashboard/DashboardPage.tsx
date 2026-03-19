@@ -321,6 +321,10 @@ const DashboardPage: React.FC = () => {
     setPage(1);
   };
 
+  const getPatientRouteId = (patient: PatientSummary): string => {
+    return patient.patientUuid || patient.id;
+  };
+
   return (
     <div className={`doctor-dashboard flex flex-col h-full w-full overflow-hidden ${isDark ? 'bg-[#1A1917]' : 'bg-[rgb(250,248,245)]'} transition-colors duration-200`}>
       {/* Fixed Header - Compact on mobile */}
@@ -791,11 +795,12 @@ const DashboardPage: React.FC = () => {
                 const lastChemo = getLastChemo(patient);
                 const lastChatbot = patient.lastUpdated || '';
                 const dob = patient.dateOfBirth || (patient as any).date_of_birth || '';
+                const patientRouteId = getPatientRouteId(patient);
 
                 return (
                   <div
                     key={patient.id}
-                    onClick={() => navigate(`/patients/${patient.id}`)}
+                    onClick={() => navigate(`/patients/${patientRouteId}`)}
                     className={`group ${isDark ? 'bg-[#252320] border-slate-700/50 hover:border-blue-500/50' : 'bg-white border-slate-200 hover:border-blue-300 hover:shadow-lg'} rounded-lg border overflow-hidden transition-all duration-300 cursor-pointer shadow-sm`}
                   >
                     {/* Patient Card Content - tighter padding on mobile */}
@@ -866,7 +871,7 @@ const DashboardPage: React.FC = () => {
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            navigate(`/patients/${patient.id}`);
+                            navigate(`/patients/${patientRouteId}`);
                           }}
                           className={`inline-flex items-center gap-1.5 text-sm font-medium transition-colors duration-200 ${isDark
                               ? 'text-blue-400 hover:text-blue-300'

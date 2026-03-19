@@ -20,6 +20,7 @@ import {
   usePatientTimeline,
   usePatientDetails,
 } from '../../services/dashboard';
+import type { MedicationItem } from '../../services/dashboard';
 
 // Components
 import PatientDetailHeader from './components/PatientDetailHeader';
@@ -32,69 +33,342 @@ import PatientProfileModal, { type PatientProfile } from './components/PatientPr
 // Symptom colors matching the image
 const symptomColors: Record<string, string> = {
   'cough': '#FF9500',      // Orange
+  'fever': '#EAB308',       // Yellow
   'pain': '#10B981',        // Green
   'vomiting': '#06B6D4',    // Light Blue
+  'diarrhea': '#14B8A6',    // Teal
+  'appetite loss': '#F97316', // Deep Orange
   'constipation': '#2563EB', // Dark Blue
-  'temperature': '#EF4444', // Red
+  'shortness of breath': '#0EA5E9', // Sky Blue
+  'headache': '#8B5CF6',    // Purple
+  'dizziness': '#A855F7',   // Violet
+  'insomnia': '#6366F1',    // Indigo
+  'mouth sores': '#EC4899', // Pink
   'fatigue': '#8B5CF6',     // Purple
   'nausea': '#EC4899',      // Pink
+  'temperature': '#EF4444', // Red
 };
 
-// Static fallback data
-const staticTimelineData = {
-  patient_uuid: '1',
-  period_days: 30,
-  symptom_series: {
-    'cough': [
-      { date: '2026-01-30', severity: 'mild', severity_numeric: 1 },
-      { date: '2026-02-01', severity: 'moderate', severity_numeric: 2 },
-      { date: '2026-02-03', severity: 'severe', severity_numeric: 3 },
-      { date: '2026-02-05', severity: 'moderate', severity_numeric: 2 },
-    ],
-    'pain': [
-      { date: '2026-01-30', severity: 'moderate', severity_numeric: 2 },
-      { date: '2026-02-01', severity: 'severe', severity_numeric: 3 },
-      { date: '2026-02-03', severity: 'moderate', severity_numeric: 2 },
-      { date: '2026-02-05', severity: 'mild', severity_numeric: 1 },
-    ],
-    'vomiting': [
-      { date: '2026-01-31', severity: 'mild', severity_numeric: 1 },
-      { date: '2026-02-02', severity: 'moderate', severity_numeric: 2 },
-      { date: '2026-02-04', severity: 'mild', severity_numeric: 1 },
-    ],
-    'constipation': [
-      { date: '2026-01-30', severity: 'moderate', severity_numeric: 2 },
-      { date: '2026-02-02', severity: 'severe', severity_numeric: 3 },
-      { date: '2026-02-05', severity: 'moderate', severity_numeric: 2 },
-    ],
-    'temperature': [
-      { date: '2026-01-30', severity: 'normal', severity_numeric: 98.6 },
-      { date: '2026-02-01', severity: 'elevated', severity_numeric: 100.2 },
-      { date: '2026-02-03', severity: 'fever', severity_numeric: 101.8 },
-      { date: '2026-02-05', severity: 'normal', severity_numeric: 98.4 },
-    ],
-  },
-  treatment_events: [
+const fallbackSymptomPalette = [
+  '#22C55E', // green
+  '#F59E0B', // amber
+  '#06B6D4', // cyan
+  '#3B82F6', // blue
+  '#A855F7', // purple
+  '#EC4899', // pink
+  '#EF4444', // red
+  '#14B8A6', // teal
+  '#6366F1', // indigo
+  '#84CC16', // lime
+];
+
+const getSymptomColor = (symptomName: string) => {
+  const key = toSymptomKey(symptomName);
+  const mapped = symptomColors[key];
+  if (mapped) return mapped;
+
+  // Stable color selection for unknown/new symptom names.
+  const hash = key.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  return fallbackSymptomPalette[hash % fallbackSymptomPalette.length];
+};
+
+const severityValueMap: Record<string, number> = {
+  relieved: 0,
+  none: 0,
+  normal: 0,
+  mild: 1,
+  moderate: 2,
+  severe: 3,
+  'very severe': 4,
+  urgent: 4,
+};
+
+const toSymptomKey = (name: string) => name.trim().toLowerCase();
+const toTitleCase = (value: string) =>
+  value.replace(/\b\w/g, (char) => char.toUpperCase());
+const toIsoDate = (date: Date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+const parseIsoDateAsLocal = (dateStr: string) => {
+  const [year, month, day] = dateStr.split('-').map(Number);
+  if (!year || !month || !day) return null;
+  const date = new Date(year, month - 1, day);
+  return Number.isNaN(date.getTime()) ? null : date;
+};
+const buildDateRange = (startDate: string, endDate: string) => {
+  const start = new Date(`${startDate}T00:00:00`);
+  const end = new Date(`${endDate}T00:00:00`);
+
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || start > end) {
+    return [] as string[];
+  }
+
+  const dates: string[] = [];
+  const cursor = new Date(start);
+  while (cursor <= end) {
+    dates.push(toIsoDate(cursor));
+    cursor.setDate(cursor.getDate() + 1);
+  }
+
+  return dates;
+};
+
+const shiftIsoDate = (date: string, offsetDays: number) => {
+  const parsed = new Date(`${date}T00:00:00`);
+  if (Number.isNaN(parsed.getTime())) return date;
+  parsed.setDate(parsed.getDate() + offsetDays);
+  return toIsoDate(parsed);
+};
+
+const clampDate = (date: string, minDate: string, maxDate: string) => {
+  if (date < minDate) return minDate;
+  if (date > maxDate) return maxDate;
+  return date;
+};
+
+const buildFocusedTimelineDates = (timelineData: {
+  start_date: string;
+  end_date: string;
+  severity_series: Array<{ points: Array<{ date: string }> }>;
+  temperature_series: Array<{ date: string }>;
+}) => {
+  const observedDates: string[] = [];
+  timelineData.severity_series.forEach((series) => {
+    series.points.forEach((point) => {
+      if (point.date) observedDates.push(point.date);
+    });
+  });
+  timelineData.temperature_series.forEach((point) => {
+    if (point.date) observedDates.push(point.date);
+  });
+
+  if (!observedDates.length) {
+    return buildDateRange(timelineData.start_date, timelineData.end_date);
+  }
+
+  observedDates.sort();
+  const minObservedDate = observedDates[0];
+  const paddedStart = clampDate(
+    shiftIsoDate(minObservedDate, -2),
+    timelineData.start_date,
+    timelineData.end_date
+  );
+  const paddedEnd = timelineData.end_date;
+
+  return buildDateRange(paddedStart, paddedEnd);
+};
+
+const fillSymptomSeriesByDate = (
+  dates: string[],
+  points: Array<{ date: string; value: string }>
+) => {
+  if (points.length <= 1) return points;
+
+  const valueByDate = new Map(points.map((point) => [point.date, point.value] as const));
+  const sortedInputDates = points.map((point) => point.date).sort();
+  const firstDate = sortedInputDates[0];
+  const lastDate = sortedInputDates[sortedInputDates.length - 1];
+  let lastKnownValue: string | undefined;
+
+  return dates
+    .filter((date) => date >= firstDate && date <= lastDate)
+    .map((date) => {
+      const exactValue = valueByDate.get(date);
+      if (exactValue) {
+        lastKnownValue = exactValue;
+      }
+
+      if (!lastKnownValue) return null;
+      return { date, value: lastKnownValue };
+    })
+    .filter((item): item is { date: string; value: string } => item !== null);
+};
+
+const fillTemperatureSeriesByDate = (
+  dates: string[],
+  points: Array<{ date: string; value: number }>
+) => {
+  if (points.length <= 1) return points;
+  const sortedPoints = [...points].sort((a, b) => a.date.localeCompare(b.date));
+  const firstDate = sortedPoints[0].date;
+  const lastDate = sortedPoints[sortedPoints.length - 1].date;
+
+  const dateToIndex = new Map(dates.map((date, idx) => [date, idx] as const));
+
+  const interpolateValue = (date: string) => {
+    for (let i = 0; i < sortedPoints.length - 1; i += 1) {
+      const current = sortedPoints[i];
+      const next = sortedPoints[i + 1];
+      if (date < current.date || date > next.date) continue;
+
+      const currentIdx = dateToIndex.get(current.date);
+      const nextIdx = dateToIndex.get(next.date);
+      const targetIdx = dateToIndex.get(date);
+      if (
+        typeof currentIdx !== 'number' ||
+        typeof nextIdx !== 'number' ||
+        typeof targetIdx !== 'number' ||
+        nextIdx === currentIdx
+      ) {
+        return current.value;
+      }
+
+      const ratio = (targetIdx - currentIdx) / (nextIdx - currentIdx);
+      return current.value + (next.value - current.value) * ratio;
+    }
+    return sortedPoints[sortedPoints.length - 1].value;
+  };
+
+  return dates
+    .filter((date) => date >= firstDate && date <= lastDate)
+    .map((date) => {
+      const exact = sortedPoints.find((point) => point.date === date);
+      return {
+        date,
+        value: typeof exact?.value === 'number' ? exact.value : interpolateValue(date),
+      };
+    });
+};
+
+// TODO: Temporary static timeline payload for UI demo.
+// Remove this and use API response (`timeline`) after backend stabilizes.
+const USE_STATIC_TIMELINE = false;
+const STATIC_TIMELINE_DATA = {
+  patient_uuid: '83669f94-fe4d-4b8b-8a1d-b90479f988ea',
+  start_date: '2026-02-28',
+  end_date: '2026-03-19',
+  severity_series: [
     {
-      event_type: 'chemotherapy',
-      event_date: '2026-02-01',
-      metadata: { cycle: 1, medication: 'Doxorubicin' },
+      symptom_id: 'COU-215',
+      symptom_name: 'Cough',
+      points: [
+        { date: '2026-02-28', value: 'mild' },
+        { date: '2026-03-02', value: 'mild' },
+        { date: '2026-03-04', value: 'moderate' },
+        { date: '2026-03-07', value: 'moderate' },
+        { date: '2026-03-10', value: 'severe' },
+        { date: '2026-03-13', value: 'moderate' },
+        { date: '2026-03-16', value: 'severe' },
+        { date: '2026-03-19', value: 'moderate' },
+      ],
     },
     {
-      event_type: 'medication',
-      event_date: '2026-02-03',
-      metadata: { medication: 'Pain Relief', dosage: '10mg' },
+      symptom_id: 'FEV-202',
+      symptom_name: 'Fever',
+      points: [
+        { date: '2026-03-01', value: 'mild' },
+        { date: '2026-03-03', value: 'moderate' },
+        { date: '2026-03-06', value: 'mild' },
+        { date: '2026-03-09', value: 'moderate' },
+        { date: '2026-03-12', value: 'mild' },
+        { date: '2026-03-15', value: 'moderate' },
+        { date: '2026-03-18', value: 'mild' },
+        { date: '2026-03-19', value: 'mild' },
+      ],
+    },
+    {
+      symptom_id: 'NAU-203',
+      symptom_name: 'Nausea',
+      points: [
+        { date: '2026-03-01', value: 'mild' },
+        { date: '2026-03-05', value: 'mild' },
+        { date: '2026-03-08', value: 'moderate' },
+        { date: '2026-03-11', value: 'mild' },
+        { date: '2026-03-14', value: 'moderate' },
+        { date: '2026-03-17', value: 'moderate' },
+        { date: '2026-03-19', value: 'moderate' },
+      ],
+    },
+    {
+      symptom_id: 'URG-103',
+      symptom_name: 'URG-103',
+      points: [
+        { date: '2026-03-02', value: 'mild' },
+        { date: '2026-03-06', value: 'mild' },
+        { date: '2026-03-10', value: 'moderate' },
+        { date: '2026-03-14', value: 'mild' },
+        { date: '2026-03-18', value: 'moderate' },
+        { date: '2026-03-19', value: 'mild' },
+      ],
+    },
+    {
+      symptom_id: 'VOM-204',
+      symptom_name: 'Vomiting',
+      points: [
+        { date: '2026-03-01', value: 'mild' },
+        { date: '2026-03-04', value: 'moderate' },
+        { date: '2026-03-07', value: 'mild' },
+        { date: '2026-03-10', value: 'moderate' },
+        { date: '2026-03-13', value: 'moderate' },
+        { date: '2026-03-16', value: 'moderate' },
+        { date: '2026-03-19', value: 'moderate' },
+      ],
+    },
+  ],
+  temperature_series: [
+    { date: '2026-02-28', value: 98.4 },
+    { date: '2026-03-01', value: 98.8 },
+    { date: '2026-03-02', value: 99.2 },
+    { date: '2026-03-03', value: 99.6 },
+    { date: '2026-03-04', value: 98.9 },
+    { date: '2026-03-05', value: 99.4 },
+    { date: '2026-03-06', value: 98.7 },
+    { date: '2026-03-07', value: 99.1 },
+    { date: '2026-03-08', value: 99.8 },
+    { date: '2026-03-09', value: 100.2 },
+    { date: '2026-03-10', value: 99.7 },
+    { date: '2026-03-11', value: 99.3 },
+    { date: '2026-03-12', value: 98.9 },
+    { date: '2026-03-13', value: 99.6 },
+    { date: '2026-03-14', value: 100.0 },
+    { date: '2026-03-15', value: 99.4 },
+    { date: '2026-03-16', value: 100.1 },
+    { date: '2026-03-17', value: 99.5 },
+    { date: '2026-03-18', value: 98.9 },
+    { date: '2026-03-19', value: 98.3 },
+  ],
+  medications: [
+    {
+      date: '2026-03-19',
+      symptom_id: 'VOM-204',
+      symptom_name: 'Vomiting',
+      severity: 'moderate',
+      medication_name: 'Zofran (ondansetron) 8 mg every 8 hours',
+      medication_frequency: null,
+      severity_after_medication: 'mild',
+    },
+    {
+      date: '2026-03-19',
+      symptom_id: 'NAU-203',
+      symptom_name: 'Nausea',
+      severity: 'moderate',
+      medication_name: 'Zofran (ondansetron) 8 mg every 8 hours',
+      medication_frequency: null,
+      severity_after_medication: 'mild',
+    },
+    {
+      date: '2026-03-18',
+      symptom_id: 'FEV-202',
+      symptom_name: 'Fever',
+      severity: 'mild',
+      medication_name: 'Paracetamol 650 mg',
+      medication_frequency: 'Every 6 hours as needed',
+      severity_after_medication: 'relieved',
+    },
+    {
+      date: '2026-03-16',
+      symptom_id: 'COU-215',
+      symptom_name: 'Cough',
+      severity: 'severe',
+      medication_name: 'Dextromethorphan syrup 10 ml',
+      medication_frequency: 'Twice daily',
+      severity_after_medication: 'moderate',
     },
   ],
 };
-
-const staticTableData = [
-  { date: '2026-02-06', symptom: 'Cough', severity: 'Moderate', temperature: '98.6°F' },
-  { date: '2026-02-05', symptom: 'Pain', severity: 'Mild', temperature: '98.4°F' },
-  { date: '2026-02-04', symptom: 'Vomiting', severity: 'Mild', temperature: '98.2°F' },
-  { date: '2026-02-03', symptom: 'Cough', severity: 'Severe', temperature: '101.8°F' },
-  { date: '2026-02-02', symptom: 'Constipation', severity: 'Severe', temperature: '99.2°F' },
-];
 
 const PatientDetailPage: React.FC = () => {
   const { uuid } = useParams<{ uuid: string }>();
@@ -109,9 +383,15 @@ const PatientDetailPage: React.FC = () => {
   const [isChartFullscreen, setIsChartFullscreen] = useState(false);
   
   // Filter states
-  const [startDate, setStartDate] = useState('2026-01-30');
-  const [endDate, setEndDate] = useState('2026-02-06');
-  const [selectedSymptoms, setSelectedSymptoms] = useState<string[]>(['all', 'cough', 'pain', 'vomiting', 'constipation']);
+  const defaultStartDate = useMemo(() => {
+    const date = new Date();
+    date.setDate(date.getDate() - 30);
+    return date.toISOString().split('T')[0];
+  }, []);
+  const defaultEndDate = useMemo(() => new Date().toISOString().split('T')[0], []);
+  const [startDate, setStartDate] = useState(defaultStartDate);
+  const [endDate, setEndDate] = useState(defaultEndDate);
+  const [selectedSymptoms, setSelectedSymptoms] = useState<string[]>(['all']);
   const [severityRange, setSeverityRange] = useState<number[]>([0, 4]);
   
   // Table pagination states
@@ -139,13 +419,21 @@ const PatientDetailPage: React.FC = () => {
   });
 
   // Fetch data
-  const { data: timeline, isLoading: timelineLoading, error: timelineError } = usePatientTimeline(uuid || '', 30);
+  const { data: timeline, isLoading: timelineLoading } = usePatientTimeline(uuid || '', startDate, endDate);
   const { data: patientDetails } = usePatientDetails(uuid || '');
+  // Static payload is kept only for temporary debugging.
+  const timelineData = USE_STATIC_TIMELINE ? STATIC_TIMELINE_DATA : timeline;
 
-  // Use static data if API fails
-  const displayTimeline = (!timelineLoading && (timelineError || !timeline?.symptom_series || Object.keys(timeline.symptom_series).length === 0))
-    ? staticTimelineData
-    : timeline || staticTimelineData;
+  const symptomOptions = useMemo(() => {
+    const apiSymptoms = (timelineData?.severity_series || []).map((series) => {
+      return {
+        id: toSymptomKey(series.symptom_name),
+        label: toTitleCase(series.symptom_name),
+        color: getSymptomColor(series.symptom_name),
+      };
+    });
+    return [{ id: 'all', label: 'All Symptoms', color: null }, ...apiSymptoms];
+  }, [timelineData]);
 
   const handleBack = () => {
     navigate('/dashboard');
@@ -153,7 +441,7 @@ const PatientDetailPage: React.FC = () => {
 
   const handleSymptomToggle = (symptom: string) => {
     if (symptom === 'all') {
-      setSelectedSymptoms(['all', 'cough', 'pain', 'vomiting', 'constipation']);
+      setSelectedSymptoms(['all']);
     } else {
       setSelectedSymptoms(prev => {
         const newSelection = prev.includes(symptom)
@@ -165,15 +453,18 @@ const PatientDetailPage: React.FC = () => {
   };
 
   const handleResetFilters = () => {
-    setStartDate('2026-01-30');
-    setEndDate('2026-02-06');
-    setSelectedSymptoms(['all', 'cough', 'pain', 'vomiting', 'constipation']);
+    setStartDate(timelineData?.start_date || defaultStartDate);
+    setEndDate(timelineData?.end_date || defaultEndDate);
+    setSelectedSymptoms(['all']);
     setSeverityRange([0, 4]);
+    setPage(0);
   };
 
   const formatDate = (dateStr: string) => {
     try {
-      return new Date(dateStr).toLocaleDateString('en-US', {
+      const localDate = parseIsoDateAsLocal(dateStr);
+      if (!localDate) return dateStr;
+      return localDate.toLocaleDateString('en-US', {
         month: '2-digit',
         day: '2-digit',
         year: 'numeric'
@@ -185,7 +476,9 @@ const PatientDetailPage: React.FC = () => {
 
   const formatDateShort = (dateStr: string) => {
     try {
-      return new Date(dateStr).toLocaleDateString('en-US', {
+      const localDate = parseIsoDateAsLocal(dateStr);
+      if (!localDate) return dateStr;
+      return localDate.toLocaleDateString('en-US', {
         month: 'short',
         day: 'numeric',
       });
@@ -196,32 +489,109 @@ const PatientDetailPage: React.FC = () => {
 
   // Process graph data
   const graphData = useMemo(() => {
-    if (!displayTimeline?.symptom_series) return { dates: [], symptoms: [] };
+    if (!timelineData) return { dates: [], symptoms: [] };
 
-    const allDates = new Set<string>();
-    Object.entries(displayTimeline.symptom_series).forEach(([, dataPoints]) => {
-      dataPoints.forEach((dp: any) => {
-        if (dp.date) allDates.add(dp.date);
-      });
-    });
-    const sortedDates = Array.from(allDates).sort();
+    const sortedDates = buildFocusedTimelineDates(timelineData);
+    if (!sortedDates.length) return { dates: [], symptoms: [] };
 
-    const symptoms = Object.entries(displayTimeline.symptom_series)
-      .filter(([symptom]) => {
-        if (selectedSymptoms.includes('all')) return true;
-        return selectedSymptoms.includes(symptom.toLowerCase());
+    const selectedSet = new Set(
+      selectedSymptoms.includes('all')
+        ? timelineData.severity_series.map((series) => toSymptomKey(series.symptom_name))
+        : selectedSymptoms
+    );
+
+    const filteredSymptoms = timelineData.severity_series
+      .filter((series) => selectedSymptoms.includes('all') || selectedSet.has(toSymptomKey(series.symptom_name)))
+      .map((series) => {
+        const normalizedPoints = fillSymptomSeriesByDate(sortedDates, series.points);
+        const points = normalizedPoints
+          .map((point) => ({
+            date: point.date,
+            severity: point.value,
+            severity_numeric: severityValueMap[point.value.toLowerCase()] ?? 0,
+          }))
+          .filter((point) => point.severity_numeric >= severityRange[0] && point.severity_numeric <= severityRange[1])
+          .map((point) => ({
+            ...point,
+            dateIndex: sortedDates.indexOf(point.date),
+          }))
+          .filter((point) => point.dateIndex >= 0);
+
+        return {
+          name: toTitleCase(series.symptom_name),
+          color: getSymptomColor(series.symptom_name),
+          dataPoints: points,
+        };
       })
-      .map(([symptom, dataPoints]) => ({
-        name: symptom,
-        color: symptomColors[symptom.toLowerCase()] || symptomColors['cough'],
-        dataPoints: (dataPoints as any[]).map(dp => ({
-          ...dp,
-          dateIndex: sortedDates.indexOf(dp.date || ''),
-        })).filter(dp => dp.dateIndex >= 0),
-      }));
+      .filter((series) => series.dataPoints.length > 0);
 
-    return { dates: sortedDates, symptoms };
-  }, [displayTimeline, selectedSymptoms]);
+    const normalizedTemperaturePoints = fillTemperatureSeriesByDate(sortedDates, timelineData.temperature_series);
+    const temperatureDataPoints = normalizedTemperaturePoints
+      .map((point) => ({
+        date: point.date,
+        severity: point.value >= 100.4 ? 'fever' : 'normal',
+        severity_numeric: point.value,
+        dateIndex: sortedDates.indexOf(point.date),
+      }))
+      .filter((point) => point.dateIndex >= 0);
+
+    const withTemperature = temperatureDataPoints.length
+      ? [
+          ...filteredSymptoms,
+          {
+            name: 'Temperature',
+            color: symptomColors.temperature,
+            dataPoints: temperatureDataPoints,
+          },
+        ]
+      : filteredSymptoms;
+
+    return { dates: sortedDates, symptoms: withTemperature };
+  }, [timelineData, selectedSymptoms, severityRange]);
+
+  const tableData = useMemo(() => {
+    if (!timelineData) return [];
+
+    const dateToTemperature = new Map(
+      timelineData.temperature_series.map((item) => [item.date, item.value] as const)
+    );
+    const selectedSet = new Set(selectedSymptoms);
+
+    const rows = timelineData.medications
+      .filter((item) => selectedSymptoms.includes('all') || selectedSet.has(toSymptomKey(item.symptom_name)))
+      .filter((item) => {
+        const severityNumeric = severityValueMap[item.severity.toLowerCase()] ?? 0;
+        return severityNumeric >= severityRange[0] && severityNumeric <= severityRange[1];
+      })
+      .map((item) => {
+        const temperature = dateToTemperature.get(item.date);
+        return {
+          date: item.date,
+          symptom: toTitleCase(item.symptom_name),
+          severity: toTitleCase(item.severity),
+          temperature: typeof temperature === 'number' ? `${temperature.toFixed(1)}°F` : '—',
+        };
+      })
+      .sort((a, b) => b.date.localeCompare(a.date));
+
+    return rows;
+  }, [timelineData, selectedSymptoms, severityRange]);
+
+  const treatmentEvents = useMemo(() => {
+    if (!timelineData) return [];
+
+    return timelineData.medications.map((item: MedicationItem) => ({
+      event_type: 'medication',
+      event_date: item.date,
+      metadata: {
+        symptom: item.symptom_name,
+        severity: item.severity,
+        medication: item.medication_name,
+        frequency: item.medication_frequency || 'N/A',
+        severity_after_medication: item.severity_after_medication || 'N/A',
+      },
+    }));
+  }, [timelineData]);
 
   const handleProfileSave = () => {
     // Handle save logic here
@@ -295,6 +665,7 @@ const PatientDetailPage: React.FC = () => {
           startDate={startDate}
           endDate={endDate}
           selectedSymptoms={selectedSymptoms}
+          symptomOptions={symptomOptions}
           severityRange={severityRange}
           onStartDateChange={setStartDate}
           onEndDateChange={setEndDate}
@@ -329,7 +700,7 @@ const PatientDetailPage: React.FC = () => {
 
             {/* Table Section */}
             <PatientDataTable
-              data={staticTableData}
+              data={tableData}
               isDark={isDark}
               page={page}
               rowsPerPage={rowsPerPage}
@@ -345,7 +716,7 @@ const PatientDetailPage: React.FC = () => {
             <PatientTabs
               tabValue={tabValue}
               onTabChange={setTabValue}
-              treatmentEvents={displayTimeline?.treatment_events || []}
+              treatmentEvents={treatmentEvents}
               isDark={isDark}
               formatDate={formatDate}
             />
