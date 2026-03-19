@@ -20,6 +20,7 @@ interface FiltersSidebarProps {
   startDate: string;
   endDate: string;
   selectedSymptoms: string[];
+  symptomOptions: Array<{ id: string; label: string; color: string | null }>;
   severityRange: number[];
   onStartDateChange: (date: string) => void;
   onEndDateChange: (date: string) => void;
@@ -36,6 +37,7 @@ const FiltersSidebar: React.FC<FiltersSidebarProps> = ({
   startDate,
   endDate,
   selectedSymptoms,
+  symptomOptions,
   severityRange,
   onStartDateChange,
   onEndDateChange,
@@ -43,14 +45,6 @@ const FiltersSidebar: React.FC<FiltersSidebarProps> = ({
   onSeverityRangeChange,
   onResetFilters,
 }) => {
-  const symptoms = [
-    { id: 'all', label: 'All Symptoms', color: null },
-    { id: 'cough', label: 'Cough', color: '#FF9500' },
-    { id: 'pain', label: 'Pain', color: '#10B981' },
-    { id: 'vomiting', label: 'Vomiting', color: '#06B6D4' },
-    { id: 'constipation', label: 'Constipation', color: '#2563EB' },
-  ];
-
   return (
     <div
       className={`flex-shrink-0 transition-all duration-300 ease-in-out ${
@@ -189,7 +183,7 @@ const FiltersSidebar: React.FC<FiltersSidebarProps> = ({
             </label>
           </div>
           <div className="space-y-2">
-            {symptoms.map((symptom) => (
+            {symptomOptions.map((symptom) => (
               <div
                 key={symptom.id}
                 className={`flex items-center gap-2 p-2 rounded-md transition-colors ${
