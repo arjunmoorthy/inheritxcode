@@ -66,6 +66,9 @@ class ConversationState:
     current_question_index: int = 0
     is_follow_up: bool = False
     answers: Dict[str, Any] = field(default_factory=dict)
+    # Persist per-symptom answers across the whole session.
+    # `answers` remains the working dict for the *current* symptom only.
+    symptom_answers: Dict[str, Dict[str, Any]] = field(default_factory=dict)
     selected_symptoms: List[str] = field(default_factory=list)
     emergency_symptoms: List[str] = field(default_factory=list)
     completed_symptoms: List[str] = field(default_factory=list)
@@ -100,6 +103,7 @@ class ConversationState:
             'current_question_index': self.current_question_index,
             'is_follow_up': self.is_follow_up,
             'answers': self.answers,
+            'symptom_answers': self.symptom_answers,
             'selected_symptoms': self.selected_symptoms,
             'emergency_symptoms': self.emergency_symptoms,
             'completed_symptoms': self.completed_symptoms,
@@ -129,6 +133,7 @@ class ConversationState:
             current_question_index=data.get('current_question_index', 0),
             is_follow_up=data.get('is_follow_up', False),
             answers=data.get('answers', {}),
+            symptom_answers=data.get('symptom_answers', {}),
             selected_symptoms=data.get('selected_symptoms', []),
             emergency_symptoms=data.get('emergency_symptoms', []),
             completed_symptoms=data.get('completed_symptoms', []),
