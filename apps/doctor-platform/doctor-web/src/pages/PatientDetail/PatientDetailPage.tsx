@@ -11,7 +11,7 @@
  * - Dark mode support
  */
 
-import React, { useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useMediaQuery } from '@mui/material';
 import { ChevronLeft, ChevronRight, Filter } from 'lucide-react';
@@ -97,6 +97,21 @@ const parseIsoDateAsLocal = (dateStr: string) => {
   if (!year || !month || !day) return null;
   const date = new Date(year, month - 1, day);
   return Number.isNaN(date.getTime()) ? null : date;
+};
+const getWeekdayFromIsoDate = (dateStr?: string | null) => {
+  if (!dateStr) return '--';
+  const parsed = parseIsoDateAsLocal(dateStr);
+  if (!parsed) return '--';
+  return parsed.toLocaleDateString('en-US', { weekday: 'long' });
+};
+const splitPatientName = (fullName?: string) => {
+  const normalized = (fullName || '').trim();
+  if (!normalized) return { firstName: '--', lastName: '--' };
+  const [firstName, ...lastNameParts] = normalized.split(/\s+/);
+  return {
+    firstName: firstName || '--',
+    lastName: lastNameParts.join(' ') || '--',
+  };
 };
 const buildDateRange = (startDate: string, endDate: string) => {
   const start = new Date(`${startDate}T00:00:00`);
@@ -611,6 +626,28 @@ const PatientDetailPage: React.FC = () => {
       },
     }));
   }, [timelineData]);
+
+  useEffect(() => {
+    if (!patientDetails) return;
+
+    const fallbackNameParts = splitPatientName(patientDetails.patientName);
+    const firstName = patientDetails.firstName?.trim() || fallbackNameParts.firstName;
+    const lastName = patientDetails.lastName?.trim() || fallbackNameParts.lastName;
+
+    setPatientProfile((prev) => ({
+      ...prev,
+      mrn: patientDetails.mrn?.trim() || '--',
+      firstName: firstName || '--',
+      lastName: lastName || '--',
+      email: patientDetails.email?.trim() || '--',
+      phone: patientDetails.phoneNumber?.trim() || '--',
+      dateOfBirth: patientDetails.dateOfBirth?.trim() || '',
+      location: prev.location || '--',
+      regimenName: patientDetails.summary?.trim() || '--',
+      dayOfChemotherapy: getWeekdayFromIsoDate(patientDetails.lastChemoDate),
+      nextChemotherapyTreatment: patientDetails.lastChemoDate ? `${patientDetails.lastChemoDate}T00:00` : '',
+    }));
+  }, [patientDetails]);
 
   const handleProfileSave = () => {
     // Handle save logic here
