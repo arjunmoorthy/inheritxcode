@@ -218,9 +218,10 @@ class SymptomCheckerService:
         ).first()
         if other_today and getattr(other_today, "engine_state", None):
             es = other_today.engine_state or {}
-            if es.get("chemo_today") is not None or es.get("next_chemo_date"):
+            if es.get("chemo_today") is not None or es.get("next_chemo_date") or es.get("last_chemo_date"):
                 new_chat.engine_state["chemo_today"] = es.get("chemo_today")
                 new_chat.engine_state["next_chemo_date"] = es.get("next_chemo_date")
+                new_chat.engine_state["last_chemo_date"] = es.get("last_chemo_date")
                 logger.info(f"Copied chemo answer from existing today chat for patient {patient_uuid}")
 
         self.db.commit()

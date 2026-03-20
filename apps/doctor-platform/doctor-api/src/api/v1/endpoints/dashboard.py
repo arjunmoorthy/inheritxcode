@@ -390,6 +390,7 @@ def patient_listing_dashboard(
     ),
     current_user: TokenData = Depends(require_roles("physician", "nurse", "admin")),
     db: Session = Depends(get_doctor_db_session),
+    patient_db: Session = Depends(get_patient_db_session),
 ):
     try:
         query = (
@@ -462,11 +463,43 @@ def patient_listing_dashboard(
             .all()
         )
 
+        patient_uuids = [
+            str(p.user.uuid)
+            for p in patients
+            if getattr(p, "user", None) and getattr(p.user, "uuid", None)
+        ]
+        latest_chemo_by_patient: Dict[str, Optional[str]] = {}
+        if patient_uuids:
+            chemo_rows = patient_db.execute(
+                text(
+                    """
+                    SELECT c.patient_uuid::text AS patient_uuid, MAX((c.engine_state->>'last_chemo_date')::date) AS last_chemo_date
+                    FROM conversations c
+                    WHERE c.patient_uuid::text = ANY(:patient_uuids)
+                      AND c.engine_state->>'last_chemo_date' IS NOT NULL
+                      AND c.engine_state->>'last_chemo_date' != ''
+                    GROUP BY c.patient_uuid::text
+                    """
+                ),
+                {"patient_uuids": patient_uuids},
+            ).mappings().all()
+            latest_chemo_by_patient = {
+                row["patient_uuid"]: (
+                    row["last_chemo_date"].isoformat()
+                    if row.get("last_chemo_date") is not None
+                    else None
+                )
+                for row in chemo_rows
+            }
+
         response = [
             {
                 "patient_id": p.id,
                 # UUID used by dashboard trends endpoint: /dashboard/patient/{patient_uuid}/trends
                 "patient_uuid": str(p.user.uuid) if getattr(p, "user", None) and getattr(p.user, "uuid", None) else None,
+                "last_chemo_date": latest_chemo_by_patient.get(
+                    str(p.user.uuid)
+                ) if getattr(p, "user", None) and getattr(p.user, "uuid", None) else None,
                 "first_name": p.first_name,
                 "last_name": p.last_name,
                 "gender": p.gender,
@@ -600,6 +633,8 @@ class PatientTrendsResponse(BaseModel):
     severity_series: List[SeveritySeries]
     temperature_series: List[TemperaturePoint]
     medications: List[MedicationRow]
+    chemo_dates: List[str] = []
+    last_chemo_date: Optional[str] = None
 
 
 @router.get(
@@ -766,6 +801,71 @@ def get_patient_trends(
 
     meds_rows.sort(key=lambda r: r.date, reverse=True)
 
+    # Chemo dates: read from engine_state across all conversations.
+    # last_chemo_date is the canonical field (set by the engine going forward):
+    #   - chemo_today=Yes  → last_chemo_date = today's UTC date (automatic)
+    #   - chemo_today=No   → last_chemo_date = calendar date the patient selected
+    # next_chemo_date is checked as a fallback for sessions recorded before the
+    # last_chemo_date field was introduced (chemo_today=No, date stored only there).
+    chemo_rows = patient_db.execute(
+        text(
+            """
+            SELECT DISTINCT chemo_date FROM (
+                SELECT engine_state->>'last_chemo_date' AS chemo_date
+                FROM conversations
+                WHERE patient_uuid = :patient_id
+                  AND engine_state->>'last_chemo_date' IS NOT NULL
+                  AND engine_state->>'last_chemo_date' != ''
+                  AND (engine_state->>'last_chemo_date')::date >= :start_date
+                  AND (engine_state->>'last_chemo_date')::date <= :end_date
+
+                UNION
+
+                SELECT engine_state->>'next_chemo_date' AS chemo_date
+                FROM conversations
+                WHERE patient_uuid = :patient_id
+                  AND (engine_state->>'chemo_today') = 'false'
+                  AND engine_state->>'next_chemo_date' IS NOT NULL
+                  AND engine_state->>'next_chemo_date' != ''
+                  AND (engine_state->>'next_chemo_date')::date >= :start_date
+                  AND (engine_state->>'next_chemo_date')::date <= :end_date
+            ) combined
+            ORDER BY chemo_date ASC
+            """
+        ),
+        {"patient_id": str(patient_uuid), "start_date": start, "end_date": end},
+    ).mappings().all()
+
+    chemo_dates = sorted({row["chemo_date"] for row in chemo_rows if row.get("chemo_date")})
+
+    # Latest known chemo date (independent of selected chart date range)
+    latest_chemo_row = patient_db.execute(
+        text(
+            """
+            SELECT chemo_date FROM (
+                SELECT engine_state->>'last_chemo_date' AS chemo_date
+                FROM conversations
+                WHERE patient_uuid = :patient_id
+                  AND engine_state->>'last_chemo_date' IS NOT NULL
+                  AND engine_state->>'last_chemo_date' != ''
+
+                UNION
+
+                SELECT engine_state->>'next_chemo_date' AS chemo_date
+                FROM conversations
+                WHERE patient_uuid = :patient_id
+                  AND (engine_state->>'chemo_today') = 'false'
+                  AND engine_state->>'next_chemo_date' IS NOT NULL
+                  AND engine_state->>'next_chemo_date' != ''
+            ) combined
+            ORDER BY (chemo_date)::date DESC
+            LIMIT 1
+            """
+        ),
+        {"patient_id": str(patient_uuid)},
+    ).mappings().first()
+    last_chemo_date = latest_chemo_row.get("chemo_date") if latest_chemo_row else None
+
     return PatientTrendsResponse(
         patient_uuid=str(patient_uuid),
         start_date=start.isoformat(),
@@ -773,4 +873,6 @@ def get_patient_trends(
         severity_series=severity_series,
         temperature_series=temperature_series,
         medications=meds_rows,
+        chemo_dates=chemo_dates,
+        last_chemo_date=last_chemo_date,
     )
