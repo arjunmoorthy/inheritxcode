@@ -766,15 +766,16 @@ def get_patient_trends(
         severity_series.append(SeveritySeries(symptom_id=sid, symptom_name=_symptom_name(sid), points=pts))
     severity_series.sort(key=lambda s: s.symptom_name.lower())
 
-    # Temperature series: latest temp per day
+    # Temperature series: highest temperature per day across all symptoms.
+    # This avoids "overwrite" behavior when multiple chats/symptoms capture temperature
+    # on the same day (FE expects the day's max temperature).
     temps = patient_db.execute(
         text(
             """
             SELECT metric_value, recorded_at
             FROM symptom_time_series
             WHERE patient_id = :patient_id
-              AND symptom_id = 'FEV-202'
-              AND metric_name = 'temp'
+              AND metric_name ILIKE '%temp%'
               AND recorded_at >= :start_dt
               AND recorded_at <= :end_dt
             ORDER BY recorded_at ASC
@@ -783,20 +784,21 @@ def get_patient_trends(
         {"patient_id": str(patient_uuid), "start_dt": start_dt, "end_dt": end_dt},
     ).mappings().all()
 
-    latest_temp_by_day: Dict[str, tuple[datetime, float]] = {}
+    max_temp_by_day: Dict[str, float] = {}
     for t in temps:
         recorded_at = t.get("recorded_at")
         metric_value = t.get("metric_value")
-        if not recorded_at:
+        if not recorded_at or metric_value is None:
             continue
+        val = float(metric_value)
         day = recorded_at.date().isoformat()
-        prev = latest_temp_by_day.get(day)
-        if prev is None or recorded_at > prev[0]:
-            latest_temp_by_day[day] = (recorded_at, float(metric_value))
+        prev = max_temp_by_day.get(day)
+        if prev is None or val > prev:
+            max_temp_by_day[day] = val
 
     temperature_series = [
-        TemperaturePoint(date=day, value=val_ts[1])
-        for day, val_ts in sorted(latest_temp_by_day.items(), key=lambda kv: kv[0])
+        TemperaturePoint(date=day, value=value)
+        for day, value in sorted(max_temp_by_day.items(), key=lambda kv: kv[0])
     ]
 
     meds_rows.sort(key=lambda r: r.date, reverse=True)
