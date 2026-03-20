@@ -20,7 +20,6 @@ import {
   usePatientTimeline,
   usePatientDetails,
 } from '../../services/dashboard';
-import type { MedicationItem } from '../../services/dashboard';
 
 // Components
 import PatientDetailHeader from './components/PatientDetailHeader';
@@ -415,9 +414,6 @@ const PatientDetailPage: React.FC = () => {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(5);
   
-  // Tab state
-  const [tabValue, setTabValue] = useState(0);
-  
   // Patient Profile Modal state
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   
@@ -756,22 +752,6 @@ const PatientDetailPage: React.FC = () => {
     return rows;
   }, [timelineData, selectedSymptoms, severityRange]);
 
-  const treatmentEvents = useMemo(() => {
-    if (!timelineData) return [];
-
-    return timelineData.medications.map((item: MedicationItem) => ({
-      event_type: 'medication',
-      event_date: item.date,
-      metadata: {
-        symptom: item.symptom_name,
-        severity: item.severity,
-        medication: item.medication_name,
-        frequency: item.medication_frequency || 'N/A',
-        severity_after_medication: item.severity_after_medication || 'N/A',
-      },
-    }));
-  }, [timelineData]);
-
   useEffect(() => {
     if (!patientDetails) return;
 
@@ -921,11 +901,7 @@ const PatientDetailPage: React.FC = () => {
 
             {/* Tabs Section - Treatment, Questions, Diary */}
             <PatientTabs
-              tabValue={tabValue}
-              onTabChange={setTabValue}
-              treatmentEvents={treatmentEvents}
               isDark={isDark}
-              formatDate={formatDate}
             />
           </div>
         </div>
