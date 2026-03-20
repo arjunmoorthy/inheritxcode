@@ -13,6 +13,9 @@ interface PatientDetailHeaderProps {
   patientName?: string;
   onBack: () => void;
   onProfileClick: () => void;
+  onRefreshClick: () => void;
+  onDownloadClick: () => void;
+  isRefreshing?: boolean;
 }
 
 const PatientDetailHeader: React.FC<PatientDetailHeaderProps> = ({
@@ -20,6 +23,9 @@ const PatientDetailHeader: React.FC<PatientDetailHeaderProps> = ({
   patientName,
   onBack,
   onProfileClick,
+  onRefreshClick,
+  onDownloadClick,
+  isRefreshing = false,
 }) => {
   return (
     <div className={`flex-shrink-0 ${isDark ? 'bg-[#1A1917] border-b border-slate-800/50' : 'bg-white/80 backdrop-blur-sm border-b border-slate-200/60'} transition-colors duration-200 shadow-sm`}>
@@ -73,6 +79,8 @@ const PatientDetailHeader: React.FC<PatientDetailHeaderProps> = ({
               variant="outlined"
               size="small"
               startIcon={<RefreshCw size={14} />}
+              onClick={onRefreshClick}
+              disabled={isRefreshing}
               className={isDark ? 'border-slate-700 text-slate-300 hover:border-slate-600' : ''}
               sx={{
                 borderColor: isDark ? '#334155' : '#e2e8f0',
@@ -115,6 +123,7 @@ const PatientDetailHeader: React.FC<PatientDetailHeaderProps> = ({
               variant="outlined"
               size="small"
               startIcon={<Download size={14} />}
+              onClick={onDownloadClick}
               className={isDark ? 'border-slate-700 text-slate-300 hover:border-slate-600' : ''}
               sx={{
                 borderColor: isDark ? '#334155' : '#e2e8f0',

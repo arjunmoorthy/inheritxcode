@@ -20,7 +20,6 @@ import {
   usePatientTimeline,
   usePatientDetails,
 } from '../../services/dashboard';
-import type { MedicationItem } from '../../services/dashboard';
 
 // Components
 import PatientDetailHeader from './components/PatientDetailHeader';
@@ -415,9 +414,6 @@ const PatientDetailPage: React.FC = () => {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(5);
   
-  // Tab state
-  const [tabValue, setTabValue] = useState(0);
-  
   // Patient Profile Modal state
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   
@@ -436,8 +432,17 @@ const PatientDetailPage: React.FC = () => {
   });
 
   // Fetch data
-  const { data: timeline, isLoading: timelineLoading } = usePatientTimeline(uuid || '', startDate, endDate);
-  const { data: patientDetails } = usePatientDetails(uuid || '');
+  const {
+    data: timeline,
+    isLoading: timelineLoading,
+    isFetching: timelineFetching,
+    refetch: refetchTimeline,
+  } = usePatientTimeline(uuid || '', startDate, endDate);
+  const {
+    data: patientDetails,
+    isFetching: patientDetailsFetching,
+    refetch: refetchPatientDetails,
+  } = usePatientDetails(uuid || '');
   // Static payload is kept only for temporary debugging.
   const timelineData = USE_STATIC_TIMELINE ? STATIC_TIMELINE_DATA : timeline;
 
@@ -454,6 +459,142 @@ const PatientDetailPage: React.FC = () => {
 
   const handleBack = () => {
     navigate('/dashboard');
+  };
+  const handleRefreshDashboard = async () => {
+    await Promise.all([refetchTimeline(), refetchPatientDetails()]);
+  };
+  const handleDownloadReport = () => {
+    if (!timelineData && !patientDetails) return;
+
+    const escapeHtml = (value: unknown) =>
+      String(value ?? '--')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+
+    const printWindow = window.open('', '_blank', 'width=1024,height=768');
+    if (!printWindow) return;
+    const graphSvgElement = document.querySelector('svg[data-export-chart="patient-symptom-graph"]');
+    const graphSvgMarkup = graphSvgElement ? graphSvgElement.outerHTML : '';
+    const graphSvgWithTempAxis = (() => {
+      if (!graphSvgMarkup) return '';
+
+      const viewBoxMatch = graphSvgMarkup.match(/viewBox="([^"]+)"/);
+      const viewBoxValues = viewBoxMatch?.[1]?.split(/\s+/).map(Number) || [];
+      const svgWidth = viewBoxValues[2] || 1000;
+      const svgHeight = viewBoxValues[3] || 400;
+      const tempLevels = [104, 102, 100, 98, 96];
+
+      const tempAxisMarkup = tempLevels
+        .map((temp, idx) => {
+          const y = (idx / (tempLevels.length - 1)) * svgHeight;
+          const label = idx === 0 ? '°F' : `${temp}`;
+          return `<text x="${svgWidth - 6}" y="${Math.max(10, y + 4)}" text-anchor="end" font-size="10" fill="#64748b">${label}</text>`;
+        })
+        .join('');
+
+      return graphSvgMarkup.replace('</svg>', `${tempAxisMarkup}</svg>`);
+    })();
+
+    const rowsHtml = tableData
+      .map(
+        (row) => `
+          <tr>
+            <td>${escapeHtml(formatDate(row.date))}</td>
+            <td>${escapeHtml(row.symptom)}</td>
+            <td>${escapeHtml(row.severity)}</td>
+            <td>${escapeHtml(row.medicationName)}</td>
+            <td>${escapeHtml(row.medicationFrequency)}</td>
+            <td>${escapeHtml(row.temperature)}</td>
+          </tr>
+        `
+      )
+      .join('');
+
+    const selectedSymptomsLabel = selectedSymptoms.includes('all')
+      ? 'All Symptoms'
+      : selectedSymptoms.join(', ');
+
+    const html = `
+      <!doctype html>
+      <html>
+        <head>
+          <meta charset="utf-8" />
+          <title>Patient Dashboard Report</title>
+          <style>
+            body { font-family: Arial, sans-serif; color: #0f172a; margin: 24px; }
+            h1 { margin: 0 0 6px; font-size: 22px; }
+            h2 { margin: 22px 0 10px; font-size: 16px; border-bottom: 1px solid #cbd5e1; padding-bottom: 6px; }
+            p { margin: 4px 0; font-size: 13px; }
+            .meta { color: #475569; font-size: 12px; margin-bottom: 14px; }
+            .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 20px; }
+            table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 12px; }
+            th, td { border: 1px solid #cbd5e1; padding: 6px 8px; text-align: left; vertical-align: top; }
+            th { background: #f8fafc; }
+            .small { font-size: 12px; color: #475569; }
+          </style>
+        </head>
+        <body>
+          <h1>Patient Dashboard Report</h1>
+          <p class="meta">Generated: ${escapeHtml(new Date().toLocaleString())}</p>
+
+          <h2>Patient Details</h2>
+          <div class="grid">
+            <p><strong>Name:</strong> ${escapeHtml(patientDetails?.patientName || '--')}</p>
+            <p><strong>MRN:</strong> ${escapeHtml(patientProfile.mrn)}</p>
+            <p><strong>Email:</strong> ${escapeHtml(patientProfile.email)}</p>
+            <p><strong>Phone:</strong> ${escapeHtml(patientProfile.phone)}</p>
+            <p><strong>Date of Birth:</strong> ${escapeHtml(patientProfile.dateOfBirth || '--')}</p>
+            <p><strong>Last Chemo Date:</strong> ${escapeHtml(timelineData?.last_chemo_date || patientDetails?.lastChemoDate || '--')}</p>
+          </div>
+
+          <h2>Applied Filters</h2>
+          <div class="grid">
+            <p><strong>Start Date:</strong> ${escapeHtml(startDate)}</p>
+            <p><strong>End Date:</strong> ${escapeHtml(endDate)}</p>
+            <p><strong>Symptoms:</strong> ${escapeHtml(selectedSymptomsLabel)}</p>
+            <p><strong>Severity Range:</strong> ${escapeHtml(`${severityRange[0]} - ${severityRange[1]}`)}</p>
+          </div>
+
+          <h2>Timeline Summary</h2>
+          <p class="small"><strong>Symptom Series:</strong> ${escapeHtml(timelineData?.severity_series?.length ?? 0)} | 
+          <strong>Temperature Points:</strong> ${escapeHtml(timelineData?.temperature_series?.length ?? 0)} | 
+          <strong>Medication Entries:</strong> ${escapeHtml(timelineData?.medications?.length ?? 0)}</p>
+          
+          <h2>Symptom & Temperature Graph</h2>
+          ${
+            graphSvgWithTempAxis
+              ? `<div style="border:1px solid #cbd5e1; border-radius:8px; padding:10px; background:#f8fafc;">${graphSvgWithTempAxis}</div>`
+              : '<p class="small">Graph preview unavailable at export time.</p>'
+          }
+
+          <h2>Medications Table</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Symptom</th>
+                <th>Severity</th>
+                <th>Medication Name</th>
+                <th>Medication Frequency</th>
+                <th>Temperature</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rowsHtml || '<tr><td colspan="6">No data available</td></tr>'}
+            </tbody>
+          </table>
+        </body>
+      </html>
+    `;
+
+    printWindow.document.open();
+    printWindow.document.write(html);
+    printWindow.document.close();
+    printWindow.focus();
+    printWindow.print();
   };
 
   const handleSymptomToggle = (symptom: string) => {
@@ -611,22 +752,6 @@ const PatientDetailPage: React.FC = () => {
     return rows;
   }, [timelineData, selectedSymptoms, severityRange]);
 
-  const treatmentEvents = useMemo(() => {
-    if (!timelineData) return [];
-
-    return timelineData.medications.map((item: MedicationItem) => ({
-      event_type: 'medication',
-      event_date: item.date,
-      metadata: {
-        symptom: item.symptom_name,
-        severity: item.severity,
-        medication: item.medication_name,
-        frequency: item.medication_frequency || 'N/A',
-        severity_after_medication: item.severity_after_medication || 'N/A',
-      },
-    }));
-  }, [timelineData]);
-
   useEffect(() => {
     if (!patientDetails) return;
 
@@ -664,6 +789,9 @@ const PatientDetailPage: React.FC = () => {
           patientName={patientDetails?.patientName}
           onBack={handleBack}
           onProfileClick={() => setIsProfileModalOpen(true)}
+          onRefreshClick={handleRefreshDashboard}
+          onDownloadClick={handleDownloadReport}
+          isRefreshing={timelineFetching || patientDetailsFetching}
         />
       </div>
       {/* Main Content Area - scroll happens only here, header stays on top */}
@@ -773,11 +901,7 @@ const PatientDetailPage: React.FC = () => {
 
             {/* Tabs Section - Treatment, Questions, Diary */}
             <PatientTabs
-              tabValue={tabValue}
-              onTabChange={setTabValue}
-              treatmentEvents={treatmentEvents}
               isDark={isDark}
-              formatDate={formatDate}
             />
           </div>
         </div>

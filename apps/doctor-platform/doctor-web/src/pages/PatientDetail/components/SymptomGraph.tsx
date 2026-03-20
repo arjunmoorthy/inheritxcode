@@ -286,6 +286,7 @@ const SymptomGraph: React.FC<SymptomGraphProps> = ({
 
         {/* Chart area */}
         <svg
+          data-export-chart="patient-symptom-graph"
           className="absolute inset-0"
           style={{ left: chartPadding.left, right: chartPadding.right, top: chartPadding.top, bottom: chartPadding.bottom }}
           viewBox={`0 0 ${chartWidth - chartPadding.left - chartPadding.right} ${chartHeight - chartPadding.top - chartPadding.bottom}`}
