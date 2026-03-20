@@ -52,6 +52,8 @@ export interface PatientListingApiItem {
   diagnosis?: string | null;
   cancer_type?: string | null;
   disease_type?: string | null;
+  /** Last chemotherapy date from API */
+  last_chemo_date?: string | null;
 }
 
 export interface PatientListingApiResponse {
@@ -63,6 +65,8 @@ export interface PatientSummary {
   id: string;
   patientUuid?: string;
   patientName: string;
+  firstName?: string;
+  lastName?: string;
   dateOfBirth: string;
   mrn: string;
   symptoms: string;
@@ -74,8 +78,11 @@ export interface PatientSummary {
   hasEscalation: boolean;
   severityBadge: string;
   email?: string;
+  phoneNumber?: string;
   /** Diagnosis/cancer type from API when available */
   diagnosis?: string | null;
+  /** Last chemotherapy date from API when available */
+  lastChemoDate?: string | null;
 }
 
 export interface PatientRanking {
@@ -140,6 +147,8 @@ export interface PatientTimeline {
   severity_series: SeveritySeriesItem[];
   temperature_series: TemperatureSeriesPoint[];
   medications: MedicationItem[];
+  chemo_dates?: string[];
+  last_chemo_date?: string | null;
 }
 
 export interface SharedQuestion {
@@ -207,6 +216,8 @@ const transformPatientRankingToSummary = (ranking: PatientRanking): PatientSumma
   id: ranking.patient_uuid,
   patientUuid: ranking.patient_uuid,
   patientName: `${ranking.first_name || ''} ${ranking.last_name || ''}`.trim() || 'Unknown',
+  firstName: ranking.first_name || undefined,
+  lastName: ranking.last_name || undefined,
   dateOfBirth: '',
   mrn: '',
   symptoms: '',
@@ -247,6 +258,8 @@ const transformListingToSummary = (item: PatientListingApiItem): PatientSummary 
     (item.uuid && String(item.uuid)) ||
     undefined,
   patientName: `${item.first_name || ''} ${item.last_name || ''}`.trim() || 'Unknown',
+  firstName: item.first_name || undefined,
+  lastName: item.last_name || undefined,
   dateOfBirth: item.date_of_birth || '',
   mrn: (item.mrn && String(item.mrn)) || String(item.patient_id),
   symptoms: '—',
@@ -258,7 +271,9 @@ const transformListingToSummary = (item: PatientListingApiItem): PatientSummary 
   hasEscalation: false,
   severityBadge: '',
   email: item.email || undefined,
+  phoneNumber: item.phone_number || undefined,
   diagnosis: item.diagnosis ?? item.cancer_type ?? item.disease_type ?? undefined,
+  lastChemoDate: item.last_chemo_date ?? null,
 });
 
 // Fetch dashboard landing (ranked patient list)
@@ -294,16 +309,11 @@ const fetchPatientSummaries = async (
       patients = patients.filter(patient => patient.status === filter);
     }
     
-    const itemsPerPage = 10;
-    const startIndex = (page - 1) * itemsPerPage;
-    const endIndex = startIndex + itemsPerPage;
-    const paginatedData = patients.slice(startIndex, endIndex);
-    
     return {
-      data: paginatedData,
+      data: patients,
       total: patients.length,
       page,
-      totalPages: Math.ceil(patients.length / itemsPerPage),
+      totalPages: patients.length > 0 ? 1 : 0,
     };
   } catch (error) {
     console.error('Error fetching patient summaries:', error);
@@ -341,6 +351,8 @@ const fetchPatientTimeline = async (
       severity_series: [],
       temperature_series: [],
       medications: [],
+      chemo_dates: [],
+      last_chemo_date: null,
     };
   }
 };
@@ -482,11 +494,23 @@ export const usePatientDetails = (patientId: string) => {
   return useQuery({
     queryKey: ['patientDetails', patientId],
     queryFn: async (): Promise<PatientSummary> => {
+      const listing = await fetchPatientListingDashboard();
+      const matchedPatient = (listing?.data || []).find((item) => {
+        const candidateUuid = (item.patient_uuid && String(item.patient_uuid)) || (item.uuid && String(item.uuid));
+        return candidateUuid === patientId || String(item.patient_id) === patientId;
+      });
+
+      if (matchedPatient) {
+        return transformListingToSummary(matchedPatient);
+      }
+
       const timeline = await fetchPatientTimeline(patientId);
       return {
         id: timeline.patient_uuid,
         patientUuid: timeline.patient_uuid,
         patientName: '',
+        firstName: '',
+        lastName: '',
         dateOfBirth: '',
         mrn: '',
         symptoms: timeline.severity_series.map((item) => item.symptom_name).join(', '),
@@ -497,6 +521,8 @@ export const usePatientDetails = (patientId: string) => {
         maxSeverity: null,
         hasEscalation: false,
         severityBadge: '',
+        phoneNumber: '',
+        lastChemoDate: null,
       };
     },
     enabled: !!patientId,

@@ -11,7 +11,7 @@
  * - Dark mode support
  */
 
-import React, { useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useMediaQuery } from '@mui/material';
 import { ChevronLeft, ChevronRight, Filter } from 'lucide-react';
@@ -97,6 +97,21 @@ const parseIsoDateAsLocal = (dateStr: string) => {
   if (!year || !month || !day) return null;
   const date = new Date(year, month - 1, day);
   return Number.isNaN(date.getTime()) ? null : date;
+};
+const getWeekdayFromIsoDate = (dateStr?: string | null) => {
+  if (!dateStr) return '--';
+  const parsed = parseIsoDateAsLocal(dateStr);
+  if (!parsed) return '--';
+  return parsed.toLocaleDateString('en-US', { weekday: 'long' });
+};
+const splitPatientName = (fullName?: string) => {
+  const normalized = (fullName || '').trim();
+  if (!normalized) return { firstName: '--', lastName: '--' };
+  const [firstName, ...lastNameParts] = normalized.split(/\s+/);
+  return {
+    firstName: firstName || '--',
+    lastName: lastNameParts.join(' ') || '--',
+  };
 };
 const buildDateRange = (startDate: string, endDate: string) => {
   const start = new Date(`${startDate}T00:00:00`);
@@ -368,6 +383,8 @@ const STATIC_TIMELINE_DATA = {
       severity_after_medication: 'moderate',
     },
   ],
+  chemo_dates: ['2026-03-19'],
+  last_chemo_date: '2026-03-19',
 };
 
 const PatientDetailPage: React.FC = () => {
@@ -555,6 +572,17 @@ const PatientDetailPage: React.FC = () => {
     const dateToTemperature = new Map(
       timelineData.temperature_series.map((item) => [item.date, item.value] as const)
     );
+    const severityBySymptomAndDate = new Map<string, string>();
+    timelineData.severity_series.forEach((series) => {
+      const symptomIdKey = series.symptom_id?.trim().toLowerCase();
+      if (!symptomIdKey) return;
+      series.points.forEach((point) => {
+        if (!point?.date) return;
+        const value = point.value?.trim();
+        if (!value) return;
+        severityBySymptomAndDate.set(`${symptomIdKey}|${point.date}`, value);
+      });
+    });
     const selectedSet = new Set(selectedSymptoms);
 
     const rows = timelineData.medications
@@ -565,10 +593,16 @@ const PatientDetailPage: React.FC = () => {
       })
       .map((item) => {
         const temperature = dateToTemperature.get(item.date);
+        const severityFromSeries = severityBySymptomAndDate.get(
+          `${item.symptom_id?.trim().toLowerCase()}|${item.date}`
+        );
+        const rawSeverity = (severityFromSeries || item.severity || '').trim();
         return {
           date: item.date,
           symptom: toTitleCase(item.symptom_name),
-          severity: toTitleCase(item.severity),
+          severity: rawSeverity ? toTitleCase(rawSeverity) : '--',
+          medicationName: item.medication_name?.trim() ? item.medication_name : '--',
+          medicationFrequency: item.medication_frequency?.trim() ? item.medication_frequency : '--',
           temperature: typeof temperature === 'number' ? `${temperature.toFixed(1)}°F` : '—',
         };
       })
@@ -592,6 +626,28 @@ const PatientDetailPage: React.FC = () => {
       },
     }));
   }, [timelineData]);
+
+  useEffect(() => {
+    if (!patientDetails) return;
+
+    const fallbackNameParts = splitPatientName(patientDetails.patientName);
+    const firstName = patientDetails.firstName?.trim() || fallbackNameParts.firstName;
+    const lastName = patientDetails.lastName?.trim() || fallbackNameParts.lastName;
+
+    setPatientProfile((prev) => ({
+      ...prev,
+      mrn: patientDetails.mrn?.trim() || '--',
+      firstName: firstName || '--',
+      lastName: lastName || '--',
+      email: patientDetails.email?.trim() || '--',
+      phone: patientDetails.phoneNumber?.trim() || '--',
+      dateOfBirth: patientDetails.dateOfBirth?.trim() || '',
+      location: prev.location || '--',
+      regimenName: patientDetails.summary?.trim() || '--',
+      dayOfChemotherapy: getWeekdayFromIsoDate(patientDetails.lastChemoDate),
+      nextChemotherapyTreatment: patientDetails.lastChemoDate ? `${patientDetails.lastChemoDate}T00:00` : '',
+    }));
+  }, [patientDetails]);
 
   const handleProfileSave = () => {
     // Handle save logic here
@@ -650,29 +706,31 @@ const PatientDetailPage: React.FC = () => {
         {/* Mobile Overlay */}
         {isSidebarOpen && isMobile && (
           <div
-            className="md:hidden fixed inset-0 bg-black/50 z-40"
+            className="md:hidden absolute inset-0 bg-black/50 z-40"
             onClick={() => setIsSidebarOpen(false)}
             aria-hidden="true"
           />
         )}
 
         {/* Left Sidebar - Filters */}
-        <FiltersSidebar
-          isOpen={isSidebarOpen}
-          isDark={isDark}
-          isMobile={isMobile}
-          onClose={() => setIsSidebarOpen(false)}
-          startDate={startDate}
-          endDate={endDate}
-          selectedSymptoms={selectedSymptoms}
-          symptomOptions={symptomOptions}
-          severityRange={severityRange}
-          onStartDateChange={setStartDate}
-          onEndDateChange={setEndDate}
-          onSymptomToggle={handleSymptomToggle}
-          onSeverityRangeChange={setSeverityRange}
-          onResetFilters={handleResetFilters}
-        />
+        {(!isMobile || isSidebarOpen) && (
+          <FiltersSidebar
+            isOpen={isSidebarOpen}
+            isDark={isDark}
+            isMobile={isMobile}
+            onClose={() => setIsSidebarOpen(false)}
+            startDate={startDate}
+            endDate={endDate}
+            selectedSymptoms={selectedSymptoms}
+            symptomOptions={symptomOptions}
+            severityRange={severityRange}
+            onStartDateChange={setStartDate}
+            onEndDateChange={setEndDate}
+            onSymptomToggle={handleSymptomToggle}
+            onSeverityRangeChange={setSeverityRange}
+            onResetFilters={handleResetFilters}
+          />
+        )}
 
         {/* Main Content - Graph and Table (scrollable) */}
         <div 
@@ -696,6 +754,7 @@ const PatientDetailPage: React.FC = () => {
               onFullscreenClose={() => setIsChartFullscreen(false)}
               patientName={patientDetails?.patientName}
               formatDateShort={formatDateShort}
+              lastChemoDate={timelineData?.last_chemo_date ?? null}
             />
 
             {/* Table Section */}
