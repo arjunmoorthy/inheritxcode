@@ -39,6 +39,7 @@ interface SymptomGraphProps {
   isSidebarOpen: boolean;
   fullscreen?: boolean;
   formatDateShort: (date: string) => string;
+  lastChemoDate?: string | null;
 }
 
 const SymptomGraph: React.FC<SymptomGraphProps> = ({
@@ -48,6 +49,7 @@ const SymptomGraph: React.FC<SymptomGraphProps> = ({
   isSidebarOpen,
   fullscreen = false,
   formatDateShort,
+  lastChemoDate,
 }) => {
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const [hoverCursor, setHoverCursor] = useState<{ x: number; y: number } | null>(null);
@@ -99,6 +101,15 @@ const SymptomGraph: React.FC<SymptomGraphProps> = ({
   });
 
   const severityLevels = ['relieved', 'mild', 'moderate', 'severe', 'very severe'];
+  const chemoDateIndex = useMemo(() => {
+    if (!lastChemoDate) return null;
+    const index = dates.indexOf(lastChemoDate);
+    return index >= 0 ? index : null;
+  }, [dates, lastChemoDate]);
+  const chemoLineX = useMemo(() => {
+    if (chemoDateIndex === null) return null;
+    return (chemoDateIndex / (dates.length - 1 || 1)) * plotWidth;
+  }, [chemoDateIndex, dates.length, plotWidth]);
   const tempScale = useMemo(() => {
     return { min: 96, max: 104, levels: [104, 102, 100, 98, 96] };
   }, []);
@@ -220,6 +231,19 @@ const SymptomGraph: React.FC<SymptomGraphProps> = ({
         className={`relative ${isDark ? 'bg-slate-900/50' : 'bg-slate-50'} rounded-lg`}
         style={{ height: chartHeight }}
       >
+        {chemoLineX !== null && (
+          <div
+            className={`absolute text-[11px] font-semibold pointer-events-none ${isDark ? 'text-cyan-300' : 'text-cyan-700'}`}
+            style={{
+              left: chartPadding.left + chemoLineX,
+              top: 2,
+              transform: 'translateX(-50%)',
+              zIndex: 2,
+            }}
+          >
+            Chemo
+          </div>
+        )}
         {/* Y-axis labels - Severity (left) */}
         <div className="absolute left-0 top-0 bottom-0 flex flex-col justify-between py-3 px-1.5" style={{ width: chartPadding.left }}>
           {severityLevels.map((level, i) => (
@@ -329,6 +353,20 @@ const SymptomGraph: React.FC<SymptomGraphProps> = ({
             setActiveSeriesName(null);
           }}
         >
+          {chemoLineX !== null && (
+            <g>
+              <line
+                x1={chemoLineX}
+                y1={0}
+                x2={chemoLineX}
+                y2={plotHeight}
+                stroke={isDark ? '#22D3EE' : '#0891B2'}
+                strokeWidth="1.5"
+                strokeDasharray="5 5"
+                opacity="0.9"
+              />
+            </g>
+          )}
           {hoverDetails && (
             <line
               x1={hoverDetails.x}

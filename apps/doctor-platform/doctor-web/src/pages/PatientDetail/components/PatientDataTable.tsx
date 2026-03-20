@@ -12,6 +12,8 @@ interface TableRow {
   date: string;
   symptom: string;
   severity: string;
+  medicationName: string;
+  medicationFrequency: string;
   temperature: string;
 }
 
@@ -37,13 +39,13 @@ const PatientDataTable: React.FC<PatientDataTableProps> = ({
   return (
     <div className={`${isDark ? 'bg-[#252320] border-slate-700/50' : 'bg-white border-slate-200'} rounded-lg border p-3 md:p-4`}>
       <h3 className={`text-sm md:text-base font-semibold mb-2 md:mb-3 ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>
-        Patient Data
+      Medications
       </h3>
       
       {data.length > 0 ? (
         <>
           <div className="overflow-x-auto -mx-3 sm:mx-0 px-3 sm:px-0">
-            <table className="w-full min-w-[500px]">
+            <table className="w-full min-w-[780px]">
               <thead>
                 <tr className={`border-b ${isDark ? 'border-slate-700' : 'border-slate-200'}`}>
                   <th className={`text-left py-2 px-2 sm:px-3 text-xs sm:text-sm font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'} whitespace-nowrap`}>
@@ -54,6 +56,12 @@ const PatientDataTable: React.FC<PatientDataTableProps> = ({
                   </th>
                   <th className={`text-left py-2 px-2 sm:px-3 text-xs sm:text-sm font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'} whitespace-nowrap`}>
                     Severity
+                  </th>
+                  <th className={`text-left py-2 px-2 sm:px-3 text-xs sm:text-sm font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'} whitespace-nowrap`}>
+                    Medication Name
+                  </th>
+                  <th className={`text-left py-2 px-2 sm:px-3 text-xs sm:text-sm font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'} whitespace-nowrap`}>
+                    Medication Frequency
                   </th>
                   <th className={`text-left py-2 px-2 sm:px-3 text-xs sm:text-sm font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'} whitespace-nowrap`}>
                     Temperature
@@ -83,15 +91,25 @@ const PatientDataTable: React.FC<PatientDataTableProps> = ({
                             ? isDark ? 'rgba(234, 88, 12, 0.2)' : 'rgba(234, 88, 12, 0.1)'
                             : row.severity === 'Moderate'
                             ? isDark ? 'rgba(245, 158, 11, 0.2)' : 'rgba(245, 158, 11, 0.1)'
+                            : row.severity === '--'
+                            ? isDark ? 'rgba(100, 116, 139, 0.2)' : 'rgba(148, 163, 184, 0.2)'
                             : isDark ? 'rgba(16, 185, 129, 0.2)' : 'rgba(16, 185, 129, 0.1)',
                           color: row.severity === 'Severe'
                             ? isDark ? '#ea580c' : '#c2410c'
                             : row.severity === 'Moderate'
                             ? isDark ? '#f59e0b' : '#d97706'
+                            : row.severity === '--'
+                            ? isDark ? '#94a3b8' : '#64748b'
                             : isDark ? '#10b981' : '#059669',
                           fontWeight: 500,
                         }}
                       />
+                    </td>
+                    <td className={`py-2 px-2 sm:px-3 text-xs sm:text-sm ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                      {row.medicationName}
+                    </td>
+                    <td className={`py-2 px-2 sm:px-3 text-xs sm:text-sm ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                      {row.medicationFrequency}
                     </td>
                     <td className={`py-2 px-2 sm:px-3 text-xs sm:text-sm ${isDark ? 'text-slate-300' : 'text-slate-700'} whitespace-nowrap`}>
                       {row.temperature}

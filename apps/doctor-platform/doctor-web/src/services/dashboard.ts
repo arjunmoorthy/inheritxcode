@@ -52,6 +52,8 @@ export interface PatientListingApiItem {
   diagnosis?: string | null;
   cancer_type?: string | null;
   disease_type?: string | null;
+  /** Last chemotherapy date from API */
+  last_chemo_date?: string | null;
 }
 
 export interface PatientListingApiResponse {
@@ -76,6 +78,8 @@ export interface PatientSummary {
   email?: string;
   /** Diagnosis/cancer type from API when available */
   diagnosis?: string | null;
+  /** Last chemotherapy date from API when available */
+  lastChemoDate?: string | null;
 }
 
 export interface PatientRanking {
@@ -140,6 +144,8 @@ export interface PatientTimeline {
   severity_series: SeveritySeriesItem[];
   temperature_series: TemperatureSeriesPoint[];
   medications: MedicationItem[];
+  chemo_dates?: string[];
+  last_chemo_date?: string | null;
 }
 
 export interface SharedQuestion {
@@ -259,6 +265,7 @@ const transformListingToSummary = (item: PatientListingApiItem): PatientSummary 
   severityBadge: '',
   email: item.email || undefined,
   diagnosis: item.diagnosis ?? item.cancer_type ?? item.disease_type ?? undefined,
+  lastChemoDate: item.last_chemo_date ?? null,
 });
 
 // Fetch dashboard landing (ranked patient list)
@@ -294,16 +301,11 @@ const fetchPatientSummaries = async (
       patients = patients.filter(patient => patient.status === filter);
     }
     
-    const itemsPerPage = 10;
-    const startIndex = (page - 1) * itemsPerPage;
-    const endIndex = startIndex + itemsPerPage;
-    const paginatedData = patients.slice(startIndex, endIndex);
-    
     return {
-      data: paginatedData,
+      data: patients,
       total: patients.length,
       page,
-      totalPages: Math.ceil(patients.length / itemsPerPage),
+      totalPages: patients.length > 0 ? 1 : 0,
     };
   } catch (error) {
     console.error('Error fetching patient summaries:', error);
@@ -341,6 +343,8 @@ const fetchPatientTimeline = async (
       severity_series: [],
       temperature_series: [],
       medications: [],
+      chemo_dates: [],
+      last_chemo_date: null,
     };
   }
 };

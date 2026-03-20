@@ -368,6 +368,8 @@ const STATIC_TIMELINE_DATA = {
       severity_after_medication: 'moderate',
     },
   ],
+  chemo_dates: ['2026-03-19'],
+  last_chemo_date: '2026-03-19',
 };
 
 const PatientDetailPage: React.FC = () => {
@@ -555,6 +557,17 @@ const PatientDetailPage: React.FC = () => {
     const dateToTemperature = new Map(
       timelineData.temperature_series.map((item) => [item.date, item.value] as const)
     );
+    const severityBySymptomAndDate = new Map<string, string>();
+    timelineData.severity_series.forEach((series) => {
+      const symptomIdKey = series.symptom_id?.trim().toLowerCase();
+      if (!symptomIdKey) return;
+      series.points.forEach((point) => {
+        if (!point?.date) return;
+        const value = point.value?.trim();
+        if (!value) return;
+        severityBySymptomAndDate.set(`${symptomIdKey}|${point.date}`, value);
+      });
+    });
     const selectedSet = new Set(selectedSymptoms);
 
     const rows = timelineData.medications
@@ -565,10 +578,16 @@ const PatientDetailPage: React.FC = () => {
       })
       .map((item) => {
         const temperature = dateToTemperature.get(item.date);
+        const severityFromSeries = severityBySymptomAndDate.get(
+          `${item.symptom_id?.trim().toLowerCase()}|${item.date}`
+        );
+        const rawSeverity = (severityFromSeries || item.severity || '').trim();
         return {
           date: item.date,
           symptom: toTitleCase(item.symptom_name),
-          severity: toTitleCase(item.severity),
+          severity: rawSeverity ? toTitleCase(rawSeverity) : '--',
+          medicationName: item.medication_name?.trim() ? item.medication_name : '--',
+          medicationFrequency: item.medication_frequency?.trim() ? item.medication_frequency : '--',
           temperature: typeof temperature === 'number' ? `${temperature.toFixed(1)}°F` : '—',
         };
       })
@@ -650,29 +669,31 @@ const PatientDetailPage: React.FC = () => {
         {/* Mobile Overlay */}
         {isSidebarOpen && isMobile && (
           <div
-            className="md:hidden fixed inset-0 bg-black/50 z-40"
+            className="md:hidden absolute inset-0 bg-black/50 z-40"
             onClick={() => setIsSidebarOpen(false)}
             aria-hidden="true"
           />
         )}
 
         {/* Left Sidebar - Filters */}
-        <FiltersSidebar
-          isOpen={isSidebarOpen}
-          isDark={isDark}
-          isMobile={isMobile}
-          onClose={() => setIsSidebarOpen(false)}
-          startDate={startDate}
-          endDate={endDate}
-          selectedSymptoms={selectedSymptoms}
-          symptomOptions={symptomOptions}
-          severityRange={severityRange}
-          onStartDateChange={setStartDate}
-          onEndDateChange={setEndDate}
-          onSymptomToggle={handleSymptomToggle}
-          onSeverityRangeChange={setSeverityRange}
-          onResetFilters={handleResetFilters}
-        />
+        {(!isMobile || isSidebarOpen) && (
+          <FiltersSidebar
+            isOpen={isSidebarOpen}
+            isDark={isDark}
+            isMobile={isMobile}
+            onClose={() => setIsSidebarOpen(false)}
+            startDate={startDate}
+            endDate={endDate}
+            selectedSymptoms={selectedSymptoms}
+            symptomOptions={symptomOptions}
+            severityRange={severityRange}
+            onStartDateChange={setStartDate}
+            onEndDateChange={setEndDate}
+            onSymptomToggle={handleSymptomToggle}
+            onSeverityRangeChange={setSeverityRange}
+            onResetFilters={handleResetFilters}
+          />
+        )}
 
         {/* Main Content - Graph and Table (scrollable) */}
         <div 
@@ -696,6 +717,7 @@ const PatientDetailPage: React.FC = () => {
               onFullscreenClose={() => setIsChartFullscreen(false)}
               patientName={patientDetails?.patientName}
               formatDateShort={formatDateShort}
+              lastChemoDate={timelineData?.last_chemo_date ?? null}
             />
 
             {/* Table Section */}

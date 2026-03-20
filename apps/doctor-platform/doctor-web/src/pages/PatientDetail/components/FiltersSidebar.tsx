@@ -49,10 +49,10 @@ const FiltersSidebar: React.FC<FiltersSidebarProps> = ({
     <div
       className={`flex-shrink-0 transition-all duration-300 ease-in-out ${
         isOpen 
-          ? 'w-full md:w-80 opacity-100 z-50 md:z-auto' 
-          : 'w-0 md:w-0 opacity-0 md:opacity-0 z-0'
+          ? 'w-full md:w-80 opacity-100 z-50 md:z-auto pointer-events-auto' 
+          : 'w-0 md:w-0 opacity-0 md:opacity-0 z-0 pointer-events-none'
       } ${isDark ? 'bg-[#252320] border-r border-slate-800/50' : 'bg-white border-r border-slate-200/60'} ${
-        isOpen ? 'fixed md:relative inset-y-0 left-0 md:left-auto' : ''
+        isOpen ? 'absolute md:relative inset-0 md:inset-auto left-0 md:left-auto' : ''
       } flex flex-col overflow-hidden h-full`}
     >
       <div 
@@ -64,7 +64,7 @@ const FiltersSidebar: React.FC<FiltersSidebarProps> = ({
       >
         {/* Mobile Close Button */}
         {isMobile && (
-          <div className="flex items-center justify-between mb-3 pb-3 border-b border-slate-700/50">
+          <div className={`sticky top-0 z-10 flex items-center justify-between mb-3 pb-3 border-b ${isDark ? 'border-slate-700/50 bg-[#252320]' : 'border-slate-200/70 bg-white'}`}>
             <div className="flex items-center gap-2">
               <Filter size={18} className={isDark ? 'text-slate-400' : 'text-slate-600'} />
               <h3 className={`text-base font-semibold ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>

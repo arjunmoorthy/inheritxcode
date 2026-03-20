@@ -34,6 +34,7 @@ interface GraphSectionProps {
   onFullscreenClose: () => void;
   patientName?: string;
   formatDateShort: (date: string) => string;
+  lastChemoDate?: string | null;
 }
 
 const GraphSection: React.FC<GraphSectionProps> = ({
@@ -46,6 +47,7 @@ const GraphSection: React.FC<GraphSectionProps> = ({
   onFullscreenClose,
   patientName,
   formatDateShort,
+  lastChemoDate,
 }) => {
   return (
     <>
@@ -102,6 +104,7 @@ const GraphSection: React.FC<GraphSectionProps> = ({
           isSidebarOpen={isSidebarOpen}
           fullscreen={false}
           formatDateShort={formatDateShort}
+          lastChemoDate={lastChemoDate}
         />
       </div>
 
@@ -224,6 +227,7 @@ const GraphSection: React.FC<GraphSectionProps> = ({
               isSidebarOpen={false}
               fullscreen={true}
               formatDateShort={formatDateShort}
+              lastChemoDate={lastChemoDate}
             />
           </div>
         </DialogContent>

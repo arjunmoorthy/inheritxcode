@@ -36,7 +36,6 @@ import Select from '@mui/material/Select';
 import MenuItem from '@mui/material/MenuItem';
 import FormControl from '@mui/material/FormControl';
 import InputLabel from '@mui/material/InputLabel';
-import Pagination from '@mui/material/Pagination';
 import Typography from '@mui/material/Typography';
 import InputAdornment from '@mui/material/InputAdornment';
 import Drawer from '@mui/material/Drawer';
@@ -100,7 +99,6 @@ const DashboardPage: React.FC = () => {
   const navigate = useNavigate();
   const { isDark } = useThemeMode();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
-  const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [symptomTypeFilter, setSymptomTypeFilter] = useState('all');
   const [severityFilter, setSeverityFilter] = useState('all');
@@ -125,7 +123,7 @@ const DashboardPage: React.FC = () => {
     return () => clearTimeout(timer);
   }, [search]);
 
-  const { data, isLoading, error } = usePatientSummaries(page, debouncedSearch, 'all');
+  const { data, isLoading, error } = usePatientSummaries(1, debouncedSearch, 'all');
   const addPatientMutation = useAddManualPatient();
 
   // Helper functions - defined before use
@@ -133,6 +131,7 @@ const DashboardPage: React.FC = () => {
     if (!dateString || dateString === 'None' || dateString === 'Invalid Date') return 'N/A';
     try {
       const date = new Date(dateString);
+      if (Number.isNaN(date.getTime())) return 'N/A';
       return date.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' });
     } catch {
       return dateString;
@@ -140,16 +139,21 @@ const DashboardPage: React.FC = () => {
   };
 
   const formatDateShort = (dateString: string) => {
-    if (!dateString || dateString === 'None' || dateString === 'Invalid Date') return 'N/A';
+    if (!dateString || dateString === 'None' || dateString === 'Invalid Date' || dateString === 'null') return 'N/A';
     try {
       const date = new Date(dateString);
+      if (Number.isNaN(date.getTime())) return 'N/A';
       return date.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
     } catch {
       return dateString;
     }
   };
 
-  const getLastChemo = (_patient: PatientSummary): string => {
+  const getLastChemo = (patient: PatientSummary): string => {
+    const p = patient as PatientSummary & { last_chemo_date?: string | null };
+    const fromApi = patient.lastChemoDate ?? p.last_chemo_date ?? null;
+    const normalized = fromApi ? String(fromApi).trim() : '';
+    if (normalized && normalized !== 'null' && normalized !== 'None') return normalized;
     return 'N/A';
   };
 
@@ -179,70 +183,6 @@ const DashboardPage: React.FC = () => {
     }
     return 'mild';
   };
-
-  // Static fallback data for when API fails or returns no data
-  const staticPatients: PatientSummary[] = [
-    {
-      id: '1',
-      patientName: 'Bobby Johnson',
-      dateOfBirth: '1975-03-15',
-      mrn: '001',
-      symptoms: 'Fatigue, Shortness of breath',
-      summary: 'Non-Small Cell Lung Cancer - Patient reporting increased fatigue and breathing difficulties',
-      lastUpdated: '2026-01-05',
-      status: 'active',
-      priority: 'high',
-      maxSeverity: 'severe',
-      hasEscalation: false,
-      severityBadge: 'severe',
-      diagnosis: 'Non-Small Cell Lung Cancer',
-    },
-    {
-      id: '2',
-      patientName: 'Sarah Johnson',
-      dateOfBirth: '1982-07-22',
-      mrn: '002',
-      symptoms: 'Nausea, Pain',
-      summary: 'Breast Cancer Stage II - Managing treatment side effects',
-      lastUpdated: '2026-01-04',
-      status: 'active',
-      priority: 'high',
-      maxSeverity: 'severe',
-      hasEscalation: false,
-      severityBadge: 'severe',
-      diagnosis: 'Breast Cancer Stage II',
-    },
-    {
-      id: '3',
-      patientName: 'Michael Chen',
-      dateOfBirth: '1968-11-08',
-      mrn: '003',
-      symptoms: 'Diarrhea, Appetite loss',
-      summary: 'Colorectal Cancer - Post-treatment monitoring',
-      lastUpdated: '2026-01-03',
-      status: 'active',
-      priority: 'high',
-      maxSeverity: 'severe',
-      hasEscalation: false,
-      severityBadge: 'severe',
-      diagnosis: 'Colorectal Cancer',
-    },
-    {
-      id: '4',
-      patientName: 'Elena Rodriguez',
-      dateOfBirth: '1979-05-30',
-      mrn: '004',
-      symptoms: 'Mild fatigue',
-      summary: 'Ovarian Cancer - Stable condition, routine monitoring',
-      lastUpdated: '2025-12-18',
-      status: 'active',
-      priority: 'low',
-      maxSeverity: 'mild',
-      hasEscalation: false,
-      severityBadge: 'mild',
-      diagnosis: 'Ovarian Cancer',
-    },
-  ];
 
   // Use static data only if API fails or returns no data (not when loading)
   // Only use static data when we're not loading and there's no current data
@@ -290,35 +230,20 @@ const DashboardPage: React.FC = () => {
     return true;
   });
 
-  // Pagination for filtered results
-  const itemsPerPage = 10;
-  const startIndex = (page - 1) * itemsPerPage;
-  const endIndex = startIndex + itemsPerPage;
-  const paginatedPatients = filteredPatients.slice(startIndex, endIndex);
-  const totalPages = Math.ceil(filteredPatients.length / itemsPerPage);
-
-  const handlePageChange = (_: React.ChangeEvent<unknown>, value: number) => {
-    setPage(value);
-  };
-
   const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setSearch(event.target.value);
-    setPage(1);
   };
 
   const handleSymptomTypeChange = (event: any) => {
     setSymptomTypeFilter(event.target.value);
-    setPage(1);
   };
 
   const handleSeverityChange = (event: any) => {
     setSeverityFilter(event.target.value);
-    setPage(1);
   };
 
   const handleCheckInChange = (event: any) => {
     setCheckInFilter(event.target.value);
-    setPage(1);
   };
 
   const getPatientRouteId = (patient: PatientSummary): string => {
@@ -790,7 +715,7 @@ const DashboardPage: React.FC = () => {
             </div>
           ) : (
             <div className="flex flex-col gap-4">
-              {paginatedPatients.map((patient) => {
+              {filteredPatients.map((patient) => {
                 const severity = getSeverity(patient);
                 const lastChemo = getLastChemo(patient);
                 const lastChatbot = patient.lastUpdated || '';
@@ -857,8 +782,7 @@ const DashboardPage: React.FC = () => {
                               <Pill size={14} className={`flex-shrink-0 ${isDark ? 'text-sky-400' : 'text-sky-600'}`} />
                               <div className="flex items-center gap-1">
                                 <span className={`text-xs shrink-0 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Last Chemo: </span>
-                                {/* <span className={`text-sm ${isDark ? 'text-[#F5F3EE]' : 'text-slate-900'}`}>{formatDateShort(lastChemo)}</span> */}
-                                <span className={`text-sm ${isDark ? 'text-[#F5F3EE]' : 'text-slate-900'}`}>N/A</span>
+                                <span className={`text-sm ${isDark ? 'text-[#F5F3EE]' : 'text-slate-900'}`}>{formatDateShort(lastChemo)}</span>
 
                               </div>
                             </div>
@@ -889,35 +813,6 @@ const DashboardPage: React.FC = () => {
             </div>
           )}
 
-          {/* Pagination */}
-          {totalPages > 1 && (
-            <div className="flex justify-center mt-6 pb-4">
-              <Pagination
-                count={totalPages}
-                page={page}
-                onChange={handlePageChange}
-                color="primary"
-                showFirstButton
-                showLastButton
-                size={isMobile ? 'small' : 'medium'}
-                sx={{
-                  '& .MuiPaginationItem-root': {
-                    color: isDark ? '#cbd5e1' : '#475569',
-                    '&.Mui-selected': {
-                      backgroundColor: isDark ? '#2563EB' : '#2563EB',
-                      color: 'white',
-                      '&:hover': {
-                        backgroundColor: isDark ? '#3B82F6' : '#3B82F6',
-                      },
-                    },
-                    '&:hover': {
-                      backgroundColor: isDark ? '#2A2725' : '#f1f5f9',
-                    },
-                  },
-                }}
-              />
-            </div>
-          )}
         </div>
       </div>
       {/* Add Patient Modal */}
