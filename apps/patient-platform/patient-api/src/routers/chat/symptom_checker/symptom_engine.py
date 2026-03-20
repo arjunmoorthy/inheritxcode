@@ -336,6 +336,7 @@ class SymptomCheckerEngine:
         normalized = str(user_response).strip().lower() if user_response is not None else ''
         if normalized in ('yes', 'true', '1'):
             self.state.chemo_today = True
+            self.state.last_chemo_date = datetime.utcnow().date().isoformat()
             self.state.phase = ConversationPhase.EMERGENCY_CHECK
             return self._show_emergency_check()
         if normalized in ('no', 'false', '0'):
@@ -392,8 +393,9 @@ class SymptomCheckerEngine:
                 sender='system',
                 state=self.state
             )
+        self.state.last_chemo_date = parsed.isoformat()
         self.state.next_chemo_date = parsed.isoformat()
-        self.state.answers['next_chemo_date'] = self.state.next_chemo_date
+        self.state.answers['last_chemo_date'] = self.state.last_chemo_date
         # After date: go to emergency safety check, then grouped symptom selection
         self.state.phase = ConversationPhase.EMERGENCY_CHECK
         return self._show_emergency_check()
