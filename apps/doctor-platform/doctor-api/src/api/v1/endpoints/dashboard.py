@@ -623,7 +623,6 @@ class MedicationRow(BaseModel):
     severity: SeverityLabel
     medication_name: Optional[str] = None
     medication_frequency: Optional[str] = None
-    severity_after_medication: Optional[str] = None
 
 
 class PatientTrendsResponse(BaseModel):
@@ -743,11 +742,6 @@ def get_patient_trends(
             freq = answers.get("meds_detail")
             if not isinstance(freq, str):
                 freq = None
-            sev_after = (
-                answers.get("severity_post_meds")
-                or answers.get("severity_post_med")
-                or answers.get("severity_post_medication")
-            )
             meds_rows.append(
                 MedicationRow(
                     date=day,
@@ -756,7 +750,6 @@ def get_patient_trends(
                     severity=sev,
                     medication_name=med_name,
                     medication_frequency=freq,
-                    severity_after_medication=str(sev_after) if sev_after is not None else None,
                 )
             )
 

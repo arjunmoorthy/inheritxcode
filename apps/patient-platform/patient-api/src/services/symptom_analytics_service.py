@@ -17,10 +17,39 @@ def save_symptom_analytics(db, patient_id, conversation_id, engine_state):
 
     # State uses highest_triage_level, not triage_level
     triage_level = engine_state.get("triage_level") or engine_state.get("highest_triage_level", "none")
-    # Build severity per symptom from triage_results (symptom_id -> level)
-    severity_map = engine_state.get("severity", {})
-    if not severity_map and triage_results:
-        severity_map = {r["symptom_id"]: r.get("level") for r in triage_results if isinstance(r, dict) and r.get("symptom_id")}
+    # Build severity per symptom from user answers (preferred) so dashboard reflects
+    # what patient selected when asked for severity.
+    def _normalize_severity(value):
+        if not isinstance(value, str):
+            return None
+        v = value.strip().lower()
+        mapping = {
+            "mild": "mild",
+            "mod": "moderate",
+            "moderate": "moderate",
+            "sev": "severe",
+            "severe": "severe",
+            "urgent": "urgent",
+            "none": "none",
+        }
+        return mapping.get(v)
+
+    def _extract_user_severity(symptom_dict):
+        if not isinstance(symptom_dict, dict):
+            return None
+        # Common severity keys across symptom definitions
+        for k in ("severity", "cough_severity", "severity_no_meds", "severity_post_meds", "severity_post_med"):
+            sev = _normalize_severity(symptom_dict.get(k))
+            if sev:
+                return sev
+        return None
+
+    severity_map = {}
+    if symptom_answers:
+        for sid, a in symptom_answers.items():
+            sev = _extract_user_severity(a)
+            if sev:
+                severity_map[sid] = sev
 
     logger.info(
         "save_symptom_analytics: patient_id=%s conversation_id=%s selected_symptoms=%s triage_level=%s",
@@ -32,6 +61,7 @@ def save_symptom_analytics(db, patient_id, conversation_id, engine_state):
     else:
         # 1️⃣ store symptom details
         for symptom in selected_symptoms:
+            symptom_payload = (symptom_answers.get(symptom) if symptom_answers else None) or (answers or None)
             symptom_detail = SymptomDetail(
                 patient_id=patient_id,
                 conversation_id=conversation_id,
@@ -40,7 +70,7 @@ def save_symptom_analytics(db, patient_id, conversation_id, engine_state):
                 triage_level=triage_level if isinstance(triage_level, str) else str(triage_level),
                 # Prefer the per-symptom answers snapshot (if available); otherwise fall back to the
                 # flat `answers` dict (which may only contain the last symptom's answers).
-                answers_json=(symptom_answers.get(symptom) if symptom_answers else None) or (answers or None),
+                answers_json=symptom_payload,
             )
             db.add(symptom_detail)
 
