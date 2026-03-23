@@ -162,7 +162,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     sessionStorage.removeItem(SESSION_START_KEY);
     setToken(null);
     setUser(null);
-    queryClient.removeQueries({ queryKey: ['profile'] });
+    queryClient.clear();
   };
 
   const value: AuthContextType = {

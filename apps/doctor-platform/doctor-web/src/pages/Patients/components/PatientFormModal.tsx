@@ -18,7 +18,6 @@ import { useThemeMode } from '@oncolife/ui-components';
 import {
   useAddManualPatient,
   useUpdatePatientProfile,
-  useUpdateFaxPatient,
   type AddManualPatientPayload,
   type PatientProfileUpdatePayload,
   type Patient,
