@@ -36,7 +36,7 @@ from uuid import UUID
 from datetime import date, datetime
 
 from fastapi import APIRouter, Depends, Query, HTTPException, status, Request
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, EmailStr
 from sqlalchemy.orm import Session
 
 from api.deps import get_current_user, get_patient_db_session, get_doctor_db_session, TokenData
@@ -44,6 +44,7 @@ from services.dashboard_service import DashboardService
 from services.audit_service import AuditService
 from core.logging import get_logger
 from core.exceptions import NotFoundError, AuthorizationError
+from core.schemas import APIResponse
 from db.models.fax_models import Patient as FaxPatient
 from db.models.user import User
 from sqlalchemy import or_, and_, text
@@ -870,4 +871,361 @@ def get_patient_trends(
         medications=meds_rows,
         chemo_dates=chemo_dates,
         last_chemo_date=last_chemo_date,
+    )
+
+
+# =============================================================================
+# Patient profile update (doctor portal)
+# =============================================================================
+
+
+def _age_from_dob(dob: date) -> int:
+    today = date.today()
+    age = today.year - dob.year
+    if (today.month, today.day) < (dob.month, dob.day):
+        age -= 1
+    return age
+
+
+def assert_staff_can_access_dashboard_patient(
+    doctor_db: Session,
+    current_user: User,
+    patient_uuid: UUID,
+) -> None:
+    """
+    Admin may access any patient. Physicians and nurses only if the patient is
+    assigned to them (nurses via their supervising physicians).
+    """
+    role = getattr(current_user, "role", None)
+    if role == "admin":
+        return
+
+    staff = (
+        doctor_db.query(Staff)
+        .filter(Staff.user_id == getattr(current_user, "id", None))
+        .first()
+    )
+    if not staff:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized for this patient",
+        )
+
+    if role == "physician":
+        allowed = (
+            doctor_db.query(PhysicianPatient)
+            .join(FaxPatient, FaxPatient.id == PhysicianPatient.patient_id)
+            .join(User, User.id == FaxPatient.user_id)
+            .filter(
+                PhysicianPatient.physician_id == staff.id,
+                User.uuid == patient_uuid,
+                PhysicianPatient.is_active == True,  # noqa: E712
+            )
+            .first()
+        )
+        if not allowed:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Not authorized for this patient",
+            )
+        return
+
+    if role == "nurse":
+        physician_ids = [
+            p[0]
+            for p in doctor_db.query(PhysicianNurseAssignment.physician_id)
+            .filter(PhysicianNurseAssignment.nurse_id == staff.id)
+            .all()
+        ]
+        if not physician_ids:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Not authorized for this patient",
+            )
+        allowed = (
+            doctor_db.query(PhysicianPatient)
+            .join(FaxPatient, FaxPatient.id == PhysicianPatient.patient_id)
+            .join(User, User.id == FaxPatient.user_id)
+            .filter(
+                PhysicianPatient.physician_id.in_(physician_ids),
+                User.uuid == patient_uuid,
+                PhysicianPatient.is_active == True,  # noqa: E712
+            )
+            .first()
+        )
+        if not allowed:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Not authorized for this patient",
+            )
+        return
+
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="Not authorized for this patient",
+    )
+
+
+class PatientProfileUpdateRequest(BaseModel):
+    mrn: Optional[str] = None
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    email: Optional[EmailStr] = None
+    phone_number: Optional[str] = None
+    date_of_birth: Optional[date] = None
+    gender: Optional[str] = None
+    location: Optional[str] = None
+    regimen_name: Optional[str] = None
+    chemotherapy_day: Optional[str] = None
+    next_chemotherapy_at: Optional[datetime] = None
+
+
+class PatientProfileResponse(BaseModel):
+    patient_uuid: str
+    mrn: Optional[str] = None
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    email: Optional[str] = None
+    phone_number: Optional[str] = None
+    date_of_birth: Optional[str] = None
+    gender: Optional[str] = None
+    location: Optional[str] = None
+    regimen_name: Optional[str] = None
+    chemotherapy_day: Optional[str] = None
+    next_chemotherapy_at: Optional[str] = None
+
+
+def _patient_profile_response_from_fax(
+    fax_patient: FaxPatient, patient_uuid: UUID
+) -> PatientProfileResponse:
+    u = fax_patient.user
+    return PatientProfileResponse(
+        patient_uuid=str(patient_uuid),
+        mrn=fax_patient.mrn,
+        first_name=fax_patient.first_name,
+        last_name=fax_patient.last_name,
+        email=u.email if u else fax_patient.email,
+        phone_number=fax_patient.phone_number,
+        date_of_birth=fax_patient.date_of_birth.isoformat()
+        if fax_patient.date_of_birth
+        else None,
+        gender=fax_patient.gender,
+        location=fax_patient.location,
+        regimen_name=fax_patient.regimen_name,
+        chemotherapy_day=fax_patient.chemotherapy_day,
+        next_chemotherapy_at=fax_patient.next_chemotherapy_at.isoformat()
+        if fax_patient.next_chemotherapy_at
+        else None,
+    )
+
+
+def _sync_patient_info_demographics(
+    patient_db: Session,
+    patient_uuid: UUID,
+    payload: Dict[str, Any],
+) -> None:
+    """Best-effort sync of overlapping columns on patient_info (patient DB)."""
+    if not payload:
+        return
+    column_map = {
+        "first_name": payload.get("first_name"),
+        "last_name": payload.get("last_name"),
+        "email_address": payload.get("email_address"),
+        "phone_number": payload.get("phone_number"),
+        "dob": payload.get("dob"),
+        "mrn": payload.get("mrn"),
+        "sex": payload.get("sex"),
+        "treatment_type": payload.get("treatment_type"),
+    }
+    sets = []
+    params: Dict[str, Any] = {"uuid": str(patient_uuid)}
+    for col, val in column_map.items():
+        if val is not None:
+            sets.append(f"{col} = :{col}")
+            params[col] = val
+    if not sets:
+        return
+    sql = f"""
+        UPDATE patient_info
+        SET {", ".join(sets)}
+        WHERE uuid = CAST(:uuid AS uuid) AND is_deleted = false
+    """
+    patient_db.execute(text(sql), params)
+    patient_db.commit()
+
+
+@router.patch(
+    "/patient/{patient_uuid}/profile",
+    response_model=APIResponse[PatientProfileResponse],
+    summary="Update patient profile",
+    description=(
+        "Update demographic and treatment fields for a patient. "
+        "Admins may edit any patient; physicians and nurses only patients "
+        "assigned to them (nurses via their physicians)."
+    ),
+)
+def patch_patient_profile(
+    patient_uuid: UUID,
+    body: PatientProfileUpdateRequest,
+    current_user: User = Depends(require_roles("physician", "nurse", "admin")),
+    patient_db: Session = Depends(get_patient_db_session),
+    doctor_db: Session = Depends(get_doctor_db_session),
+):
+    assert_staff_can_access_dashboard_patient(doctor_db, current_user, patient_uuid)
+
+    fax_patient = (
+        doctor_db.query(FaxPatient)
+        .join(User, User.id == FaxPatient.user_id)
+        .filter(User.uuid == patient_uuid)
+        .first()
+    )
+    if not fax_patient:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Patient not found for this identifier",
+        )
+
+    data = body.model_dump(exclude_unset=True)
+    if not data:
+        return APIResponse(
+            success=True,
+            message="No changes submitted; returning current profile.",
+            data=_patient_profile_response_from_fax(fax_patient, patient_uuid),
+        )
+
+    patient_user = fax_patient.user
+    new_email = data.get("email")
+    if new_email and patient_user:
+        taken = (
+            doctor_db.query(User)
+            .filter(
+                User.email == str(new_email),
+                User.id != patient_user.id,
+            )
+            .first()
+        )
+        if taken:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Email is already in use",
+            )
+        conflict_pi = patient_db.execute(
+            text(
+                """
+                SELECT 1 FROM patient_info
+                WHERE email_address = :email
+                  AND uuid != CAST(:uuid AS uuid)
+                  AND is_deleted = false
+                LIMIT 1
+                """
+            ),
+            {"email": str(new_email), "uuid": str(patient_uuid)},
+        ).first()
+        if conflict_pi:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Email is already in use",
+            )
+
+    new_mrn = data.get("mrn")
+    if new_mrn is not None and str(new_mrn).strip() != "":
+        taken_mrn = (
+            doctor_db.query(FaxPatient)
+            .filter(
+                FaxPatient.mrn == str(new_mrn).strip(),
+                FaxPatient.id != fax_patient.id,
+            )
+            .first()
+        )
+        if taken_mrn:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="MRN is already in use",
+            )
+        conflict_mrn_pi = patient_db.execute(
+            text(
+                """
+                SELECT 1 FROM patient_info
+                WHERE mrn = :mrn
+                  AND uuid != CAST(:uuid AS uuid)
+                  AND is_deleted = false
+                LIMIT 1
+                """
+            ),
+            {"mrn": str(new_mrn).strip(), "uuid": str(patient_uuid)},
+        ).first()
+        if conflict_mrn_pi:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="MRN is already in use",
+            )
+
+    if "mrn" in data:
+        fax_patient.mrn = str(data["mrn"]).strip() if data["mrn"] else None
+    if "first_name" in data:
+        fax_patient.first_name = data["first_name"]
+        if patient_user:
+            patient_user.first_name = data["first_name"]
+    if "last_name" in data:
+        fax_patient.last_name = data["last_name"]
+        if patient_user:
+            patient_user.last_name = data["last_name"]
+    if "email" in data and patient_user:
+        patient_user.email = str(data["email"])
+        fax_patient.email = str(data["email"])
+    elif "email" in data:
+        fax_patient.email = str(data["email"])
+    if "phone_number" in data:
+        fax_patient.phone_number = data["phone_number"]
+    if "date_of_birth" in data:
+        fax_patient.date_of_birth = data["date_of_birth"]
+        if data["date_of_birth"]:
+            fax_patient.age = _age_from_dob(data["date_of_birth"])
+    if "gender" in data:
+        fax_patient.gender = data["gender"]
+    if "location" in data:
+        fax_patient.location = data["location"]
+    if "regimen_name" in data:
+        fax_patient.regimen_name = data["regimen_name"]
+    if "chemotherapy_day" in data:
+        fax_patient.chemotherapy_day = data["chemotherapy_day"]
+    if "next_chemotherapy_at" in data:
+        fax_patient.next_chemotherapy_at = data["next_chemotherapy_at"]
+
+    doctor_db.commit()
+    doctor_db.refresh(fax_patient)
+    if patient_user:
+        doctor_db.refresh(patient_user)
+
+    pi_updates: Dict[str, Any] = {}
+    if "first_name" in data:
+        pi_updates["first_name"] = fax_patient.first_name
+    if "last_name" in data:
+        pi_updates["last_name"] = fax_patient.last_name
+    if "email" in data:
+        pi_updates["email_address"] = str(data["email"])
+    if "phone_number" in data:
+        pi_updates["phone_number"] = fax_patient.phone_number
+    if "date_of_birth" in data:
+        pi_updates["dob"] = fax_patient.date_of_birth
+    if "mrn" in data:
+        pi_updates["mrn"] = fax_patient.mrn
+    if "gender" in data:
+        pi_updates["sex"] = fax_patient.gender
+    if "regimen_name" in data:
+        pi_updates["treatment_type"] = fax_patient.regimen_name
+
+    try:
+        _sync_patient_info_demographics(patient_db, patient_uuid, pi_updates)
+    except Exception as e:
+        logger.warning(
+            "patient_info sync skipped or failed for %s: %s",
+            patient_uuid,
+            e,
+        )
+
+    return APIResponse(
+        success=True,
+        message="Patient profile updated successfully.",
+        data=_patient_profile_response_from_fax(fax_patient, patient_uuid),
     )

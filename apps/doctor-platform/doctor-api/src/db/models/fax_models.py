@@ -72,6 +72,9 @@ class Patient(DoctorBase, TimestampMixin):
     end_date = Column(Date, nullable=True)
     plan_name = Column(Text, nullable=True)
     regimen_name = Column(String(255), nullable=True)
+    location = Column(String(255), nullable=True)
+    chemotherapy_day = Column(String(50), nullable=True)
+    next_chemotherapy_at = Column(DateTime(timezone=True), nullable=True)
 
     # History (latest known)
     past_medical_history = Column(Text)
