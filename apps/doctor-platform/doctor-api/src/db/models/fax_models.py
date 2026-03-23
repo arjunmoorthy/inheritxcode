@@ -1,5 +1,5 @@
 from db.base import DoctorBase, TimestampMixin
-from sqlalchemy import Column, String, Text, DateTime, Integer, Float, Date, ForeignKey, Boolean
+from sqlalchemy import Column, String, Text, DateTime, Integer, Float, Date, ForeignKey
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from sqlalchemy.dialects.postgresql import JSONB
@@ -66,6 +66,7 @@ class Patient(DoctorBase, TimestampMixin):
     age = Column(Integer)
     bmi = Column(String(20))
     cancer_type = Column(String(255))
+    diagnosis = Column(Text, nullable=True)
     oncologist = Column(String(255))
 
     start_date = Column(Date, nullable=True)
