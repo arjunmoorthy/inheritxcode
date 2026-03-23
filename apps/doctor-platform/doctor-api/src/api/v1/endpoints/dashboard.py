@@ -394,26 +394,31 @@ def patient_listing_dashboard(
     patient_db: Session = Depends(get_patient_db_session),
 ):
     try:
-        query = (
-            db.query(FaxPatient)
-            .join(
-                PhysicianPatient,
-                PhysicianPatient.patient_id == FaxPatient.id
-            )
-        )
+        # query = (
+        #     db.query(FaxPatient)
+        #     .join(
+        #         PhysicianPatient,
+        #         PhysicianPatient.patient_id == FaxPatient.id
+        #     )
+        # )
+
+        query = db.query(FaxPatient)
 
         staff = db.query(Staff).filter(
             Staff.user_id == current_user.id
         ).first()
 
-        if not staff:
+        if not staff and current_user.role != "admin":
             raise HTTPException(
                 status_code=404,
                 detail="Staff not found"
             )
 
         if current_user.role == "physician":
-            query = query.filter(
+            query = query.join(
+                PhysicianPatient,
+                PhysicianPatient.patient_id == FaxPatient.id
+            ).filter(
                 PhysicianPatient.physician_id == staff.id
             )
 
@@ -430,8 +435,21 @@ def patient_listing_dashboard(
             if not physician_ids:
                 return {"status": "success", "count": 0, "data": []}
 
-            query = query.filter(
+            query = query.join(
+                PhysicianPatient,
+                PhysicianPatient.patient_id == FaxPatient.id
+            ).filter(
                 PhysicianPatient.physician_id.in_(physician_ids)
+            )
+        
+        elif current_user.role == "admin":
+            # ✅ No join, no filtering → fetch ALL patients
+            pass
+
+        else:
+            raise HTTPException(
+                status_code=403,
+                detail="Not authorized to view patients"
             )
 
         if search:

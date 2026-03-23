@@ -21,7 +21,9 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
 
-from api.deps import get_current_user, get_patient_db
+from api.deps import get_patient_db, get_doctor_db, get_optional_patient_uuid
+# token parsing is handled via api.deps.get_optional_patient_uuid
+from db.doctor_models import DoctorUser, DoctorPatient
 from db.models.questions import PatientQuestion
 from core.logging import get_logger
 
@@ -85,7 +87,8 @@ async def list_questions(
     include_answered: bool = Query(True, description="Include answered questions"),
     limit: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_patient_db),
-    current_user = Depends(get_current_user),
+    doctor_db: Session = Depends(get_doctor_db),
+    auth_uuid: Optional[UUID] = Depends(get_optional_patient_uuid),
 ):
     """
     List questions for the authenticated patient.
@@ -93,19 +96,25 @@ async def list_questions(
     By default returns all questions (private and shared).
     Use `shared_only=true` to filter to only shared questions.
     """
-    patient_uuid = current_user["uuid"]
+    if auth_uuid is None:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
+    patient_uuid = auth_uuid
+    # Verify the user exists in doctor DB
+    doctor_user = doctor_db.query(DoctorUser).filter(DoctorUser.uuid == patient_uuid).first()
+    if not doctor_user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found in doctor system")
     logger.info(f"Listing questions for patient {patient_uuid}")
     
     query = db.query(PatientQuestion).filter(
         PatientQuestion.patient_uuid == patient_uuid,
-        PatientQuestion.is_deleted == False,
+        PatientQuestion.is_deleted.is_(False),
     )
     
     if shared_only:
-        query = query.filter(PatientQuestion.share_with_physician == True)
+        query = query.filter(PatientQuestion.share_with_physician.is_(True))
     
     if not include_answered:
-        query = query.filter(PatientQuestion.is_answered == False)
+        query = query.filter(PatientQuestion.is_answered.is_(False))
     
     total = query.count()
     questions = query.order_by(desc(PatientQuestion.created_at)).limit(limit).all()
@@ -138,7 +147,8 @@ async def list_questions(
 async def create_question(
     question_data: QuestionCreate,
     db: Session = Depends(get_patient_db),
-    current_user = Depends(get_current_user),
+    doctor_db: Session = Depends(get_doctor_db),
+    auth_uuid: Optional[UUID] = Depends(get_optional_patient_uuid),
 ):
     """
     Create a new question.
@@ -146,7 +156,19 @@ async def create_question(
     Questions are private by default. Set `share_with_physician=true`
     to make the question visible in the doctor portal.
     """
-    patient_uuid = current_user["uuid"]
+    # Require a valid Bearer token that decodes to a user UUID
+    if auth_uuid is None:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
+    patient_uuid = auth_uuid
+    # Verify the token maps to a doctor-api user and that a fax_patient exists
+    doctor_user = doctor_db.query(DoctorUser).filter(DoctorUser.uuid == patient_uuid).first()
+    if not doctor_user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found in doctor system")
+
+    fax_patient = doctor_db.query(DoctorPatient).filter(DoctorPatient.user_id == doctor_user.id).first()
+    if not fax_patient:
+        # The user exists but is not registered as a fax_patient; treat as not found for question creation
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Patient record not found in doctor system")
     logger.info(f"Creating question for patient {patient_uuid}")
     
     question = PatientQuestion(
@@ -184,7 +206,8 @@ async def update_question(
     question_id: UUID,
     question_data: QuestionUpdate,
     db: Session = Depends(get_patient_db),
-    current_user = Depends(get_current_user),
+    doctor_db: Session = Depends(get_doctor_db),
+    auth_uuid: Optional[UUID] = Depends(get_optional_patient_uuid),
 ):
     """
     Update a question.
@@ -192,13 +215,18 @@ async def update_question(
     Can update the question text, category, sharing status, or mark as answered.
     Only the patient who created the question can update it.
     """
-    patient_uuid = current_user["uuid"]
+    if auth_uuid is None:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
+    patient_uuid = auth_uuid
+    doctor_user = doctor_db.query(DoctorUser).filter(DoctorUser.uuid == patient_uuid).first()
+    if not doctor_user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found in doctor system")
     logger.info(f"Updating question {question_id} for patient {patient_uuid}")
     
     question = db.query(PatientQuestion).filter(
         PatientQuestion.id == question_id,
         PatientQuestion.patient_uuid == patient_uuid,
-        PatientQuestion.is_deleted == False,
+        PatientQuestion.is_deleted.is_(False),
     ).first()
     
     if not question:
@@ -243,20 +271,26 @@ async def update_question(
 async def delete_question(
     question_id: UUID,
     db: Session = Depends(get_patient_db),
-    current_user = Depends(get_current_user),
+    doctor_db: Session = Depends(get_doctor_db),
+    auth_uuid: Optional[UUID] = Depends(get_optional_patient_uuid),
 ):
     """
     Delete a question (soft delete).
     
     Only the patient who created the question can delete it.
     """
-    patient_uuid = current_user["uuid"]
+    if auth_uuid is None:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
+    patient_uuid = auth_uuid
+    doctor_user = doctor_db.query(DoctorUser).filter(DoctorUser.uuid == patient_uuid).first()
+    if not doctor_user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found in doctor system")
     logger.info(f"Deleting question {question_id} for patient {patient_uuid}")
     
     question = db.query(PatientQuestion).filter(
         PatientQuestion.id == question_id,
         PatientQuestion.patient_uuid == patient_uuid,
-        PatientQuestion.is_deleted == False,
+        PatientQuestion.is_deleted.is_(False),
     ).first()
     
     if not question:
@@ -283,20 +317,26 @@ async def toggle_share_question(
     question_id: UUID,
     share: bool = Query(..., description="True to share, False to unshare"),
     db: Session = Depends(get_patient_db),
-    current_user = Depends(get_current_user),
+    doctor_db: Session = Depends(get_doctor_db),
+    auth_uuid: Optional[UUID] = Depends(get_optional_patient_uuid),
 ):
     """
     Toggle whether a question is shared with the physician.
     
     This is a convenience endpoint for quickly changing the share status.
     """
-    patient_uuid = current_user["uuid"]
+    if auth_uuid is None:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
+    patient_uuid = auth_uuid
+    doctor_user = doctor_db.query(DoctorUser).filter(DoctorUser.uuid == patient_uuid).first()
+    if not doctor_user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found in doctor system")
     logger.info(f"Toggling share for question {question_id} to {share}")
     
     question = db.query(PatientQuestion).filter(
         PatientQuestion.id == question_id,
         PatientQuestion.patient_uuid == patient_uuid,
-        PatientQuestion.is_deleted == False,
+        PatientQuestion.is_deleted.is_(False),
     ).first()
     
     if not question:
