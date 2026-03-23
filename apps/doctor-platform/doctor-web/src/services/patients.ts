@@ -16,7 +16,8 @@ import type { PatientListingApiItem } from './dashboard';
 // =============================================================================
 
 export interface Patient {
-  id: string;
+  id: string; // Internal/Patient ID
+  uuid: string; // Global UUID
   firstName: string;
   lastName: string;
   email: string;
@@ -32,6 +33,15 @@ export interface Patient {
   physician_ids?: number[];
 }
 
+export interface ConversationSummary {
+  id: string | number;
+  patient_uuid: string;
+  summary_text: string;
+  status: 'good' | 'fair' | 'poor' | string;
+  created_at: string;
+  tags: string[];
+}
+
 export interface PatientsResponse {
   data: Patient[];
   total: number;
@@ -40,14 +50,6 @@ export interface PatientsResponse {
 }
 
 // Backend response types (from doctor-api)
-interface BackendPatientSummary {
-  uuid: string;
-  email_address: string;
-  first_name?: string;
-  last_name?: string;
-  created_at?: string;
-  phone_number?: string;
-}
 
 interface BackendPatientDetail {
   uuid: string;
@@ -63,13 +65,6 @@ interface BackendPatientDetail {
   mrn?: string;
 }
 
-interface BackendPatientListResponse {
-  patients: BackendPatientSummary[];
-  total: number;
-  skip: number;
-  limit: number;
-}
-
 interface PatientListingApiResponse {
   status: string;
   data: PatientListingApiItem[];
@@ -77,6 +72,7 @@ interface PatientListingApiResponse {
 
 const transformListingToPatient = (item: PatientListingApiItem): Patient => ({
   id: String(item.patient_id),
+  uuid: item.patient_uuid || item.uuid || '',
   firstName: item.first_name || '',
   lastName: item.last_name || '',
   email: item.email || '',
@@ -91,28 +87,9 @@ const transformListingToPatient = (item: PatientListingApiItem): Patient => ({
   treatmentType: item.plan_name || '',
 });
 
-// =============================================================================
-// Transform Functions (Backend → Frontend)
-// =============================================================================
-
-const transformPatientSummary = (backend: BackendPatientSummary): Patient => ({
-  id: backend.uuid,
-  firstName: backend.first_name || '',
-  lastName: backend.last_name || '',
-  email: backend.email_address,
-  mrn: '',
-  dateOfBirth: '',
-  sex: 'Other',
-  race: '',
-  phoneNumber: backend.phone_number || '',
-  physician: '',
-  diseaseType: '',
-  associateClinic: '',
-  treatmentType: '',
-});
-
 const transformPatientDetail = (backend: BackendPatientDetail): Patient => ({
-  id: backend.uuid,
+  id: backend.uuid, // Using UUID as ID here for detail page compatibility
+  uuid: backend.uuid,
   firstName: backend.first_name || '',
   lastName: backend.last_name || '',
   email: backend.email_address,
@@ -204,21 +181,37 @@ export const usePatientDetails = (patientId: string) => {
   });
 };
 
+export const fetchPatientConversations = async (patientUuid: string): Promise<ConversationSummary[]> => {
+  const response = await apiClient.get<ConversationSummary[]>(
+    API_CONFIG.ENDPOINTS.PATIENTS.CONVERSATIONS(patientUuid)
+  );
+  return response.data;
+};
+
+export const usePatientConversations = (patientUuid: string) => {
+  return useQuery({
+    queryKey: ['patientConversations', patientUuid],
+    queryFn: () => fetchPatientConversations(patientUuid),
+    enabled: !!patientUuid,
+  });
+};
+
 // =============================================================================
 // Add Manual Patient (FAX / fax_patients)
 // =============================================================================
 
 export interface AddManualPatientPayload {
-  first_name: string;
-  last_name: string;
+  patient_uuid?: string;
+  first_name?: string;
+  last_name?: string;
   mrn?: string;
   date_of_birth?: string;
   age?: number;
   gender?: string;
-  email: string;
+  email?: string;
   phone_number?: string;
   bmi?: string;
-  cancer_type: string;
+  cancer_type?: string;
   oncologist?: string;
   start_date?: string;
   end_date?: string;
@@ -226,6 +219,20 @@ export interface AddManualPatientPayload {
   past_medical_history?: string;
   past_surgical_history?: string;
   physician_ids?: number[];
+}
+
+export interface PatientProfileUpdatePayload {
+  mrn?: string;
+  first_name?: string;
+  last_name?: string;
+  email?: string;
+  phone_number?: string;
+  date_of_birth?: string;
+  gender?: string;
+  location?: string;
+  regimen_name?: string;
+  chemotherapy_day?: string;
+  next_chemotherapy_at?: string;
 }
 
 const addManualPatient = async (
@@ -276,6 +283,31 @@ export const useUpdateFaxPatient = () => {
   });
 };
 
+const updatePatientProfile = async (
+  patientUuid: string,
+  payload: PatientProfileUpdatePayload
+): Promise<unknown> => {
+  const response = await apiClient.patch(
+    API_CONFIG.ENDPOINTS.DASHBOARD.PATIENT_PROFILE_UPDATE(patientUuid),
+    payload
+  );
+  return response.data;
+};
+
+export const useUpdatePatientProfile = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ patientUuid, payload }: { patientUuid: string; payload: PatientProfileUpdatePayload }) =>
+      updatePatientProfile(patientUuid, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['patientSummaries'] });
+      queryClient.invalidateQueries({ queryKey: ['patientDetails'] });
+      queryClient.invalidateQueries({ queryKey: ['patients'] });
+    },
+  });
+};
+
 // =============================================================================
 // Mutation Hooks (for future use when backend supports these)
 // =============================================================================
@@ -284,7 +316,7 @@ export const useAddPatient = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (patientData: Omit<Patient, 'id'>): Promise<Patient> => {
+    mutationFn: async (): Promise<Patient> => {
       // TODO: Implement when backend supports patient creation from doctor portal
       // const response = await apiClient.post(API_CONFIG.ENDPOINTS.PATIENTS.LIST, patientData);
       // return transformPatientDetail(response.data);
@@ -300,7 +332,7 @@ export const useUpdatePatient = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ id, ...patientData }: Patient): Promise<Patient> => {
+    mutationFn: async (): Promise<Patient> => {
       // TODO: Implement when backend supports patient updates from doctor portal
       // const response = await apiClient.put(API_CONFIG.ENDPOINTS.PATIENTS.BY_UUID(id), patientData);
       // return transformPatientDetail(response.data);

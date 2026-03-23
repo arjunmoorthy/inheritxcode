@@ -21,7 +21,6 @@ import {
   Mail,
   Phone,
   Calendar,
-  MapPin,
   Stethoscope,
   Pill,
   AlertCircle,
@@ -85,6 +84,9 @@ const genderOptions: SelectOption[] = [
   { value: 'Female', label: 'Female' },
   { value: 'Other', label: 'Other' },
 ];
+const locationOptions: SelectOption[] = [
+  { value: 'Honor Health Cancer Care - Deer Valley', label: 'Honor Health Cancer Care - Deer Valley' },
+];
 
 /** Extract user-facing message from API error (e.g. { error, error_code, message, details }) or axios shape */
 function getApiErrorMessage(err: unknown): string {
@@ -124,7 +126,7 @@ export const AddPatientModal: React.FC<AddPatientModalProps> = ({
       mrn: '',
       dateOfBirth: '',
       gender: '',
-      location: '',
+      location: 'Honor Health Cancer Care - Deer Valley',
       diagnosis: '',
       patientStatus: 'active',
       regimenName: '',
@@ -313,19 +315,26 @@ export const AddPatientModal: React.FC<AddPatientModalProps> = ({
                 }}
               />
 
-              {/* Location */}
+               {/* Location */}
               <Controller
                 name="location"
                 control={control}
-                render={({ field }) => (
-                  <Input
-                    {...field}
-                    label="Location"
-                    placeholder="City, State"
-                    icon={<MapPin size={18} />}
-                    fullWidth
-                  />
-                )}
+                render={({ field }) => {
+                  const selectedOption = locationOptions.find(opt => opt.value === field.value);
+                  return (
+                    <Select
+                      label="Location"
+                      options={locationOptions}
+                      value={selectedOption || null}
+                      onChange={(newValue: SingleValue<SelectOption> | MultiValue<SelectOption>) => {
+                        const option = Array.isArray(newValue) ? newValue[0] : newValue;
+                        field.onChange(option?.value as string || '');
+                      }}
+                      placeholder="Select location"
+                      fullWidth
+                    />
+                  );
+                }}
               />
             </div>
           </div>
@@ -403,7 +412,7 @@ export const AddPatientModal: React.FC<AddPatientModalProps> = ({
                   const selectedOption = doctorOptions.find(opt => (field.value ?? []).includes(opt.value as number)) || null;
                   return (
                     <Select
-                      label="Assigned Doctor"
+                      label="Assigned Oncologist"
                       options={doctorOptions}
                       value={selectedOption}
                       isDisabled={isLoadingDoctors}
@@ -516,7 +525,7 @@ export const AddPatientModal: React.FC<AddPatientModalProps> = ({
               />
 
               {/* Oncologist */}
-              <Controller
+              {/* <Controller
                 name="oncologist"
                 control={control}
                 render={({ field }) => (
@@ -528,7 +537,7 @@ export const AddPatientModal: React.FC<AddPatientModalProps> = ({
                     fullWidth
                   />
                 )}
-              />
+              /> */}
 
               {/* Past Medical History */}
               <div className="md:col-span-2">

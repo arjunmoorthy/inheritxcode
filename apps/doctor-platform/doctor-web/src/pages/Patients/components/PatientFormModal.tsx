@@ -17,8 +17,10 @@ import type { SingleValue, MultiValue } from 'react-select';
 import { useThemeMode } from '@oncolife/ui-components';
 import {
   useAddManualPatient,
+  useUpdatePatientProfile,
   useUpdateFaxPatient,
   type AddManualPatientPayload,
+  type PatientProfileUpdatePayload,
   type Patient,
 } from '../../../services/patients';
 import {
@@ -26,7 +28,6 @@ import {
   Mail,
   Phone,
   Calendar,
-  MapPin,
   Stethoscope,
   Pill,
 } from 'lucide-react';
@@ -64,7 +65,7 @@ const defaultFormValues: PatientFormValues = {
   mrn: '',
   dateOfBirth: '',
   gender: '',
-  location: '',
+  location: 'Honor Health Cancer Care - Deer Valley',
   diagnosis: '',
   patientStatus: 'active',
   regimenName: '',
@@ -87,7 +88,7 @@ function patientToFormValues(patient: Patient): PatientFormValues {
     mrn: patient.mrn,
     dateOfBirth: patient.dateOfBirth,
     gender: patient.sex,
-    location: '',
+    location: 'Honor Health Cancer Care - Deer Valley',
     diagnosis: patient.diseaseType,
     patientStatus: 'active',
     regimenName: patient.treatmentType,
@@ -112,8 +113,25 @@ function computeAge(dateOfBirth: string | undefined): number | undefined {
   return age >= 0 ? age : undefined;
 }
 
-function toAddManualPatientPayload(form: PatientFormValues): AddManualPatientPayload {
+function toPatientProfileUpdatePayload(form: PatientFormValues): PatientProfileUpdatePayload {
   return {
+    mrn: form.mrn || undefined,
+    first_name: form.firstName,
+    last_name: form.lastName,
+    email: form.email,
+    phone_number: form.phone || undefined,
+    date_of_birth: form.dateOfBirth || undefined,
+    gender: form.gender || undefined,
+    location: form.location || undefined,
+    regimen_name: form.regimenName || undefined,
+    chemotherapy_day: form.dayOfChemo || undefined,
+    next_chemotherapy_at: form.nextChemoDate ? `${form.nextChemoDate}T12:00:00.000Z` : undefined,
+  };
+}
+
+function toAddManualPatientPayload(form: PatientFormValues, patientUuid?: string): AddManualPatientPayload {
+  return {
+    patient_uuid: patientUuid,
     first_name: form.firstName,
     last_name: form.lastName,
     mrn: form.mrn?.trim() || `MRN${Date.now()}`,
@@ -156,6 +174,9 @@ const genderOptions: SelectOption[] = [
   { value: 'Female', label: 'Female' },
   { value: 'Other', label: 'Other' },
 ];
+const locationOptions: SelectOption[] = [
+  { value: 'Honor Health Cancer Care - Deer Valley', label: 'Honor Health Cancer Care - Deer Valley' },
+];
 
 export type PatientFormModalMode = 'add' | 'edit';
 
@@ -176,7 +197,7 @@ export const PatientFormModal: React.FC<PatientFormModalProps> = ({
   const { isDark } = useThemeMode();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const addMutation = useAddManualPatient();
-  const updateMutation = useUpdateFaxPatient();
+  const updateMutation = useUpdatePatientProfile();
   const { data: doctors = [] } = useStaffListDoctors(open);
   const { user } = useAuth();
 
@@ -222,10 +243,11 @@ export const PatientFormModal: React.FC<PatientFormModalProps> = ({
 
   const handleFormSubmit = async (data: PatientFormValues) => {
     try {
-      const payload = toAddManualPatientPayload(data);
       if (isEdit && patient) {
-        await updateMutation.mutateAsync({ patientId: patient.id, payload });
+        const payload = toPatientProfileUpdatePayload(data);
+        await updateMutation.mutateAsync({ patientUuid: patient.uuid, payload });
       } else {
+        const payload = toAddManualPatientPayload(data);
         await addMutation.mutateAsync(payload);
       }
       reset();
@@ -310,9 +332,22 @@ export const PatientFormModal: React.FC<PatientFormModalProps> = ({
                   />
                 );
               }} />
-              <Controller name="location" control={control} render={({ field }) => (
-                <Input {...field} label="Location" placeholder="City, State" icon={<MapPin size={18} />} fullWidth />
-              )} />
+              <Controller name="location" control={control} render={({ field }) => {
+                const selectedOption = locationOptions.find(opt => opt.value === field.value);
+                return (
+                  <Select
+                    label="Location"
+                    options={locationOptions}
+                    value={selectedOption || null}
+                    onChange={(v: SingleValue<SelectOption> | MultiValue<SelectOption>) => {
+                      const opt = Array.isArray(v) ? v[0] : v;
+                      field.onChange(opt?.value as string || '');
+                    }}
+                    placeholder="Select location"
+                    fullWidth
+                  />
+                );
+              }} />
             </div>
           </div>
 
@@ -358,7 +393,7 @@ export const PatientFormModal: React.FC<PatientFormModalProps> = ({
                 const selectedOption = doctorOptions.find(opt => (field.value ?? []).includes(opt.value as number)) || null;
                 return (
                   <Select
-                    label="Assigned Doctor"
+                    label="Assigned Oncologist"
                     options={doctorOptions}
                     value={selectedOption}
                     onChange={(v: SingleValue<SelectOption> | MultiValue<SelectOption>) => {
@@ -402,9 +437,9 @@ export const PatientFormModal: React.FC<PatientFormModalProps> = ({
               <Controller name="endDate" control={control} render={({ field }) => (
                 <Input {...field} label="Treatment End Date" type="date" icon={<Calendar size={18} />} fullWidth />
               )} />
-              <Controller name="oncologist" control={control} render={({ field }) => (
+              {/* <Controller name="oncologist" control={control} render={({ field }) => (
                 <Input {...field} label="Oncologist" placeholder="e.g., Dr. Sarah Smith" icon={<Stethoscope size={18} />} fullWidth />
-              )} />
+              )} /> */}
               <div className="md:col-span-2">
                 <Controller name="pastMedicalHistory" control={control} render={({ field }) => (
                   <Input {...field} label="Past Medical History" placeholder="e.g., Hypertension, Type 2 Diabetes" fullWidth />

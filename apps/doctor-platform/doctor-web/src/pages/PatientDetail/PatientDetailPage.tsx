@@ -9,7 +9,7 @@
  * - Table data section
  * - Full responsive design
  * - Dark mode support
- */
+ * */
 
 import React, { useEffect, useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -21,13 +21,27 @@ import {
   usePatientDetails,
 } from '../../services/dashboard';
 
+export type PatientProfile = {
+  mrn: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  dateOfBirth: string;
+  location: string;
+  regimenName: string;
+  dayOfChemotherapy: string;
+  nextChemotherapyTreatment: string;
+};
+
 // Components
 import PatientDetailHeader from './components/PatientDetailHeader';
 import FiltersSidebar from './components/FiltersSidebar';
 import GraphSection from './components/GraphSection';
 import PatientDataTable from './components/PatientDataTable';
 import PatientTabs from './components/PatientTabs';
-import PatientProfileModal, { type PatientProfile } from './components/PatientProfileModal';
+import { PatientFormModal } from '../Patients/components/PatientFormModal';
+import type { Patient } from '../../services/patients';
 
 // Symptom colors matching the image
 const symptomColors: Record<string, string> = {
@@ -446,6 +460,27 @@ const PatientDetailPage: React.FC = () => {
   // Static payload is kept only for temporary debugging.
   const timelineData = USE_STATIC_TIMELINE ? STATIC_TIMELINE_DATA : timeline;
 
+  const patientForModal: Patient | null = useMemo(() => {
+    if (!patientDetails) return null;
+    return {
+      id: uuid || '',
+      uuid: uuid || '',
+      firstName: patientProfile.firstName,
+      lastName: patientProfile.lastName,
+      email: patientProfile.email,
+      phoneNumber: patientProfile.phone,
+      mrn: patientProfile.mrn,
+      dateOfBirth: patientProfile.dateOfBirth,
+      sex: (patientDetails as any).gender || 'Other',
+      race: '',
+      physician: (patientDetails as any).physician || '',
+      diseaseType: (patientDetails as any).diagnosis || '',
+      associateClinic: 'Honor Health Cancer Care - Deer Valley',
+      treatmentType: patientDetails.summary || '',
+      physician_ids: (patientDetails as any).physician_ids
+    };
+  }, [patientProfile, patientDetails, uuid]);
+
   const symptomOptions = useMemo(() => {
     const apiSymptoms = (timelineData?.severity_series || []).map((series) => {
       return {
@@ -463,6 +498,79 @@ const PatientDetailPage: React.FC = () => {
   const handleRefreshDashboard = async () => {
     await Promise.all([refetchTimeline(), refetchPatientDetails()]);
   };
+
+  const formatDate = (dateStr: string) => {
+    try {
+      const localDate = parseIsoDateAsLocal(dateStr);
+      if (!localDate) return dateStr;
+      return localDate.toLocaleDateString('en-US', {
+        month: '2-digit',
+        day: '2-digit',
+        year: 'numeric'
+      });
+    } catch {
+      return dateStr;
+    }
+  };
+
+  const formatDateShort = (dateStr: string) => {
+    try {
+      const localDate = parseIsoDateAsLocal(dateStr);
+      if (!localDate) return dateStr;
+      return localDate.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+      });
+    } catch {
+      return dateStr;
+    }
+  };
+
+  const tableData = useMemo(() => {
+    if (!timelineData) return [];
+
+    const dateToTemperature = new Map(
+      timelineData.temperature_series.map((item) => [item.date, item.value] as const)
+    );
+    const severityBySymptomAndDate = new Map<string, string>();
+    timelineData.severity_series.forEach((series) => {
+      const symptomIdKey = series.symptom_id?.trim().toLowerCase();
+      if (!symptomIdKey) return;
+      series.points.forEach((point) => {
+        if (!point?.date) return;
+        const value = point.value?.trim();
+        if (!value) return;
+        severityBySymptomAndDate.set(`${symptomIdKey}|${point.date}`, value);
+      });
+    });
+    const selectedSet = new Set(selectedSymptoms);
+
+    const rows = timelineData.medications
+      .filter((item) => selectedSymptoms.includes('all') || selectedSet.has(toSymptomKey(item.symptom_name)))
+      .filter((item) => {
+        const severityNumeric = severityValueMap[item.severity.toLowerCase()] ?? 0;
+        return severityNumeric >= severityRange[0] && severityNumeric <= severityRange[1];
+      })
+      .map((item) => {
+        const temperature = dateToTemperature.get(item.date);
+        const severityFromSeries = severityBySymptomAndDate.get(
+          `${item.symptom_id?.trim().toLowerCase()}|${item.date}`
+        );
+        const rawSeverity = (severityFromSeries || item.severity || '').trim();
+        return {
+          date: item.date,
+          symptom: toTitleCase(item.symptom_name),
+          severity: rawSeverity ? toTitleCase(rawSeverity) : '--',
+          medicationName: item.medication_name?.trim() ? item.medication_name : '--',
+          medicationFrequency: item.medication_frequency?.trim() ? item.medication_frequency : '--',
+          temperature: typeof temperature === 'number' ? `${temperature.toFixed(1)}°F` : '—',
+        };
+      })
+      .sort((a, b) => b.date.localeCompare(a.date));
+
+    return rows;
+  }, [timelineData, selectedSymptoms, severityRange]);
+
   const handleDownloadReport = () => {
     if (!timelineData && !patientDetails) return;
 
@@ -618,33 +726,6 @@ const PatientDetailPage: React.FC = () => {
     setPage(0);
   };
 
-  const formatDate = (dateStr: string) => {
-    try {
-      const localDate = parseIsoDateAsLocal(dateStr);
-      if (!localDate) return dateStr;
-      return localDate.toLocaleDateString('en-US', {
-        month: '2-digit',
-        day: '2-digit',
-        year: 'numeric'
-      });
-    } catch {
-      return dateStr;
-    }
-  };
-
-  const formatDateShort = (dateStr: string) => {
-    try {
-      const localDate = parseIsoDateAsLocal(dateStr);
-      if (!localDate) return dateStr;
-      return localDate.toLocaleDateString('en-US', {
-        month: 'short',
-        day: 'numeric',
-      });
-    } catch {
-      return dateStr;
-    }
-  };
-
   // Process graph data
   const graphData = useMemo(() => {
     if (!timelineData) return { dates: [], symptoms: [] };
@@ -707,51 +788,6 @@ const PatientDetailPage: React.FC = () => {
     return { dates: sortedDates, symptoms: withTemperature };
   }, [timelineData, selectedSymptoms, severityRange]);
 
-  const tableData = useMemo(() => {
-    if (!timelineData) return [];
-
-    const dateToTemperature = new Map(
-      timelineData.temperature_series.map((item) => [item.date, item.value] as const)
-    );
-    const severityBySymptomAndDate = new Map<string, string>();
-    timelineData.severity_series.forEach((series) => {
-      const symptomIdKey = series.symptom_id?.trim().toLowerCase();
-      if (!symptomIdKey) return;
-      series.points.forEach((point) => {
-        if (!point?.date) return;
-        const value = point.value?.trim();
-        if (!value) return;
-        severityBySymptomAndDate.set(`${symptomIdKey}|${point.date}`, value);
-      });
-    });
-    const selectedSet = new Set(selectedSymptoms);
-
-    const rows = timelineData.medications
-      .filter((item) => selectedSymptoms.includes('all') || selectedSet.has(toSymptomKey(item.symptom_name)))
-      .filter((item) => {
-        const severityNumeric = severityValueMap[item.severity.toLowerCase()] ?? 0;
-        return severityNumeric >= severityRange[0] && severityNumeric <= severityRange[1];
-      })
-      .map((item) => {
-        const temperature = dateToTemperature.get(item.date);
-        const severityFromSeries = severityBySymptomAndDate.get(
-          `${item.symptom_id?.trim().toLowerCase()}|${item.date}`
-        );
-        const rawSeverity = (severityFromSeries || item.severity || '').trim();
-        return {
-          date: item.date,
-          symptom: toTitleCase(item.symptom_name),
-          severity: rawSeverity ? toTitleCase(rawSeverity) : '--',
-          medicationName: item.medication_name?.trim() ? item.medication_name : '--',
-          medicationFrequency: item.medication_frequency?.trim() ? item.medication_frequency : '--',
-          temperature: typeof temperature === 'number' ? `${temperature.toFixed(1)}°F` : '—',
-        };
-      })
-      .sort((a, b) => b.date.localeCompare(a.date));
-
-    return rows;
-  }, [timelineData, selectedSymptoms, severityRange]);
-
   useEffect(() => {
     if (!patientDetails) return;
 
@@ -773,12 +809,6 @@ const PatientDetailPage: React.FC = () => {
       nextChemotherapyTreatment: patientDetails.lastChemoDate ? `${patientDetails.lastChemoDate}T00:00` : '',
     }));
   }, [patientDetails]);
-
-  const handleProfileSave = () => {
-    // Handle save logic here
-    console.log('Saving patient profile:', patientProfile);
-    setIsProfileModalOpen(false);
-  };
 
   return (
     <div className={`flex flex-col flex-1 min-h-0 min-w-0 w-full overflow-hidden ${isDark ? 'bg-[#1A1917]' : 'bg-[rgb(250,248,245)]'} transition-colors duration-200`}>
@@ -908,13 +938,11 @@ const PatientDetailPage: React.FC = () => {
       </div>
 
       {/* Patient Profile Modal */}
-      <PatientProfileModal
+      <PatientFormModal
         open={isProfileModalOpen}
         onClose={() => setIsProfileModalOpen(false)}
-        patientProfile={patientProfile}
-        onProfileChange={setPatientProfile}
-        onSave={handleProfileSave}
-        isDark={isDark}
+        mode="edit"
+        patient={patientForModal}
       />
     </div>
   );
