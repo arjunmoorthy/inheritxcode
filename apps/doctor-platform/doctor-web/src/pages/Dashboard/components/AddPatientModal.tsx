@@ -146,6 +146,23 @@ export const AddPatientModal: React.FC<AddPatientModalProps> = ({
     if (isOpen) setErrorMessage(null);
   }, [isOpen]);
 
+  // Pre-fill doctor/oncologist ONLY if the logged in user is a physician
+  useEffect(() => {
+    if (isOpen && user && user.role === 'physician') {
+      const matchingDoctor = doctors.find((d: any) => d.id === user.staff_id);
+
+      const docId = matchingDoctor ? matchingDoctor.id : user.staff_id;
+      const docName = matchingDoctor
+        ? (matchingDoctor.full_name || `${matchingDoctor.first_name || ''} ${matchingDoctor.last_name || ''}`.trim() || matchingDoctor.email || `Doctor #${matchingDoctor.id}`)
+        : (`${user.first_name || ''} ${user.last_name || ''}`.trim() || user.email || `Doctor #${user.staff_id}`);
+
+      if (docId) {
+        setValue('physicianIds', [docId]);
+        setValue('oncologist', `Dr. ${docName}`.replace('Dr. Dr.', 'Dr.'));
+      }
+    }
+  }, [isOpen, user, doctors.length, setValue]);
+
   const handleFormSubmit = async (data: PatientFormValues) => {
     setErrorMessage(null);
     try {
@@ -399,8 +416,21 @@ export const AddPatientModal: React.FC<AddPatientModalProps> = ({
                     label: doc.full_name || `${doc.first_name || ''} ${doc.last_name || ''}`.trim() || doc.email || `Doctor #${doc.id}`
                   }));
 
-                  // If user is a physician and their id isn't in the list (e.g. 403 API), manually inject to allow assignment
-                  if (user && (user.role === 'physician' || user.role === 'doctor' || user.role === 'admin')) {
+                  // If user is a physician, ONLY show them in the list (filter out other doctors)
+                  if (user?.role === 'physician') {
+                    const myOption = doctorOptions.find(opt => opt.value === user.staff_id);
+                    if (myOption) {
+                      doctorOptions = [myOption];
+                    } else if (user.staff_id) {
+                      doctorOptions = [{
+                        value: user.staff_id,
+                        label: `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.email || `Doctor #${user.staff_id}`
+                      }];
+                    } else {
+                      doctorOptions = [];
+                    }
+                  } else if (user && (user.role === 'doctor' || user.role === 'admin')) {
+                    // For other roles, keep existing behavior of adding themselves to the list if missing
                     if (!doctorOptions.find(opt => opt.value === user.staff_id) && user.staff_id) {
                       doctorOptions.push({
                         value: user.staff_id,
