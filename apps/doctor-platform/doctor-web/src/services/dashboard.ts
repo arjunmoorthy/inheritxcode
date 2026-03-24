@@ -175,6 +175,11 @@ export interface SharedQuestion {
   created_at: string | null;
 }
 
+export interface SharedQuestionsApiResponse {
+  status: string;
+  data: SharedQuestion[];
+}
+
 export interface WeeklyReportSummary {
   report_id: string | null;
   physician_id: string;
@@ -399,12 +404,15 @@ const fetchPatientTimeline = async (
 };
 
 // Fetch patient's shared questions
-const fetchPatientQuestions = async (patientUuid: string): Promise<SharedQuestion[]> => {
+const fetchPatientQuestions = async (patientUuid: string, limit?: number): Promise<SharedQuestion[]> => {
   try {
-    const response = await apiClient.get<SharedQuestion[]>(
-      API_CONFIG.ENDPOINTS.DASHBOARD.PATIENT_QUESTIONS(patientUuid)
+    const params = new URLSearchParams();
+    if (limit) params.set('limit', String(limit));
+    const query = params.toString();
+    const response = await apiClient.get<SharedQuestionsApiResponse>(
+      `${API_CONFIG.ENDPOINTS.DASHBOARD.PATIENT_QUESTIONS(patientUuid)}${query ? `?${query}` : ''}`
     );
-    return response.data;
+    return response.data?.data || [];
   } catch (error) {
     console.error('Error fetching patient questions:', error);
     return [];
@@ -498,10 +506,10 @@ export const usePatientTimeline = (
   });
 };
 
-export const usePatientQuestions = (patientUuid: string) => {
+export const usePatientQuestions = (patientUuid: string, limit?: number) => {
   return useQuery({
-    queryKey: ['patientQuestions', patientUuid],
-    queryFn: () => fetchPatientQuestions(patientUuid),
+    queryKey: ['patientQuestions', patientUuid, limit],
+    queryFn: () => fetchPatientQuestions(patientUuid, limit),
     enabled: !!patientUuid,
   });
 };
