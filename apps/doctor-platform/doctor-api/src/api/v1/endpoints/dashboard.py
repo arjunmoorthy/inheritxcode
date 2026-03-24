@@ -512,29 +512,54 @@ def patient_listing_dashboard(
                 for row in chemo_rows
             }
 
-        response = [
-            {
-                "patient_id": p.id,
-                # UUID used by dashboard trends endpoint: /dashboard/patient/{patient_uuid}/trends
-                "patient_uuid": str(p.user.uuid) if getattr(p, "user", None) and getattr(p.user, "uuid", None) else None,
-                "last_chemo_date": latest_chemo_by_patient.get(
-                    str(p.user.uuid)
-                ) if getattr(p, "user", None) and getattr(p.user, "uuid", None) else None,
-                "first_name": p.first_name,
-                "last_name": p.last_name,
-                "gender": p.gender,
-                "date_of_birth": p.date_of_birth,
-                "age": p.age,
-                "phone_number": p.phone_number,
-                "email": p.email,
-                "mrn": p.mrn,
-                "plan_name": p.plan_name,
-                "start_date": p.start_date,
-                "end_date": p.end_date,
-                "created_at": p.created_at,
-            }
-            for p in patients
-        ]
+        response = []
+        for p in patients:
+            patient_uuid = (
+                str(p.user.uuid)
+                if getattr(p, "user", None) and getattr(p.user, "uuid", None)
+                else None
+            )
+
+            # Resolve assigned oncologist(s) from active physician-patient assignments.
+            assigned_oncologist_names = []
+            for assignment in getattr(p, "physician_assignments", []) or []:
+                if not getattr(assignment, "is_active", False):
+                    continue
+                physician = getattr(assignment, "physician", None)
+                if physician is None:
+                    continue
+                physician_name = (getattr(physician, "full_name", "") or "").strip()
+                if physician_name and physician_name not in assigned_oncologist_names:
+                    assigned_oncologist_names.append(physician_name)
+
+            response.append(
+                {
+                    "patient_id": p.id,
+                    # UUID used by dashboard trends endpoint: /dashboard/patient/{patient_uuid}/trends
+                    "patient_uuid": patient_uuid,
+                    "last_chemo_date": latest_chemo_by_patient.get(patient_uuid) if patient_uuid else None,
+                    "first_name": p.first_name,
+                    "last_name": p.last_name,
+                    "gender": p.gender,
+                    "date_of_birth": p.date_of_birth,
+                    "age": p.age,
+                    "phone_number": p.phone_number,
+                    "email": p.email,
+                    "mrn": p.mrn,
+                    "plan_name": p.plan_name,
+                    "start_date": p.start_date,
+                    "end_date": p.end_date,
+                    "created_at": p.created_at,
+                    # Requested fields
+                    "diagnosis": p.diagnosis,
+                    "location": p.location,
+                    "assigned_oncologist": ", ".join(assigned_oncologist_names) if assigned_oncologist_names else p.oncologist,
+                    "day_of_chemotherapy_treatment": p.chemotherapy_day,
+                    "next_chemotherapy_treatment": p.next_chemotherapy_at,
+                    "past_medical_history": p.past_medical_history,
+                    "past_surgical_history": p.past_surgical_history,
+                }
+            )
 
         return {
             "status": "success",
