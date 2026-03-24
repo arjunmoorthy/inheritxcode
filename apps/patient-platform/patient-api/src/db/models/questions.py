@@ -14,13 +14,13 @@ Database Schema:
 """
 
 import uuid
-from datetime import datetime
-from typing import Optional
-from sqlalchemy import Column, String, Text, Boolean, DateTime, ForeignKey, Index
+
+from sqlalchemy import Column, String, Text, Boolean, ForeignKey, Index
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import relationship
+# relationship intentionally not used here to avoid cross-base mapper issues
 
 from db.base import Base, TimestampMixin
+# relationship uses string name 'ChatPatient' to avoid circular imports
 
 
 class PatientQuestion(Base, TimestampMixin):
@@ -60,10 +60,31 @@ class PatientQuestion(Base, TimestampMixin):
     # Patient reference
     patient_uuid = Column(
         UUID(as_uuid=True),
+        ForeignKey("chat_patients.uuid"),
         nullable=False,
         index=True,
         comment="UUID of the patient"
     )
+
+    # Relationship to local chat_patients (canonical patient identity in patient DB)
+    # NOTE: we intentionally avoid declaring a SQLAlchemy relationship to
+    # `ChatPatient` here. In some deployments the `ChatPatient` model is
+    # defined against a different declarative base/registry which causes the
+    # mapper resolution to fail at import/configure time (see the
+    # InvalidRequestError in the traceback). To keep the model lightweight and
+    # avoid cross-registry mapper issues, we only declare the foreign key.
+    #
+    # To query patient information alongside questions, use an explicit join:
+    #
+    #   from db import patient_models
+    #   session.query(PatientQuestion).join(
+    #       patient_models.ChatPatient,
+    #       patient_models.ChatPatient.uuid == PatientQuestion.patient_uuid,
+    #   )
+    #
+    # If you prefer a convenience relationship attribute, assign it at
+    # application startup after all model modules have been imported and the
+    # appropriate declarative base is registered.
     
     # Question content
     question_text = Column(

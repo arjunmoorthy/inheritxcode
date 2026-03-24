@@ -37,8 +37,11 @@ class AddManualPatientRequest(BaseModel):
     email: Optional[EmailStr] = None
     phone_number: Optional[str] = None
     bmi: Optional[str] = None
+    location: Optional[str] = None
     cancer_type: Optional[str] = None
-    oncologist: Optional[str] = None
+    diagnosis: Optional[str] = None
+    chemotherapy_day: Optional[str] = None
+    next_chemotherapy_date: Optional[str] = None
     physician_ids: Optional[List[int]] = None
     start_date: Optional[str] = None     # e.g. "6/30/2025"
     end_date: Optional[str] = None
@@ -102,8 +105,11 @@ async def add_manual_patient(
         email=email,
         age=request.age,
         bmi=request.bmi,
-        cancer_type=request.cancer_type,
-        oncologist=request.oncologist,
+    location=request.location,
+    cancer_type=request.cancer_type,
+    diagnosis=request.diagnosis,
+    chemotherapy_day=request.chemotherapy_day,
+    next_chemotherapy_at=parse_date(request.next_chemotherapy_date),
         start_date=parse_date(request.start_date),
         end_date=parse_date(request.end_date),
         plan_name=request.plan_name,

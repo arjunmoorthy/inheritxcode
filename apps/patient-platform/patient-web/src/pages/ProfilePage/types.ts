@@ -48,6 +48,28 @@ export interface ProfileFormData {
   emergency_contact_phone: string | null;
 }
 
+export interface ProfileScreenData {
+  first_name: string;
+  last_name: string;
+  email: string;
+  assigned_oncologist: string;
+  treatment_start_date: string;
+  treatment_end_date: string;
+  next_chemotherapy_treatment: string;
+  day_of_chemo_treatment: string;
+  regimen_name: string;
+}
+
+export interface ProfileScreenApiResponse {
+  success: boolean;
+  message: string;
+  data: ProfileScreenData;
+}
+
+export interface UserReviewRequired {
+  // Add any fields needed for review
+}
+
 export interface ProfilePageProps {
   // Add any props if needed
 }

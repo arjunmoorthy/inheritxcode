@@ -28,10 +28,18 @@ export type PatientProfile = {
   email: string;
   phone: string;
   dateOfBirth: string;
-  location: string;
+  gender: string;
   regimenName: string;
   dayOfChemotherapy: string;
   nextChemotherapyTreatment: string;
+  startDate: string;
+  endDate: string;
+  location: string;
+  assignedOncologist: string;
+  dayOfChemotherapyTreatment: string;
+  pastMedicalHistory: string;
+  pastSurgicalHistory: string;
+  diagnosis: string;
 };
 
 // Components
@@ -439,10 +447,18 @@ const PatientDetailPage: React.FC = () => {
     email: 'bobby.johnson@email.com',
     phone: '(555) 123-4567',
     dateOfBirth: '1967-03-15',
-    location: 'Boston, MA',
+    gender: 'Male',
     regimenName: 'Carboplatin + Pemetrexed',
     dayOfChemotherapy: 'Wednesday',
     nextChemotherapyTreatment: '',
+    startDate: '',
+    endDate: '',
+    location: 'Boston, MA',
+    assignedOncologist: '',
+    dayOfChemotherapyTreatment: '',
+    pastMedicalHistory: '',
+    pastSurgicalHistory: '',
+    diagnosis: '',
   });
 
   // Fetch data
@@ -477,6 +493,16 @@ const PatientDetailPage: React.FC = () => {
       diseaseType: (patientDetails as any).diagnosis || '',
       associateClinic: 'Honor Health Cancer Care - Deer Valley',
       treatmentType: patientDetails.summary || '',
+      plan_name: (patientDetails as any).plan_name || patientDetails.summary || '',
+      start_date: (patientDetails as any).startDate || '',
+      end_date: (patientDetails as any).endDate || '',
+      location: (patientDetails as any).location || '',
+      assigned_oncologist: (patientDetails as any).assignedOncologist || '',
+      day_of_chemotherapy_treatment: (patientDetails as any).dayOfChemotherapyTreatment || '',
+      next_chemotherapy_treatment: (patientDetails as any).nextChemotherapyTreatment || '',
+      past_medical_history: (patientDetails as any).pastMedicalHistory || '',
+      past_surgical_history: (patientDetails as any).pastSurgicalHistory || '',
+      diagnosis: (patientDetails as any).diagnosis || '',
       physician_ids: (patientDetails as any).physician_ids
     };
   }, [patientProfile, patientDetails, uuid]);
@@ -803,10 +829,18 @@ const PatientDetailPage: React.FC = () => {
       email: patientDetails.email?.trim() || '--',
       phone: patientDetails.phoneNumber?.trim() || '--',
       dateOfBirth: patientDetails.dateOfBirth?.trim() || '',
-      location: prev.location || '--',
+      gender: patientDetails.gender || '--',
       regimenName: patientDetails.summary?.trim() || '--',
       dayOfChemotherapy: getWeekdayFromIsoDate(patientDetails.lastChemoDate),
       nextChemotherapyTreatment: patientDetails.lastChemoDate ? `${patientDetails.lastChemoDate}T00:00` : '',
+      startDate: (patientDetails as any).startDate || '',
+      endDate: (patientDetails as any).endDate || '',
+      location: (patientDetails as any).location || '--',
+      assignedOncologist: (patientDetails as any).assignedOncologist || '--',
+      dayOfChemotherapyTreatment: (patientDetails as any).dayOfChemotherapyTreatment || '--',
+      pastMedicalHistory: (patientDetails as any).pastMedicalHistory || '--',
+      pastSurgicalHistory: (patientDetails as any).pastSurgicalHistory || '--',
+      diagnosis: (patientDetails as any).diagnosis || '--',
     }));
   }, [patientDetails]);
 
@@ -904,7 +938,7 @@ const PatientDetailPage: React.FC = () => {
             {/* Graph Section */}
             <GraphSection
               graphData={graphData}
-              isLoading={timelineLoading}
+              isLoading={timelineLoading || timelineFetching}
               isDark={isDark}
               isSidebarOpen={isSidebarOpen}
               isChartFullscreen={isChartFullscreen}
@@ -919,6 +953,7 @@ const PatientDetailPage: React.FC = () => {
             <PatientDataTable
               data={tableData}
               isDark={isDark}
+              isLoading={timelineLoading || timelineFetching}
               page={page}
               rowsPerPage={rowsPerPage}
               onPageChange={setPage}

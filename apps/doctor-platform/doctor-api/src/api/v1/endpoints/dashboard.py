@@ -41,6 +41,7 @@ from sqlalchemy.orm import Session
 
 from api.deps import get_current_user, get_patient_db_session, get_doctor_db_session, TokenData
 from services.dashboard_service import DashboardService
+from services.fax_patient_service import parse_date
 from services.audit_service import AuditService
 from core.logging import get_logger
 from core.exceptions import NotFoundError, AuthorizationError
@@ -394,26 +395,31 @@ def patient_listing_dashboard(
     patient_db: Session = Depends(get_patient_db_session),
 ):
     try:
-        query = (
-            db.query(FaxPatient)
-            .join(
-                PhysicianPatient,
-                PhysicianPatient.patient_id == FaxPatient.id
-            )
-        )
+        # query = (
+        #     db.query(FaxPatient)
+        #     .join(
+        #         PhysicianPatient,
+        #         PhysicianPatient.patient_id == FaxPatient.id
+        #     )
+        # )
+
+        query = db.query(FaxPatient)
 
         staff = db.query(Staff).filter(
             Staff.user_id == current_user.id
         ).first()
 
-        if not staff:
+        if not staff and current_user.role != "admin":
             raise HTTPException(
                 status_code=404,
                 detail="Staff not found"
             )
 
         if current_user.role == "physician":
-            query = query.filter(
+            query = query.join(
+                PhysicianPatient,
+                PhysicianPatient.patient_id == FaxPatient.id
+            ).filter(
                 PhysicianPatient.physician_id == staff.id
             )
 
@@ -430,8 +436,21 @@ def patient_listing_dashboard(
             if not physician_ids:
                 return {"status": "success", "count": 0, "data": []}
 
-            query = query.filter(
+            query = query.join(
+                PhysicianPatient,
+                PhysicianPatient.patient_id == FaxPatient.id
+            ).filter(
                 PhysicianPatient.physician_id.in_(physician_ids)
+            )
+        
+        elif current_user.role == "admin":
+            # ✅ No join, no filtering → fetch ALL patients
+            pass
+
+        else:
+            raise HTTPException(
+                status_code=403,
+                detail="Not authorized to view patients"
             )
 
         if search:
@@ -493,29 +512,54 @@ def patient_listing_dashboard(
                 for row in chemo_rows
             }
 
-        response = [
-            {
-                "patient_id": p.id,
-                # UUID used by dashboard trends endpoint: /dashboard/patient/{patient_uuid}/trends
-                "patient_uuid": str(p.user.uuid) if getattr(p, "user", None) and getattr(p.user, "uuid", None) else None,
-                "last_chemo_date": latest_chemo_by_patient.get(
-                    str(p.user.uuid)
-                ) if getattr(p, "user", None) and getattr(p.user, "uuid", None) else None,
-                "first_name": p.first_name,
-                "last_name": p.last_name,
-                "gender": p.gender,
-                "date_of_birth": p.date_of_birth,
-                "age": p.age,
-                "phone_number": p.phone_number,
-                "email": p.email,
-                "mrn": p.mrn,
-                "plan_name": p.plan_name,
-                "start_date": p.start_date,
-                "end_date": p.end_date,
-                "created_at": p.created_at,
-            }
-            for p in patients
-        ]
+        response = []
+        for p in patients:
+            patient_uuid = (
+                str(p.user.uuid)
+                if getattr(p, "user", None) and getattr(p.user, "uuid", None)
+                else None
+            )
+
+            # Resolve assigned oncologist(s) from active physician-patient assignments.
+            assigned_oncologist_names = []
+            for assignment in getattr(p, "physician_assignments", []) or []:
+                if not getattr(assignment, "is_active", False):
+                    continue
+                physician = getattr(assignment, "physician", None)
+                if physician is None:
+                    continue
+                physician_name = (getattr(physician, "full_name", "") or "").strip()
+                if physician_name and physician_name not in assigned_oncologist_names:
+                    assigned_oncologist_names.append(physician_name)
+
+            response.append(
+                {
+                    "patient_id": p.id,
+                    # UUID used by dashboard trends endpoint: /dashboard/patient/{patient_uuid}/trends
+                    "patient_uuid": patient_uuid,
+                    "last_chemo_date": latest_chemo_by_patient.get(patient_uuid) if patient_uuid else None,
+                    "first_name": p.first_name,
+                    "last_name": p.last_name,
+                    "gender": p.gender,
+                    "date_of_birth": p.date_of_birth,
+                    "age": p.age,
+                    "phone_number": p.phone_number,
+                    "email": p.email,
+                    "mrn": p.mrn,
+                    "plan_name": p.plan_name,
+                    "start_date": p.start_date,
+                    "end_date": p.end_date,
+                    "created_at": p.created_at,
+                    # Requested fields
+                    "diagnosis": p.diagnosis,
+                    "location": p.location,
+                    "assigned_oncologist": ", ".join(assigned_oncologist_names) if assigned_oncologist_names else p.oncologist,
+                    "day_of_chemotherapy_treatment": p.chemotherapy_day,
+                    "next_chemotherapy_treatment": p.next_chemotherapy_at,
+                    "past_medical_history": p.past_medical_history,
+                    "past_surgical_history": p.past_surgical_history,
+                }
+            )
 
         return {
             "status": "success",
@@ -635,6 +679,64 @@ class PatientTrendsResponse(BaseModel):
     medications: List[MedicationRow]
     chemo_dates: List[str] = []
     last_chemo_date: Optional[str] = None
+
+
+class SharedQuestionResponse(BaseModel):
+    id: str
+    question_text: str
+    category: Optional[str] = None
+    is_answered: bool
+    created_at: Optional[str] = None
+
+
+@router.get(
+    "/patient/{patient_uuid}/questions",
+    response_model=APIResponse[List[SharedQuestionResponse]],
+    summary="Patient shared questions",
+    description="List all questions for a patient UUID.",
+)
+def get_patient_shared_questions(
+    patient_uuid: UUID,
+    limit: int = Query(50, ge=1, le=200),
+    current_user: User = Depends(require_roles("physician", "nurse", "admin")),
+    patient_db: Session = Depends(get_patient_db_session),
+    doctor_db: Session = Depends(get_doctor_db_session),
+):
+    """
+    Returns questions for the provided patient UUID, after validating that the
+    requester is authorized for this patient assignment.
+    """
+    assert_staff_can_access_dashboard_patient(doctor_db, current_user, patient_uuid)
+
+    rows = patient_db.execute(
+        text(
+            """
+        SELECT id, question_text, category, is_answered, created_at
+        FROM patient_questions
+        WHERE patient_uuid = :patient_uuid
+        ORDER BY created_at DESC
+        LIMIT :limit
+        """
+        ),
+        {"patient_uuid": str(patient_uuid), "limit": limit},
+    ).mappings().all()
+
+    questions = [
+        SharedQuestionResponse(
+            id=str(r["id"]),
+            question_text=r["question_text"],
+            category=r["category"],
+            is_answered=bool(r["is_answered"]),
+            created_at=r["created_at"].isoformat() if r.get("created_at") else None,
+        )
+        for r in rows
+    ]
+
+    return APIResponse(
+        success=True,
+        message="Patient questions fetched successfully",
+        data=questions,
+    )
 
 
 @router.get(
@@ -967,17 +1069,28 @@ def assert_staff_can_access_dashboard_patient(
 
 
 class PatientProfileUpdateRequest(BaseModel):
-    mrn: Optional[str] = None
+    # Match AddManualPatientRequest payload (all optional)
     first_name: Optional[str] = None
     last_name: Optional[str] = None
+    mrn: Optional[str] = None
+    date_of_birth: Optional[str] = None  # accepts same formats as AddManualPatientRequest
+    age: Optional[int] = None
+    gender: Optional[str] = None
     email: Optional[EmailStr] = None
     phone_number: Optional[str] = None
-    date_of_birth: Optional[date] = None
-    gender: Optional[str] = None
+    bmi: Optional[str] = None
     location: Optional[str] = None
+    cancer_type: Optional[str] = None
+    diagnosis: Optional[str] = None
+    physician_ids: Optional[List[int]] = None
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
+    plan_name: Optional[str] = None
     regimen_name: Optional[str] = None
+    past_medical_history: Optional[str] = None
+    past_surgical_history: Optional[str] = None
     chemotherapy_day: Optional[str] = None
-    next_chemotherapy_at: Optional[datetime] = None
+    next_chemotherapy_date: Optional[str] = None
 
 
 class PatientProfileResponse(BaseModel):
@@ -988,11 +1101,21 @@ class PatientProfileResponse(BaseModel):
     email: Optional[str] = None
     phone_number: Optional[str] = None
     date_of_birth: Optional[str] = None
+    age: Optional[int] = None
     gender: Optional[str] = None
+    bmi: Optional[str] = None
     location: Optional[str] = None
+    cancer_type: Optional[str] = None
+    diagnosis: Optional[str] = None
+    plan_name: Optional[str] = None
     regimen_name: Optional[str] = None
+    past_medical_history: Optional[str] = None
+    past_surgical_history: Optional[str] = None
     chemotherapy_day: Optional[str] = None
     next_chemotherapy_at: Optional[str] = None
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
+    physician_ids: Optional[List[int]] = None
 
 
 def _patient_profile_response_from_fax(
@@ -1009,13 +1132,23 @@ def _patient_profile_response_from_fax(
         date_of_birth=fax_patient.date_of_birth.isoformat()
         if fax_patient.date_of_birth
         else None,
+        age=fax_patient.age,
         gender=fax_patient.gender,
+        bmi=fax_patient.bmi,
         location=fax_patient.location,
+        cancer_type=fax_patient.cancer_type,
+        diagnosis=fax_patient.diagnosis,
+        plan_name=fax_patient.plan_name,
         regimen_name=fax_patient.regimen_name,
+        past_medical_history=fax_patient.past_medical_history,
+        past_surgical_history=fax_patient.past_surgical_history,
         chemotherapy_day=fax_patient.chemotherapy_day,
         next_chemotherapy_at=fax_patient.next_chemotherapy_at.isoformat()
         if fax_patient.next_chemotherapy_at
         else None,
+        start_date=fax_patient.start_date.isoformat() if fax_patient.start_date else None,
+        end_date=fax_patient.end_date.isoformat() if fax_patient.end_date else None,
+        physician_ids=[a.physician_id for a in getattr(fax_patient, "physician_assignments", [])],
     )
 
 
@@ -1178,9 +1311,11 @@ def patch_patient_profile(
     if "phone_number" in data:
         fax_patient.phone_number = data["phone_number"]
     if "date_of_birth" in data:
-        fax_patient.date_of_birth = data["date_of_birth"]
-        if data["date_of_birth"]:
-            fax_patient.age = _age_from_dob(data["date_of_birth"])
+        # Accept same date formats as AddManualPatientRequest; parse into a date
+        dob_parsed = parse_date(data["date_of_birth"]) if data["date_of_birth"] else None
+        fax_patient.date_of_birth = dob_parsed
+        if dob_parsed:
+            fax_patient.age = _age_from_dob(dob_parsed)
     if "gender" in data:
         fax_patient.gender = data["gender"]
     if "location" in data:
@@ -1189,13 +1324,50 @@ def patch_patient_profile(
         fax_patient.regimen_name = data["regimen_name"]
     if "chemotherapy_day" in data:
         fax_patient.chemotherapy_day = data["chemotherapy_day"]
-    if "next_chemotherapy_at" in data:
-        fax_patient.next_chemotherapy_at = data["next_chemotherapy_at"]
+    # Support the same payload field name as AddManualPatientRequest
+    if "next_chemotherapy_date" in data:
+        fax_patient.next_chemotherapy_at = parse_date(data["next_chemotherapy_date"])
+
+    # Additional fields matching AddManualPatientRequest
+    if "bmi" in data:
+        fax_patient.bmi = data["bmi"]
+    if "cancer_type" in data:
+        fax_patient.cancer_type = data["cancer_type"]
+    if "diagnosis" in data:
+        fax_patient.diagnosis = data["diagnosis"]
+    if "age" in data:
+        fax_patient.age = data["age"]
+    if "plan_name" in data:
+        fax_patient.plan_name = data["plan_name"]
+    if "past_medical_history" in data:
+        fax_patient.past_medical_history = data["past_medical_history"]
+    if "past_surgical_history" in data:
+        fax_patient.past_surgical_history = data["past_surgical_history"]
+    if "start_date" in data:
+        fax_patient.start_date = parse_date(data["start_date"])
+    if "end_date" in data:
+        fax_patient.end_date = parse_date(data["end_date"])
 
     doctor_db.commit()
     doctor_db.refresh(fax_patient)
     if patient_user:
         doctor_db.refresh(patient_user)
+
+    # Update physician assignments if provided: replace existing with provided list
+    if "physician_ids" in data:
+        # remove existing active assignments for this patient
+        doctor_db.query(PhysicianPatient).filter(PhysicianPatient.patient_id == fax_patient.id).delete()
+        if data["physician_ids"]:
+            for physician_id in data["physician_ids"]:
+                physician = doctor_db.query(Staff).filter(Staff.id == physician_id).first()
+                if not physician:
+                    raise HTTPException(status_code=404, detail=f"Staff with id {physician_id} not found")
+                if physician.role != "physician":
+                    raise HTTPException(status_code=400, detail=f"Staff id {physician_id} is not a physician")
+                assignment = PhysicianPatient(physician_id=physician_id, patient_id=fax_patient.id)
+                doctor_db.add(assignment)
+        doctor_db.commit()
+        doctor_db.refresh(fax_patient)
 
     pi_updates: Dict[str, Any] = {}
     if "first_name" in data:
