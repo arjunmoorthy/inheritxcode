@@ -87,17 +87,17 @@ function patientToFormValues(patient: Patient): PatientFormValues {
     mrn: patient.mrn,
     dateOfBirth: patient.dateOfBirth,
     gender: patient.sex,
-    location: 'Honor Health Cancer Care - Deer Valley',
-    diagnosis: patient.diseaseType,
+    location: patient.location || 'Honor Health Cancer Care - Deer Valley',
+    diagnosis: patient.diagnosis || patient.cancer_type || patient.diseaseType || '',
     patientStatus: 'active',
-    regimenName: patient.treatmentType,
-    dayOfChemo: '',
-    treatmentStartDate: '',
-    nextChemoDate: '',
-    endDate: '',
-    oncologist: patient.physician,
-    pastMedicalHistory: '',
-    pastSurgicalHistory: '',
+    regimenName: patient.plan_name || patient.treatmentType || '',
+    dayOfChemo: patient.chemotherapy_day || '',
+    treatmentStartDate: patient.start_date?.split('T')[0] || '',
+    nextChemoDate: patient.next_chemotherapy_date || '',
+    endDate: patient.end_date?.split('T')[0] || '',
+    oncologist: patient.assigned_oncologist || patient.physician || '',
+    pastMedicalHistory: patient.past_medical_history || '',
+    pastSurgicalHistory: patient.past_surgical_history || '',
     physicianIds: patient.physician_ids || [],
   };
 }
@@ -114,40 +114,60 @@ function computeAge(dateOfBirth: string | undefined): number | undefined {
 
 function toPatientProfileUpdatePayload(form: PatientFormValues): PatientProfileUpdatePayload {
   return {
-    mrn: form.mrn || undefined,
     first_name: form.firstName,
     last_name: form.lastName,
+    mrn: form.mrn || '',
+    date_of_birth: form.dateOfBirth || '',
+    age: computeAge(form.dateOfBirth) ?? 0,
+    gender: form.gender || '',
     email: form.email,
-    phone_number: form.phone || undefined,
-    date_of_birth: form.dateOfBirth || undefined,
-    gender: form.gender || undefined,
-    location: form.location || undefined,
-    regimen_name: form.regimenName || undefined,
-    chemotherapy_day: form.dayOfChemo || undefined,
-    next_chemotherapy_at: form.nextChemoDate ? `${form.nextChemoDate}T12:00:00.000Z` : undefined,
+    phone_number: form.phone || '',
+    location: form.location || '',
+    cancer_type: form.diagnosis,
+    diagnosis: form.diagnosis,
+    physician_ids: form.physicianIds && form.physicianIds.length > 0 ? form.physicianIds : [],
+    start_date: form.treatmentStartDate || '',
+    end_date: form.endDate || '',
+    plan_name: form.regimenName || '',
+    regimen_name: form.regimenName || '',
+    past_medical_history: form.pastMedicalHistory || '',
+    past_surgical_history: form.pastSurgicalHistory || '',
+    chemotherapy_day: form.dayOfChemo || '',
+    day_of_chemotherapy_treatment: form.dayOfChemo || '',
+    next_chemotherapy_date: form.nextChemoDate || '',
+    next_chemotherapy_treatment: form.nextChemoDate || '',
   };
 }
 
-function toAddManualPatientPayload(form: PatientFormValues, patientUuid?: string): AddManualPatientPayload {
-  return {
-    patient_uuid: patientUuid,
+function toAddManualPatientPayload(form: PatientFormValues): AddManualPatientPayload {
+  const payload: AddManualPatientPayload = {
     first_name: form.firstName,
     last_name: form.lastName,
     mrn: form.mrn?.trim() || `MRN${Date.now()}`,
-    date_of_birth: form.dateOfBirth || undefined,
-    age: computeAge(form.dateOfBirth),
-    gender: form.gender || undefined,
+    date_of_birth: form.dateOfBirth || '',
+    age: computeAge(form.dateOfBirth) ?? 0,
+    gender: form.gender || '',
     email: form.email,
-    phone_number: form.phone || undefined,
-    cancer_type: form.diagnosis,
-    oncologist: form.oncologist || undefined,
-    start_date: form.treatmentStartDate || undefined,
-    end_date: form.endDate || undefined,
-    plan_name: form.regimenName || undefined,
-    past_medical_history: form.pastMedicalHistory || undefined,
-    past_surgical_history: form.pastSurgicalHistory || undefined,
-    physician_ids: form.physicianIds && form.physicianIds.length > 0 ? form.physicianIds : undefined,
+    phone_number: form.phone || '',
+    location: form.location || '',
+    cancer_type: form.diagnosis || '',
+    diagnosis: form.diagnosis || '',
+    oncologist: form.oncologist || '',
+    chemotherapy_day: form.dayOfChemo || '',
+    day_of_chemotherapy_treatment: form.dayOfChemo || '',
+    next_chemotherapy_date: form.nextChemoDate || '',
+    next_chemotherapy_treatment: form.nextChemoDate || '',
+    physician_ids: form.physicianIds && form.physicianIds.length > 0 ? form.physicianIds : [],
+    start_date: form.treatmentStartDate || '',
+    end_date: form.endDate || '',
+    plan_name: form.regimenName || '',
+    regimen_name: form.regimenName || '',
+    past_medical_history: form.pastMedicalHistory || '',
+    past_surgical_history: form.pastSurgicalHistory || '',
   };
+
+  console.log('Final Add Patient Payload:', payload);
+  return payload;
 }
 
 const patientStatusOptions: SelectOption[] = [
@@ -216,18 +236,32 @@ export const PatientFormModal: React.FC<PatientFormModalProps> = ({
   useEffect(() => {
     if (open) {
       if (isEdit && patient) {
-        reset(patientToFormValues(patient));
+        const formValues = patientToFormValues(patient);
+
+        // Fallback: If physicianIds is empty but oncologist name exists, try to match by name
+        if ((!formValues.physicianIds || formValues.physicianIds.length === 0) && (patient.assigned_oncologist || patient.physician) && doctors.length > 0) {
+          const oncologistName = (patient.assigned_oncologist || patient.physician || '').toLowerCase();
+          const matchingDoctor = doctors.find(doc => {
+            const fullName = (doc.full_name || `${doc.first_name || ''} ${doc.last_name || ''}`).toLowerCase();
+            return fullName.includes(oncologistName) || oncologistName.includes(fullName);
+          });
+
+          if (matchingDoctor) {
+            formValues.physicianIds = [matchingDoctor.id];
+          }
+        }
+
+        reset(formValues);
       } else {
         reset(defaultFormValues);
       }
     }
-  }, [open, isEdit, patient, reset]);
+  }, [open, isEdit, patient, reset, doctors]);
 
   // Pre-fill doctor/oncologist ONLY if the logged in user is a physician
   useEffect(() => {
     if (open && user && user.role === 'physician') {
       const isPhysician = user.role === 'physician'; // Always true here now
-      
       // For physicians, we always want to ensure it's set to them if it's a new patient or if they are editing
       if (!isEdit || isPhysician) {
         const matchingDoctor = doctors.find((d: any) => d.id === user.staff_id);
