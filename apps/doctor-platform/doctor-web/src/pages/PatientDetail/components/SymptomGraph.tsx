@@ -100,7 +100,7 @@ const SymptomGraph: React.FC<SymptomGraphProps> = ({
     }
   });
 
-  const severityLevels = ['relieved', 'mild', 'moderate', 'severe', 'very severe'];
+  const severityLevels = ['Very Severe', 'Severe', 'Moderate', 'Mild', 'Relieved'];
   const chemoDateIndex = useMemo(() => {
     if (!lastChemoDate) return null;
     const index = dates.indexOf(lastChemoDate);
@@ -245,12 +245,12 @@ const SymptomGraph: React.FC<SymptomGraphProps> = ({
           </div>
         )}
         {/* Y-axis labels - Severity (left) */}
-        <div className="absolute left-0 top-0 bottom-0 flex flex-col justify-between py-3 px-1.5" style={{ width: chartPadding.left }}>
+        <div className="absolute left-0" style={{ width: chartPadding.left, top: chartPadding.top, bottom: chartPadding.bottom }}>
           {severityLevels.map((level, i) => (
             <span 
               key={level}
-              className={`text-[10px] sm:text-xs ${isDark ? 'text-slate-400' : 'text-slate-600'}`}
-              style={{ marginTop: i === 0 ? 0 : -10 }}
+              className={`absolute left-1.5 text-[10px] sm:text-xs ${isDark ? 'text-slate-400' : 'text-slate-600'}`}
+              style={{ top: `${(i / (severityLevels.length - 1)) * 100}%`, transform: 'translateY(-50%)' }}
             >
               {level}
             </span>
@@ -258,15 +258,12 @@ const SymptomGraph: React.FC<SymptomGraphProps> = ({
         </div>
 
         {/* Y-axis labels - Temperature (right) */}
-        <div
-          className="absolute right-0 top-0 bottom-0 flex flex-col justify-between items-end py-3 pr-2"
-          style={{ width: chartPadding.right }}
-        >
+        <div className="absolute right-0" style={{ width: chartPadding.right, top: chartPadding.top, bottom: chartPadding.bottom }}>
           {tempScale.levels.map((temp, i) => (
             <span 
               key={temp}
-              className={`text-[10px] sm:text-xs text-right ${isDark ? 'text-slate-400' : 'text-slate-600'}`}
-              style={{ marginTop: i === 0 ? 0 : -10 }}
+              className={`absolute right-2 text-[10px] sm:text-xs text-right ${isDark ? 'text-slate-400' : 'text-slate-600'}`}
+              style={{ top: `${(i / (tempScale.levels.length - 1)) * 100}%`, transform: 'translateY(-50%)' }}
             >
               {i === 0 ? '°F' : temp.toString()}
             </span>
