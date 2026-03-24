@@ -656,6 +656,64 @@ class PatientTrendsResponse(BaseModel):
     last_chemo_date: Optional[str] = None
 
 
+class SharedQuestionResponse(BaseModel):
+    id: str
+    question_text: str
+    category: Optional[str] = None
+    is_answered: bool
+    created_at: Optional[str] = None
+
+
+@router.get(
+    "/patient/{patient_uuid}/questions",
+    response_model=APIResponse[List[SharedQuestionResponse]],
+    summary="Patient shared questions",
+    description="List all questions for a patient UUID.",
+)
+def get_patient_shared_questions(
+    patient_uuid: UUID,
+    limit: int = Query(50, ge=1, le=200),
+    current_user: User = Depends(require_roles("physician", "nurse", "admin")),
+    patient_db: Session = Depends(get_patient_db_session),
+    doctor_db: Session = Depends(get_doctor_db_session),
+):
+    """
+    Returns questions for the provided patient UUID, after validating that the
+    requester is authorized for this patient assignment.
+    """
+    assert_staff_can_access_dashboard_patient(doctor_db, current_user, patient_uuid)
+
+    rows = patient_db.execute(
+        text(
+            """
+        SELECT id, question_text, category, is_answered, created_at
+        FROM patient_questions
+        WHERE patient_uuid = :patient_uuid
+        ORDER BY created_at DESC
+        LIMIT :limit
+        """
+        ),
+        {"patient_uuid": str(patient_uuid), "limit": limit},
+    ).mappings().all()
+
+    questions = [
+        SharedQuestionResponse(
+            id=str(r["id"]),
+            question_text=r["question_text"],
+            category=r["category"],
+            is_answered=bool(r["is_answered"]),
+            created_at=r["created_at"].isoformat() if r.get("created_at") else None,
+        )
+        for r in rows
+    ]
+
+    return APIResponse(
+        success=True,
+        message="Patient questions fetched successfully",
+        data=questions,
+    )
+
+
 @router.get(
     "/patient/{patient_uuid}/trends",
     response_model=PatientTrendsResponse,
