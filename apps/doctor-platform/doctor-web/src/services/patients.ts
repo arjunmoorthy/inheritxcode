@@ -85,7 +85,9 @@ interface BackendPatientDetail {
   past_medical_history?: string;
   past_surgical_history?: string;
   chemotherapy_day?: string;
+  day_of_chemotherapy_treatment?: string;
   next_chemotherapy_date?: string;
+  next_chemotherapy_treatment?: string;
 }
 
 interface PatientListingApiResponse {
@@ -143,7 +145,9 @@ const transformPatientDetail = (backend: BackendPatientDetail): Patient => ({
   past_medical_history: backend.past_medical_history,
   past_surgical_history: backend.past_surgical_history,
   chemotherapy_day: backend.chemotherapy_day,
+  day_of_chemotherapy_treatment: backend.day_of_chemotherapy_treatment,
   next_chemotherapy_date: backend.next_chemotherapy_date,
+  next_chemotherapy_treatment: backend.next_chemotherapy_treatment,
 });
 
 // =============================================================================

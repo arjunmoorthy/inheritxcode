@@ -89,6 +89,7 @@ function toAddManualPatientPayload(form: PatientFormValues): AddManualPatientPay
     gender: form.gender || undefined,
     email: form.email,
     phone_number: form.phone || undefined,
+    location: form.location || undefined,
     cancer_type: form.diagnosis,
     oncologist: form.oncologist || undefined,
     start_date: form.treatmentStartDate || undefined,
@@ -96,6 +97,10 @@ function toAddManualPatientPayload(form: PatientFormValues): AddManualPatientPay
     plan_name: form.regimenName || undefined,
     past_medical_history: form.pastMedicalHistory || undefined,
     past_surgical_history: form.pastSurgicalHistory || undefined,
+    chemotherapy_day: form.dayOfChemo || undefined,
+    day_of_chemotherapy_treatment: form.dayOfChemo || undefined,
+    next_chemotherapy_date: form.nextChemoDate || undefined,
+    next_chemotherapy_treatment: form.nextChemoDate || undefined,
     physician_ids: form.physicianIds && form.physicianIds.length > 0 ? form.physicianIds : undefined,
   };
 }
@@ -182,6 +187,13 @@ const DashboardPage: React.FC = () => {
     const fromApi = patient.lastChemoDate ?? p.last_chemo_date ?? null;
     const normalized = fromApi ? String(fromApi).trim() : '';
     if (normalized && normalized !== 'null' && normalized !== 'None') return normalized;
+    return 'N/A';
+  };
+
+  const getNextChemo = (patient: PatientSummary): string => {
+    const fromApi = patient.nextChemotherapyTreatment ?? (patient as any).next_chemotherapy_date ?? (patient as any).next_chemotherapy_treatment ?? null;
+    const normalized = fromApi ? String(fromApi).trim() : '';
+    if (normalized && normalized !== 'null' && normalized !== 'None' && normalized !== '') return normalized;
     return 'N/A';
   };
 
@@ -827,6 +839,7 @@ const mapSeverityToPriority = (severity: string | null | undefined): 'low' | 'me
                 const severity = getSeverity(patient);
                 const lastChemo = getLastChemo(patient);
                 const lastChatbot = patient.lastUpdated || '';
+                const nextChemo = getNextChemo(patient);
                 const dob = patient.dateOfBirth || (patient as any).date_of_birth || '';
                 const patientRouteId = getPatientRouteId(patient);
 
@@ -900,7 +913,15 @@ const mapSeverityToPriority = (severity: string | null | undefined): 'low' | 'me
                               <div className="flex items-center gap-1">
                                 <span className={`text-xs shrink-0 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Last Chemo: </span>
                                 <span className={`text-sm ${isDark ? 'text-[#F5F3EE]' : 'text-slate-900'}`}>{formatDateShort(lastChemo)}</span>
-
+                              </div>
+                            </div>
+                          )}
+                          {nextChemo && nextChemo !== 'N/A' && (
+                            <div className="flex items-center gap-2">
+                              <Calendar size={14} className={`flex-shrink-0 ${isDark ? 'text-sky-400' : 'text-sky-600'}`} />
+                              <div className="flex items-center gap-1">
+                                <span className={`text-xs shrink-0 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Next Chemo: </span>
+                                <span className={`text-sm ${isDark ? 'text-[#F5F3EE]' : 'text-slate-900'}`}>{formatDateShort(nextChemo)}</span>
                               </div>
                             </div>
                           )}

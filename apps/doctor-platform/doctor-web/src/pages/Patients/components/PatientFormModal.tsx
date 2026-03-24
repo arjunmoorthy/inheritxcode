@@ -79,6 +79,7 @@ const defaultFormValues: PatientFormValues = {
 };
 
 function patientToFormValues(patient: Patient): PatientFormValues {
+  console.log('Patient:', patient);
   return {
     firstName: patient.firstName,
     lastName: patient.lastName,
@@ -91,9 +92,9 @@ function patientToFormValues(patient: Patient): PatientFormValues {
     diagnosis: patient.diagnosis || patient.cancer_type || patient.diseaseType || '',
     patientStatus: 'active',
     regimenName: patient.plan_name || patient.treatmentType || '',
-    dayOfChemo: patient.chemotherapy_day || '',
+    dayOfChemo: (patient.chemotherapy_day || (patient as any).day_of_chemotherapy_treatment) || '',
     treatmentStartDate: patient.start_date?.split('T')[0] || '',
-    nextChemoDate: patient.next_chemotherapy_date || '',
+    nextChemoDate: (patient.next_chemotherapy_treatment || (patient as any).next_chemotherapy_treatment) || '',
     endDate: patient.end_date?.split('T')[0] || '',
     oncologist: patient.assigned_oncologist || patient.physician || '',
     pastMedicalHistory: patient.past_medical_history || '',

@@ -938,7 +938,7 @@ const PatientDetailPage: React.FC = () => {
             {/* Graph Section */}
             <GraphSection
               graphData={graphData}
-              isLoading={timelineLoading}
+              isLoading={timelineLoading || timelineFetching}
               isDark={isDark}
               isSidebarOpen={isSidebarOpen}
               isChartFullscreen={isChartFullscreen}
@@ -953,6 +953,7 @@ const PatientDetailPage: React.FC = () => {
             <PatientDataTable
               data={tableData}
               isDark={isDark}
+              isLoading={timelineLoading || timelineFetching}
               page={page}
               rowsPerPage={rowsPerPage}
               onPageChange={setPage}
