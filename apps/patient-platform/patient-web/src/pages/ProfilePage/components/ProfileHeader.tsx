@@ -14,12 +14,14 @@ import type { ProfileData } from '../types';
 
 interface ProfileHeaderProps {
   profile: ProfileData;
+  isEditing?: boolean;
   onEditProfile: () => void;
   onEditImage: () => void;
 }
 
 const ProfileHeader: React.FC<ProfileHeaderProps> = ({
   profile,
+  isEditing = false,
   onEditProfile,
   onEditImage,
 }) => {
@@ -46,9 +48,11 @@ const ProfileHeader: React.FC<ProfileHeaderProps> = ({
         </ProfileEmail>
       </ProfileInfo>
       
-      <EditProfileButton onClick={onEditProfile}>
-        Edit Profile
-      </EditProfileButton>
+      {!isEditing && (
+        <EditProfileButton onClick={onEditProfile}>
+          Edit Profile
+        </EditProfileButton>
+      )}
     </ProfileInfoHeader>
   );
 };

@@ -234,7 +234,8 @@ export const SectionTitle = styled.h3`
   display: flex;
   align-items: center;
   gap: 8px;
-  
+  margin-top: 20px;
+  padding: 4px;
   &::after {
     content: '';
     flex: 1;

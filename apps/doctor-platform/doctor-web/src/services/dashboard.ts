@@ -54,6 +54,12 @@ export interface PatientListingApiItem {
   disease_type?: string | null;
   /** Last chemotherapy date from API */
   last_chemo_date?: string | null;
+  location?: string | null;
+  assigned_oncologist?: string | null;
+  day_of_chemotherapy_treatment?: string | null;
+  next_chemotherapy_treatment?: string | null;
+  past_medical_history?: string | null;
+  past_surgical_history?: string | null;
 }
 
 export interface PatientListingApiResponse {
@@ -69,6 +75,9 @@ export interface PatientSummary {
   lastName?: string;
   dateOfBirth: string;
   mrn: string;
+  gender: string;
+  startDate: string;
+  endDate: string;
   symptoms: string;
   summary: string;
   lastUpdated: string;
@@ -83,6 +92,13 @@ export interface PatientSummary {
   diagnosis?: string | null;
   /** Last chemotherapy date from API when available */
   lastChemoDate?: string | null;
+  location?: string | null;
+  assignedOncologist?: string | null;
+  dayOfChemotherapyTreatment?: string | null;
+  nextChemotherapyTreatment?: string | null;
+  pastMedicalHistory?: string | null;
+  pastSurgicalHistory?: string | null;
+  plan_name?: string;
 }
 
 export interface PatientRanking {
@@ -157,6 +173,11 @@ export interface SharedQuestion {
   category: string | null;
   is_answered: boolean;
   created_at: string | null;
+}
+
+export interface SharedQuestionsApiResponse {
+  status: string;
+  data: SharedQuestion[];
 }
 
 export interface WeeklyReportSummary {
@@ -273,6 +294,7 @@ const transformListingToSummary = (item: PatientListingApiItem): PatientSummary 
     undefined,
   patientName: `${item.first_name || ''} ${item.last_name || ''}`.trim() || 'Unknown',
   firstName: item.first_name || undefined,
+  gender: item.gender || '',
   lastName: item.last_name || undefined,
   dateOfBirth: item.date_of_birth || '',
   mrn: (item.mrn && String(item.mrn)) || String(item.patient_id),
@@ -288,6 +310,15 @@ const transformListingToSummary = (item: PatientListingApiItem): PatientSummary 
   phoneNumber: item.phone_number || undefined,
   diagnosis: item.diagnosis ?? item.cancer_type ?? item.disease_type ?? undefined,
   lastChemoDate: item.last_chemo_date ?? null,
+  startDate: item.start_date || '',
+  endDate: item.end_date || '',
+  location: item.location || undefined,
+  assignedOncologist: item.assigned_oncologist || undefined,
+  dayOfChemotherapyTreatment: item.day_of_chemotherapy_treatment || undefined,
+  nextChemotherapyTreatment: item.next_chemotherapy_treatment || undefined,
+  pastMedicalHistory: item.past_medical_history || undefined,
+  pastSurgicalHistory: item.past_surgical_history || undefined,
+  plan_name: item.plan_name || undefined,
 });
 
 // Fetch dashboard landing (ranked patient list)
@@ -373,12 +404,15 @@ const fetchPatientTimeline = async (
 };
 
 // Fetch patient's shared questions
-const fetchPatientQuestions = async (patientUuid: string): Promise<SharedQuestion[]> => {
+const fetchPatientQuestions = async (patientUuid: string, limit?: number): Promise<SharedQuestion[]> => {
   try {
-    const response = await apiClient.get<SharedQuestion[]>(
-      API_CONFIG.ENDPOINTS.DASHBOARD.PATIENT_QUESTIONS(patientUuid)
+    const params = new URLSearchParams();
+    if (limit) params.set('limit', String(limit));
+    const query = params.toString();
+    const response = await apiClient.get<SharedQuestionsApiResponse>(
+      `${API_CONFIG.ENDPOINTS.DASHBOARD.PATIENT_QUESTIONS(patientUuid)}${query ? `?${query}` : ''}`
     );
-    return response.data;
+    return response.data?.data || [];
   } catch (error) {
     console.error('Error fetching patient questions:', error);
     return [];
@@ -472,10 +506,10 @@ export const usePatientTimeline = (
   });
 };
 
-export const usePatientQuestions = (patientUuid: string) => {
+export const usePatientQuestions = (patientUuid: string, limit?: number) => {
   return useQuery({
-    queryKey: ['patientQuestions', patientUuid],
-    queryFn: () => fetchPatientQuestions(patientUuid),
+    queryKey: ['patientQuestions', patientUuid, limit],
+    queryFn: () => fetchPatientQuestions(patientUuid, limit),
     enabled: !!patientUuid,
   });
 };
@@ -532,6 +566,9 @@ export const usePatientDetails = (patientId: string) => {
         symptoms: timeline.severity_series.map((item) => item.symptom_name).join(', '),
         summary: '',
         lastUpdated: '',
+        gender: '',
+        endDate: '',
+        startDate: '',
         status: 'active',
         priority: 'medium',
         maxSeverity: null,

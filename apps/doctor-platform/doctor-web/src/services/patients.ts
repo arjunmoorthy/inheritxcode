@@ -31,6 +31,19 @@ export interface Patient {
   associateClinic: string;
   treatmentType: string;
   physician_ids?: number[];
+  cancer_type?: string;
+  diagnosis?: string;
+  start_date?: string;
+  end_date?: string;
+  plan_name?: string;
+  past_medical_history?: string;
+  past_surgical_history?: string;
+  chemotherapy_day?: string;
+  next_chemotherapy_date?: string;
+  location?: string;
+  assigned_oncologist?: string;
+  day_of_chemotherapy_treatment?: string;
+  next_chemotherapy_treatment?: string;
 }
 
 export interface ConversationSummary {
@@ -63,6 +76,18 @@ interface BackendPatientDetail {
   treatment_type?: string;
   created_at?: string;
   mrn?: string;
+  cancer_type?: string;
+  diagnosis?: string;
+  physician_ids?: number[];
+  start_date?: string;
+  end_date?: string;
+  plan_name?: string;
+  past_medical_history?: string;
+  past_surgical_history?: string;
+  chemotherapy_day?: string;
+  day_of_chemotherapy_treatment?: string;
+  next_chemotherapy_date?: string;
+  next_chemotherapy_treatment?: string;
 }
 
 interface PatientListingApiResponse {
@@ -82,9 +107,18 @@ const transformListingToPatient = (item: PatientListingApiItem): Patient => ({
   race: '',
   phoneNumber: item.phone_number || '',
   physician: '',
-  diseaseType: '',
+  diseaseType: item.diagnosis || item.cancer_type || item.disease_type || '',
   associateClinic: '',
   treatmentType: item.plan_name || '',
+  start_date: item.start_date || undefined,
+  end_date: item.end_date || undefined,
+  plan_name: item.plan_name || undefined,
+  location: item.location || undefined,
+  assigned_oncologist: item.assigned_oncologist || undefined,
+  day_of_chemotherapy_treatment: item.day_of_chemotherapy_treatment || undefined,
+  next_chemotherapy_treatment: item.next_chemotherapy_treatment || undefined,
+  past_medical_history: item.past_medical_history || undefined,
+  past_surgical_history: item.past_surgical_history || undefined,
 });
 
 const transformPatientDetail = (backend: BackendPatientDetail): Patient => ({
@@ -99,9 +133,21 @@ const transformPatientDetail = (backend: BackendPatientDetail): Patient => ({
   race: '',
   phoneNumber: backend.phone_number || '',
   physician: '',
-  diseaseType: backend.disease_type || '',
+  diseaseType: backend.disease_type || backend.cancer_type || backend.diagnosis || '',
   associateClinic: '',
-  treatmentType: backend.treatment_type || '',
+  treatmentType: backend.treatment_type || backend.plan_name || '',
+  cancer_type: backend.cancer_type,
+  diagnosis: backend.diagnosis,
+  physician_ids: backend.physician_ids,
+  start_date: backend.start_date,
+  end_date: backend.end_date,
+  plan_name: backend.plan_name,
+  past_medical_history: backend.past_medical_history,
+  past_surgical_history: backend.past_surgical_history,
+  chemotherapy_day: backend.chemotherapy_day,
+  day_of_chemotherapy_treatment: backend.day_of_chemotherapy_treatment,
+  next_chemotherapy_date: backend.next_chemotherapy_date,
+  next_chemotherapy_treatment: backend.next_chemotherapy_treatment,
 });
 
 // =============================================================================
@@ -210,29 +256,46 @@ export interface AddManualPatientPayload {
   gender?: string;
   email?: string;
   phone_number?: string;
-  bmi?: string;
+  location?: string;
   cancer_type?: string;
+  diagnosis?: string;
   oncologist?: string;
   start_date?: string;
   end_date?: string;
   plan_name?: string;
+  regimen_name?: string;
   past_medical_history?: string;
   past_surgical_history?: string;
+  chemotherapy_day?: string;
+  day_of_chemotherapy_treatment?: string;
+  next_chemotherapy_date?: string;
+  next_chemotherapy_treatment?: string;
   physician_ids?: number[];
 }
 
 export interface PatientProfileUpdatePayload {
-  mrn?: string;
   first_name?: string;
   last_name?: string;
+  mrn?: string;
+  date_of_birth?: string;
+  age?: number;
+  gender?: string;
   email?: string;
   phone_number?: string;
-  date_of_birth?: string;
-  gender?: string;
   location?: string;
+  cancer_type?: string;
+  diagnosis?: string;
+  physician_ids?: number[];
+  start_date?: string;
+  end_date?: string;
+  plan_name?: string;
   regimen_name?: string;
+  past_medical_history?: string;
+  past_surgical_history?: string;
   chemotherapy_day?: string;
-  next_chemotherapy_at?: string;
+  day_of_chemotherapy_treatment?: string;
+  next_chemotherapy_date?: string;
+  next_chemotherapy_treatment?: string;
 }
 
 const addManualPatient = async (

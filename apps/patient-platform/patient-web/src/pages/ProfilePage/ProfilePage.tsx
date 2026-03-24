@@ -12,8 +12,8 @@ import {
   ErrorContainer,
 } from './ProfilePage.styles';
 import { ProfileHeader, PersonalInformation, ChemoTimeline } from './components';
-import type { ProfileData, ProfileFormData } from './types';
-import { useFetchProfile, useUpdateProfile } from '../../services/profile';
+import type { ProfileData, ProfileFormData, ProfileScreenData } from './types';
+import { useFetchProfile, useUpdateProfile, useFetchProfileScreen } from '../../services/profile';
 
 const ProfilePage: React.FC = () => {
   const { isDark, toggleTheme } = useThemeMode();
@@ -22,15 +22,37 @@ const ProfilePage: React.FC = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
-  const { data: profileData, isLoading: isProfileLoading } = useFetchProfile();
+  const { data: screenData, isLoading: isScreenLoading } = useFetchProfileScreen('d4a956fe-95e0-4b78-9817-f5ddead4155f');
   const updateProfileMutation = useUpdateProfile();
 
   useEffect(() => {
-    if (profileData) {
-      setProfile(profileData as ProfileData);
-      setFormData(profileData as ProfileFormData);
+    if (screenData) {
+      const mappedProfile: ProfileData = {
+        first_name: screenData.first_name,
+        last_name: screenData.last_name,
+        email_address: screenData.email,
+        phone_number: null,
+        date_of_birth: null,
+        reminder_time: null,
+        doctor_name: screenData.assigned_oncologist,
+        clinic_name: null,
+        diagnosis: screenData.regimen_name,
+        treatment_type: null,
+        chemo_plan_name: screenData.regimen_name,
+        chemo_start_date: screenData.treatment_start_date,
+        chemo_end_date: screenData.treatment_end_date,
+        chemotherapy_day: screenData.day_of_chemo_treatment,
+        current_cycle: null,
+        total_cycles: null,
+        last_chemo_date: null,
+        next_physician_visit: screenData.next_chemotherapy_treatment,
+        emergency_contact_name: null,
+        emergency_contact_phone: null,
+      };
+      setProfile(mappedProfile);
+      setFormData(mappedProfile as ProfileFormData);
     }
-  }, [profileData]);
+  }, [screenData]);
 
   const handleEditProfile = () => {
     setIsEditing(true);
@@ -59,17 +81,10 @@ const ProfilePage: React.FC = () => {
       
       // Call the update profile API
       const updatedProfile = await updateProfileMutation.mutateAsync({
-        first_name: formData.first_name,
-        last_name: formData.last_name,
-        phone_number: formData.phone_number,
-        date_of_birth: formData.date_of_birth,
-        reminder_time: formData.reminder_time,
-        diagnosis: formData.diagnosis,
-        treatment_type: formData.treatment_type,
-        last_chemo_date: formData.last_chemo_date,
-        next_physician_visit: formData.next_physician_visit,
-        emergency_contact_name: formData.emergency_contact_name,
-        emergency_contact_phone: formData.emergency_contact_phone,
+        treatment_start_date: formData.chemo_start_date,
+        treatment_end_date: formData.chemo_end_date,
+        next_chemotherapy_treatment: formData.next_physician_visit,
+        day_of_chemo_treatment: formData.chemotherapy_day,
       });
       
       setProfile(updatedProfile as ProfileData);
@@ -130,7 +145,7 @@ const ProfilePage: React.FC = () => {
     </button>
   );
 
-  if (isProfileLoading) {
+  if (isScreenLoading) {
     return (
       <div className={`min-h-screen transition-colors duration-300 ${isDark ? 'bg-[#1A1917]' : 'bg-[#F8FAFC]'}`}>
         <DarkModeToggle />
@@ -203,7 +218,8 @@ const ProfilePage: React.FC = () => {
         
         <ProfileCard $isDark={isDark}>
           <ProfileHeader
-            profile={profile}
+            profile={isEditing ? (formData as unknown as ProfileData) : profile}
+            isEditing={isEditing}
             onEditProfile={handleEditProfile}
             onEditImage={handleEditImage}
           />
@@ -220,7 +236,7 @@ const ProfilePage: React.FC = () => {
         
         {/* Chemo Timeline Section */}
         <ProfileCard $isDark={isDark} style={{ marginTop: '24px' }}>
-          <ChemoTimeline />
+          {/* <ChemoTimeline /> */}
         </ProfileCard>
       </ProfileContent>
     </ProfileContainer>
