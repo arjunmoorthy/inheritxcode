@@ -7,6 +7,7 @@ import React from 'react';
 import Typography from '@mui/material/Typography';
 import Chip from '@mui/material/Chip';
 import TablePagination from '@mui/material/TablePagination';
+import Skeleton from '@mui/material/Skeleton';
 
 interface TableRow {
   date: string;
@@ -25,6 +26,7 @@ interface PatientDataTableProps {
   onPageChange: (page: number) => void;
   onRowsPerPageChange: (rowsPerPage: number) => void;
   formatDate: (date: string) => string;
+  isLoading?: boolean;
 }
 
 const PatientDataTable: React.FC<PatientDataTableProps> = ({
@@ -35,6 +37,7 @@ const PatientDataTable: React.FC<PatientDataTableProps> = ({
   onPageChange,
   onRowsPerPageChange,
   formatDate,
+  isLoading = false,
 }) => {
   return (
     <div className={`${isDark ? 'bg-[#252320] border-slate-700/50' : 'bg-white border-slate-200'} rounded-lg border p-3 md:p-4`}>
@@ -69,7 +72,19 @@ const PatientDataTable: React.FC<PatientDataTableProps> = ({
                 </tr>
               </thead>
               <tbody>
-                {data.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage).map((row, idx) => (
+                {isLoading ? (
+                  // Skeleton rows
+                  Array.from(new Array(rowsPerPage)).map((_, idx) => (
+                    <tr key={`skeleton-${idx}`} className={`border-b ${isDark ? 'border-slate-800/50' : 'border-slate-100'}`}>
+                      <td className="py-3 px-3"><Skeleton variant="text" width="80%" sx={{ bgcolor: isDark ? 'rgba(255,255,255,0.05)' : undefined }} /></td>
+                      <td className="py-3 px-3"><Skeleton variant="text" width="70%" sx={{ bgcolor: isDark ? 'rgba(255,255,255,0.05)' : undefined }} /></td>
+                      <td className="py-3 px-3"><Skeleton variant="rounded" width={60} height={20} sx={{ bgcolor: isDark ? 'rgba(255,255,255,0.05)' : undefined }} /></td>
+                      <td className="py-3 px-3"><Skeleton variant="text" width="90%" sx={{ bgcolor: isDark ? 'rgba(255,255,255,0.05)' : undefined }} /></td>
+                      <td className="py-3 px-3"><Skeleton variant="text" width="85%" sx={{ bgcolor: isDark ? 'rgba(255,255,255,0.05)' : undefined }} /></td>
+                      <td className="py-3 px-3"><Skeleton variant="text" width="60%" sx={{ bgcolor: isDark ? 'rgba(255,255,255,0.05)' : undefined }} /></td>
+                    </tr>
+                  ))
+                ) : data.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage).map((row, idx) => (
                   <tr
                     key={idx}
                     className={`border-b ${isDark ? 'border-slate-800/50 hover:bg-slate-800/30' : 'border-slate-100 hover:bg-slate-50'} transition-colors`}

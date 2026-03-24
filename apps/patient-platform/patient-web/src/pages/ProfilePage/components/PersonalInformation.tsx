@@ -24,6 +24,7 @@ const GridContainer = styled.div`
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 2rem;
+  padding: 10px;
   align-items: center;
   @media (max-width: 768px) {
     grid-template-columns: 1fr;
@@ -39,7 +40,7 @@ const SectionDivider = styled.div`
 const TreatmentSection = styled.div`
   grid-column: 1 / -1;
   background: linear-gradient(135deg, #e8f5e9 0%, #f1f8e9 100%);
-  border-radius: 12px;
+  border-radius: 12px 12px 0 0;
   padding: 1.5rem;
   margin-top: 1rem;
   border: 1px solid #c8e6c9;
@@ -103,6 +104,20 @@ const PersonalInformation: React.FC<PersonalInformationProps> = ({
     onFieldChange(field, e.target.value || null);
   };
 
+  const formatDateForInput = (dateString: string | null | undefined) => {
+    if (!dateString) return '';
+    // If it's already YYYY-MM-DD, return it
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) return dateString;
+    // Otherwise, try to parse it and return YYYY-MM-DD
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return '';
+      return date.toISOString().split('T')[0];
+    } catch {
+      return '';
+    }
+  };
+
   return (
     <div>
       <SectionTitle>Personal Information</SectionTitle>
@@ -113,7 +128,7 @@ const PersonalInformation: React.FC<PersonalInformationProps> = ({
             type="text"
             value={formData.first_name || ''}
             onChange={handleInputChange('first_name')}
-            disabled={!isEditing}
+            disabled={true}
             isEditing={isEditing}
           />
         </InputGroup>
@@ -123,7 +138,7 @@ const PersonalInformation: React.FC<PersonalInformationProps> = ({
             type="text"
             value={formData.last_name || ''}
             onChange={handleInputChange('last_name')}
-            disabled={!isEditing}
+            disabled={true}
             isEditing={isEditing}
           />
         </InputGroup>
@@ -133,11 +148,12 @@ const PersonalInformation: React.FC<PersonalInformationProps> = ({
             type="email"
             value={formData.email_address || ''}
             onChange={handleInputChange('email_address')}
-            disabled={!isEditing}
+            disabled={true}
             isEditing={isEditing}
           />
         </InputGroup>
-        <InputGroup>
+
+        {/* <InputGroup>
           <InputLabel>Phone Number</InputLabel>
           <InputField
             type="tel"
@@ -151,7 +167,7 @@ const PersonalInformation: React.FC<PersonalInformationProps> = ({
           <InputLabel>Date of Birth</InputLabel>
           <InputField
             type="date"
-            value={formData.date_of_birth || ''}
+            value={formatDateForInput(formData.date_of_birth)}
             onChange={handleInputChange('date_of_birth')}
             disabled={!isEditing}
             isEditing={isEditing}
@@ -166,10 +182,86 @@ const PersonalInformation: React.FC<PersonalInformationProps> = ({
             disabled={!isEditing}
             isEditing={isEditing}
           />
-        </InputGroup>
+        </InputGroup> */}
+      </GridContainer>
+
+      {/* Treatment Information Section */}
+      <TreatmentSection>
+        <TreatmentTitle>Treatment Information</TreatmentTitle>
+        <TreatmentGrid>
+          <InputGroup>
+            <InputLabel>Assigned Oncologist</InputLabel>
+            <InputField
+              type="text"
+              value={formData.doctor_name || ''}
+              onChange={handleInputChange('doctor_name')}
+              disabled={true}
+              isEditing={isEditing}
+            />
+          </InputGroup>
+
+          <InputGroup>
+            <InputLabel>Regimen Name</InputLabel>
+            <InputField
+              type="text"
+              value={formData.chemo_plan_name || ''}
+              onChange={handleInputChange('chemo_plan_name')}
+              disabled={true}
+              isEditing={isEditing}
+            />
+          </InputGroup>
+
+          <InputGroup>
+            <InputLabel>Treatment Start Date</InputLabel>
+            <InputField
+              type="date"
+              value={formatDateForInput(formData.chemo_start_date)}
+              onChange={handleInputChange('chemo_start_date')}
+              disabled={!isEditing}
+              isEditing={isEditing}
+            />
+          </InputGroup>
+
+          <InputGroup>
+            <InputLabel>Treatment End Date</InputLabel>
+            <InputField
+              type="date"
+              value={formatDateForInput(formData.chemo_end_date)}
+              onChange={handleInputChange('chemo_end_date')}
+              disabled={!isEditing}
+              isEditing={isEditing}
+            />
+          </InputGroup>
+
+          <InputGroup>
+            <InputLabel>Next Chemo Therapy Treatment</InputLabel>
+            <InputField
+              type="date"
+              value={formatDateForInput(formData.next_physician_visit)}
+              onChange={handleInputChange('next_physician_visit')}
+              disabled={!isEditing}
+              isEditing={isEditing}
+            />
+          </InputGroup>
+
+          <InputGroup>
+            <InputLabel>Day of Chemo Treatment</InputLabel>
+            <InputField
+              type="text"
+              value={formData.chemotherapy_day || ''}
+              onChange={handleInputChange('chemotherapy_day')}
+              disabled={!isEditing}
+              isEditing={isEditing}
+            />
+          </InputGroup>
+        </TreatmentGrid>
+      </TreatmentSection>
+
+      {/* <GridContainer> */}
+        {/* Keeping existing code commented out as requested */}
         
         {/* Treatment Information Section */}
-        <TreatmentSection>
+        {/* <TreatmentSection>
           <TreatmentTitle>Treatment Information</TreatmentTitle>
           <TreatmentGrid>
             <InputGroup>
@@ -237,10 +329,10 @@ const PersonalInformation: React.FC<PersonalInformationProps> = ({
               />
             </InputGroup>
           </TreatmentGrid>
-        </TreatmentSection>
+        </TreatmentSection> */}
         
         {/* Emergency Contact Section */}
-        <EmergencySection>
+        {/* <EmergencySection>
           <EmergencyTitle>Emergency Contact</EmergencyTitle>
           <TreatmentGrid>
             <InputGroup>
@@ -266,8 +358,8 @@ const PersonalInformation: React.FC<PersonalInformationProps> = ({
               />
             </InputGroup>
           </TreatmentGrid>
-        </EmergencySection>
-      </GridContainer>
+        </EmergencySection> */}
+      {/* </GridContainer> */}
       
       {isEditing && (
         <ButtonGroup>
