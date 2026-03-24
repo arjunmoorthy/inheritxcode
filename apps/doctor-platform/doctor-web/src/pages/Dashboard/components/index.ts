@@ -4,3 +4,4 @@
  */
 
 export { AddPatientModal } from './AddPatientModal';
+export { ChatSummariesModal } from './ChatSummariesModal';

@@ -212,6 +212,8 @@ const mapSeverityToPriority = (severity: string | null): 'high' | 'medium' | 'lo
   }
 };
 
+/*
+// Helper function to transform patient ranking items to summary format
 const transformPatientRankingToSummary = (ranking: PatientRanking): PatientSummary => ({
   id: ranking.patient_uuid,
   patientUuid: ranking.patient_uuid,
@@ -230,6 +232,7 @@ const transformPatientRankingToSummary = (ranking: PatientRanking): PatientSumma
   hasEscalation: ranking.has_escalation,
   severityBadge: ranking.severity_badge,
 });
+*/
 
 // =============================================================================
 // API Functions
@@ -237,11 +240,22 @@ const transformPatientRankingToSummary = (ranking: PatientRanking): PatientSumma
 
 // Fetch patient listing from dashboard endpoint (search is passed as API query param)
 const fetchPatientListingDashboard = async (
-  search?: string | null
+  search?: string | null,
+  physicianIds?: (string | number)[] | null
 ): Promise<PatientListingApiResponse> => {
   const searchTrimmed = typeof search === 'string' ? search.trim() : '';
-  const url = searchTrimmed
-    ? `${API_CONFIG.ENDPOINTS.DASHBOARD.PATIENT_LISTING_DASHBOARD}?search=${encodeURIComponent(searchTrimmed)}`
+  const params = new URLSearchParams();
+  if (searchTrimmed) params.set('search', searchTrimmed);
+  
+  if (physicianIds && physicianIds.length > 0) {
+    physicianIds.forEach(id => {
+      if (id !== 'all') params.append('physician_id', String(id));
+    });
+  }
+
+  const query = params.toString();
+  const url = query
+    ? `${API_CONFIG.ENDPOINTS.DASHBOARD.PATIENT_LISTING_DASHBOARD}?${query}`
     : API_CONFIG.ENDPOINTS.DASHBOARD.PATIENT_LISTING_DASHBOARD;
   const response = await apiClient.get<PatientListingApiResponse>(url);
   return response.data;
@@ -297,10 +311,11 @@ const fetchDashboardLanding = async (days: number = 7): Promise<DashboardLanding
 const fetchPatientSummaries = async (
   page: number = 1, 
   search: string = '', 
-  filter: string = 'all'
+  filter: string = 'all',
+  physicianIds?: (string | number)[] | null
 ): Promise<DashboardResponse> => {
   try {
-    const listingResponse = await fetchPatientListingDashboard(search);
+    const listingResponse = await fetchPatientListingDashboard(search, physicianIds);
     const apiData = listingResponse?.data || [];
     let patients = apiData.map(transformListingToSummary);
     
@@ -435,11 +450,12 @@ export const useDashboardLanding = (days: number = 7) => {
 export const usePatientSummaries = (
   page: number = 1, 
   search: string = '', 
-  filter: string = 'all'
+  filter: string = 'all',
+  physicianIds?: (string | number)[] | null
 ) => {
   return useQuery({
-    queryKey: ['patientSummaries', page, search, filter],
-    queryFn: () => fetchPatientSummaries(page, search, filter),
+    queryKey: ['patientSummaries', page, search, filter, physicianIds],
+    queryFn: () => fetchPatientSummaries(page, search, filter, physicianIds),
     placeholderData: keepPreviousData,
   });
 };

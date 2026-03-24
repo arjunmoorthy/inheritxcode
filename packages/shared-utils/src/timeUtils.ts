@@ -59,3 +59,9 @@ export const getTodayInUserTimezone = (timezone?: string): Date => {
   const todayInUserTz = new Date(now.toLocaleDateString('en-CA', { timeZone: userTz }));
   return todayInUserTz;
 };
+export const formatDateUS = (date: string | Date | null | undefined): string => {
+  if (!date) return '';
+  const d = dayjs(date);
+  if (!d.isValid()) return '';
+  return d.format('MM/DD/YYYY');
+};

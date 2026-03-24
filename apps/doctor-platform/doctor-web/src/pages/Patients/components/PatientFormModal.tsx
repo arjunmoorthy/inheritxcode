@@ -17,8 +17,9 @@ import type { SingleValue, MultiValue } from 'react-select';
 import { useThemeMode } from '@oncolife/ui-components';
 import {
   useAddManualPatient,
-  useUpdateFaxPatient,
+  useUpdatePatientProfile,
   type AddManualPatientPayload,
+  type PatientProfileUpdatePayload,
   type Patient,
 } from '../../../services/patients';
 import {
@@ -26,7 +27,6 @@ import {
   Mail,
   Phone,
   Calendar,
-  MapPin,
   Stethoscope,
   Pill,
 } from 'lucide-react';
@@ -64,7 +64,7 @@ const defaultFormValues: PatientFormValues = {
   mrn: '',
   dateOfBirth: '',
   gender: '',
-  location: '',
+  location: 'Honor Health Cancer Care - Deer Valley',
   diagnosis: '',
   patientStatus: 'active',
   regimenName: '',
@@ -87,7 +87,7 @@ function patientToFormValues(patient: Patient): PatientFormValues {
     mrn: patient.mrn,
     dateOfBirth: patient.dateOfBirth,
     gender: patient.sex,
-    location: '',
+    location: 'Honor Health Cancer Care - Deer Valley',
     diagnosis: patient.diseaseType,
     patientStatus: 'active',
     regimenName: patient.treatmentType,
@@ -112,8 +112,25 @@ function computeAge(dateOfBirth: string | undefined): number | undefined {
   return age >= 0 ? age : undefined;
 }
 
-function toAddManualPatientPayload(form: PatientFormValues): AddManualPatientPayload {
+function toPatientProfileUpdatePayload(form: PatientFormValues): PatientProfileUpdatePayload {
   return {
+    mrn: form.mrn || undefined,
+    first_name: form.firstName,
+    last_name: form.lastName,
+    email: form.email,
+    phone_number: form.phone || undefined,
+    date_of_birth: form.dateOfBirth || undefined,
+    gender: form.gender || undefined,
+    location: form.location || undefined,
+    regimen_name: form.regimenName || undefined,
+    chemotherapy_day: form.dayOfChemo || undefined,
+    next_chemotherapy_at: form.nextChemoDate ? `${form.nextChemoDate}T12:00:00.000Z` : undefined,
+  };
+}
+
+function toAddManualPatientPayload(form: PatientFormValues, patientUuid?: string): AddManualPatientPayload {
+  return {
+    patient_uuid: patientUuid,
     first_name: form.firstName,
     last_name: form.lastName,
     mrn: form.mrn?.trim() || `MRN${Date.now()}`,
@@ -156,6 +173,9 @@ const genderOptions: SelectOption[] = [
   { value: 'Female', label: 'Female' },
   { value: 'Other', label: 'Other' },
 ];
+const locationOptions: SelectOption[] = [
+  { value: 'Honor Health Cancer Care - Deer Valley', label: 'Honor Health Cancer Care - Deer Valley' },
+];
 
 export type PatientFormModalMode = 'add' | 'edit';
 
@@ -176,7 +196,7 @@ export const PatientFormModal: React.FC<PatientFormModalProps> = ({
   const { isDark } = useThemeMode();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const addMutation = useAddManualPatient();
-  const updateMutation = useUpdateFaxPatient();
+  const updateMutation = useUpdatePatientProfile();
   const { data: doctors = [] } = useStaffListDoctors(open);
   const { user } = useAuth();
 
@@ -203,29 +223,35 @@ export const PatientFormModal: React.FC<PatientFormModalProps> = ({
     }
   }, [open, isEdit, patient, reset]);
 
-  // Pre-fill doctor/oncologist if the logged in user is a physician (only for Add Mode)
+  // Pre-fill doctor/oncologist ONLY if the logged in user is a physician
   useEffect(() => {
-    if (open && !isEdit && user && (user.role === 'physician' || user.role === 'doctor' || user.role === 'admin')) {
-      const matchingDoctor = doctors.find((d: any) => d.id === user.staff_id);
+    if (open && user && user.role === 'physician') {
+      const isPhysician = user.role === 'physician'; // Always true here now
+      
+      // For physicians, we always want to ensure it's set to them if it's a new patient or if they are editing
+      if (!isEdit || isPhysician) {
+        const matchingDoctor = doctors.find((d: any) => d.id === user.staff_id);
 
-      const docId = matchingDoctor ? matchingDoctor.id : user.staff_id;
-      const docName = matchingDoctor
-        ? (matchingDoctor.full_name || `${matchingDoctor.first_name || ''} ${matchingDoctor.last_name || ''}`.trim() || matchingDoctor.email || `Doctor #${matchingDoctor.id}`)
-        : (`${user.first_name || ''} ${user.last_name || ''}`.trim() || user.email || `Doctor #${user.staff_id}`);
+        const docId = matchingDoctor ? matchingDoctor.id : user.staff_id;
+        const docName = matchingDoctor
+          ? (matchingDoctor.full_name || `${matchingDoctor.first_name || ''} ${matchingDoctor.last_name || ''}`.trim() || matchingDoctor.email || `Doctor #${matchingDoctor.id}`)
+          : (`${user.first_name || ''} ${user.last_name || ''}`.trim() || user.email || `Doctor #${user.staff_id}`);
 
-      if (docId) {
-        setValue('physicianIds', [docId]);
-        setValue('oncologist', `Dr. ${docName}`.replace('Dr. Dr.', 'Dr.'));
+        if (docId) {
+          setValue('physicianIds', [docId]);
+          setValue('oncologist', `Dr. ${docName}`.replace('Dr. Dr.', 'Dr.'));
+        }
       }
     }
   }, [open, isEdit, user, doctors.length, setValue]);
 
   const handleFormSubmit = async (data: PatientFormValues) => {
     try {
-      const payload = toAddManualPatientPayload(data);
       if (isEdit && patient) {
-        await updateMutation.mutateAsync({ patientId: patient.id, payload });
+        const payload = toPatientProfileUpdatePayload(data);
+        await updateMutation.mutateAsync({ patientUuid: patient.uuid, payload });
       } else {
+        const payload = toAddManualPatientPayload(data);
         await addMutation.mutateAsync(payload);
       }
       reset();
@@ -310,9 +336,22 @@ export const PatientFormModal: React.FC<PatientFormModalProps> = ({
                   />
                 );
               }} />
-              <Controller name="location" control={control} render={({ field }) => (
-                <Input {...field} label="Location" placeholder="City, State" icon={<MapPin size={18} />} fullWidth />
-              )} />
+              <Controller name="location" control={control} render={({ field }) => {
+                const selectedOption = locationOptions.find(opt => opt.value === field.value);
+                return (
+                  <Select
+                    label="Location"
+                    options={locationOptions}
+                    value={selectedOption || null}
+                    onChange={(v: SingleValue<SelectOption> | MultiValue<SelectOption>) => {
+                      const opt = Array.isArray(v) ? v[0] : v;
+                      field.onChange(opt?.value as string || '');
+                    }}
+                    placeholder="Select location"
+                    fullWidth
+                  />
+                );
+              }} />
             </div>
           </div>
 
@@ -345,8 +384,21 @@ export const PatientFormModal: React.FC<PatientFormModalProps> = ({
                   label: doc.full_name || `${doc.first_name || ''} ${doc.last_name || ''}`.trim() || doc.email || `Doctor #${doc.id}`
                 }));
 
-                // If user is a physician and their id isn't in the list (e.g. 403 API), manually inject to allow assignment
-                if (user && (user.role === 'physician' || user.role === 'doctor' || user.role === 'admin')) {
+                // If user is a physician, ONLY show them in the list (filter out other doctors)
+                if (user?.role === 'physician') {
+                  const myOption = doctorOptions.find(opt => opt.value === user.staff_id);
+                  if (myOption) {
+                    doctorOptions = [myOption];
+                  } else if (user.staff_id) {
+                    doctorOptions = [{
+                      value: user.staff_id,
+                      label: `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.email || `Doctor #${user.staff_id}`
+                    }];
+                  } else {
+                    doctorOptions = [];
+                  }
+                } else if (user && (user.role === 'doctor' || user.role === 'admin')) {
+                  // For other roles, keep existing behavior of adding themselves to the list if missing
                   if (!doctorOptions.find(opt => opt.value === user.staff_id) && user.staff_id) {
                     doctorOptions.push({
                       value: user.staff_id,
@@ -358,7 +410,7 @@ export const PatientFormModal: React.FC<PatientFormModalProps> = ({
                 const selectedOption = doctorOptions.find(opt => (field.value ?? []).includes(opt.value as number)) || null;
                 return (
                   <Select
-                    label="Assigned Doctor"
+                    label="Assigned Oncologist"
                     options={doctorOptions}
                     value={selectedOption}
                     onChange={(v: SingleValue<SelectOption> | MultiValue<SelectOption>) => {
@@ -402,9 +454,9 @@ export const PatientFormModal: React.FC<PatientFormModalProps> = ({
               <Controller name="endDate" control={control} render={({ field }) => (
                 <Input {...field} label="Treatment End Date" type="date" icon={<Calendar size={18} />} fullWidth />
               )} />
-              <Controller name="oncologist" control={control} render={({ field }) => (
+              {/* <Controller name="oncologist" control={control} render={({ field }) => (
                 <Input {...field} label="Oncologist" placeholder="e.g., Dr. Sarah Smith" icon={<Stethoscope size={18} />} fullWidth />
-              )} />
+              )} /> */}
               <div className="md:col-span-2">
                 <Controller name="pastMedicalHistory" control={control} render={({ field }) => (
                   <Input {...field} label="Past Medical History" placeholder="e.g., Hypertension, Type 2 Diabetes" fullWidth />

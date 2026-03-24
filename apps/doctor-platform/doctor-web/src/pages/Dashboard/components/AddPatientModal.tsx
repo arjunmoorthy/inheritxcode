@@ -21,7 +21,6 @@ import {
   Mail,
   Phone,
   Calendar,
-  MapPin,
   Stethoscope,
   Pill,
   AlertCircle,
@@ -85,6 +84,9 @@ const genderOptions: SelectOption[] = [
   { value: 'Female', label: 'Female' },
   { value: 'Other', label: 'Other' },
 ];
+const locationOptions: SelectOption[] = [
+  { value: 'Honor Health Cancer Care - Deer Valley', label: 'Honor Health Cancer Care - Deer Valley' },
+];
 
 /** Extract user-facing message from API error (e.g. { error, error_code, message, details }) or axios shape */
 function getApiErrorMessage(err: unknown): string {
@@ -124,7 +126,7 @@ export const AddPatientModal: React.FC<AddPatientModalProps> = ({
       mrn: '',
       dateOfBirth: '',
       gender: '',
-      location: '',
+      location: 'Honor Health Cancer Care - Deer Valley',
       diagnosis: '',
       patientStatus: 'active',
       regimenName: '',
@@ -143,6 +145,23 @@ export const AddPatientModal: React.FC<AddPatientModalProps> = ({
   useEffect(() => {
     if (isOpen) setErrorMessage(null);
   }, [isOpen]);
+
+  // Pre-fill doctor/oncologist ONLY if the logged in user is a physician
+  useEffect(() => {
+    if (isOpen && user && user.role === 'physician') {
+      const matchingDoctor = doctors.find((d: any) => d.id === user.staff_id);
+
+      const docId = matchingDoctor ? matchingDoctor.id : user.staff_id;
+      const docName = matchingDoctor
+        ? (matchingDoctor.full_name || `${matchingDoctor.first_name || ''} ${matchingDoctor.last_name || ''}`.trim() || matchingDoctor.email || `Doctor #${matchingDoctor.id}`)
+        : (`${user.first_name || ''} ${user.last_name || ''}`.trim() || user.email || `Doctor #${user.staff_id}`);
+
+      if (docId) {
+        setValue('physicianIds', [docId]);
+        setValue('oncologist', `Dr. ${docName}`.replace('Dr. Dr.', 'Dr.'));
+      }
+    }
+  }, [isOpen, user, doctors.length, setValue]);
 
   const handleFormSubmit = async (data: PatientFormValues) => {
     setErrorMessage(null);
@@ -313,19 +332,26 @@ export const AddPatientModal: React.FC<AddPatientModalProps> = ({
                 }}
               />
 
-              {/* Location */}
+               {/* Location */}
               <Controller
                 name="location"
                 control={control}
-                render={({ field }) => (
-                  <Input
-                    {...field}
-                    label="Location"
-                    placeholder="City, State"
-                    icon={<MapPin size={18} />}
-                    fullWidth
-                  />
-                )}
+                render={({ field }) => {
+                  const selectedOption = locationOptions.find(opt => opt.value === field.value);
+                  return (
+                    <Select
+                      label="Location"
+                      options={locationOptions}
+                      value={selectedOption || null}
+                      onChange={(newValue: SingleValue<SelectOption> | MultiValue<SelectOption>) => {
+                        const option = Array.isArray(newValue) ? newValue[0] : newValue;
+                        field.onChange(option?.value as string || '');
+                      }}
+                      placeholder="Select location"
+                      fullWidth
+                    />
+                  );
+                }}
               />
             </div>
           </div>
@@ -390,8 +416,21 @@ export const AddPatientModal: React.FC<AddPatientModalProps> = ({
                     label: doc.full_name || `${doc.first_name || ''} ${doc.last_name || ''}`.trim() || doc.email || `Doctor #${doc.id}`
                   }));
 
-                  // If user is a physician and their id isn't in the list (e.g. 403 API), manually inject to allow assignment
-                  if (user && (user.role === 'physician' || user.role === 'doctor' || user.role === 'admin')) {
+                  // If user is a physician, ONLY show them in the list (filter out other doctors)
+                  if (user?.role === 'physician') {
+                    const myOption = doctorOptions.find(opt => opt.value === user.staff_id);
+                    if (myOption) {
+                      doctorOptions = [myOption];
+                    } else if (user.staff_id) {
+                      doctorOptions = [{
+                        value: user.staff_id,
+                        label: `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.email || `Doctor #${user.staff_id}`
+                      }];
+                    } else {
+                      doctorOptions = [];
+                    }
+                  } else if (user && (user.role === 'doctor' || user.role === 'admin')) {
+                    // For other roles, keep existing behavior of adding themselves to the list if missing
                     if (!doctorOptions.find(opt => opt.value === user.staff_id) && user.staff_id) {
                       doctorOptions.push({
                         value: user.staff_id,
@@ -403,7 +442,7 @@ export const AddPatientModal: React.FC<AddPatientModalProps> = ({
                   const selectedOption = doctorOptions.find(opt => (field.value ?? []).includes(opt.value as number)) || null;
                   return (
                     <Select
-                      label="Assigned Doctor"
+                      label="Assigned Oncologist"
                       options={doctorOptions}
                       value={selectedOption}
                       isDisabled={isLoadingDoctors}
@@ -516,7 +555,7 @@ export const AddPatientModal: React.FC<AddPatientModalProps> = ({
               />
 
               {/* Oncologist */}
-              <Controller
+              {/* <Controller
                 name="oncologist"
                 control={control}
                 render={({ field }) => (
@@ -528,7 +567,7 @@ export const AddPatientModal: React.FC<AddPatientModalProps> = ({
                     fullWidth
                   />
                 )}
-              />
+              /> */}
 
               {/* Past Medical History */}
               <div className="md:col-span-2">

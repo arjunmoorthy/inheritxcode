@@ -25,6 +25,7 @@ import Skeleton from '@mui/material/Skeleton';
 import { Search, Plus, Edit, Users, Calendar, Mail, ChevronRight } from 'lucide-react';
 import { usePatients, type Patient } from '../../services/patients';
 import { useThemeMode } from '@oncolife/ui-components';
+import { formatDateUS } from '@oncolife/shared-utils';
 import AddPatientModal from './components/AddPatientModal';
 import EditPatientModal from './components/EditPatientModal';
 
@@ -118,14 +119,15 @@ const PatientsPage: React.FC = () => {
               startIcon={<Plus size={18} />}
               onClick={handleAddPatient}
               sx={{
-                bgcolor: colors.primary,
+                bgcolor: isDark ? '#2563EB' : colors.primary,
+                color: '#FFFFFF',
                 borderRadius: 2,
                 px: 3,
                 py: 1.5,
                 textTransform: 'none',
                 fontWeight: 600,
                 '&:hover': {
-                  bgcolor: colors.primaryLight,
+                  bgcolor: isDark ? '#3B82F6' : colors.primaryLight,
                 },
               }}
             >
@@ -299,7 +301,7 @@ const PatientsPage: React.FC = () => {
                 </div>
                 <div className="flex justify-between items-center text-sm">
                   <span className={`font-medium ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>DOB</span>
-                  <span className={isDark ? 'text-slate-100' : 'text-slate-900'}>{patient.dateOfBirth}</span>
+                  <span className={isDark ? 'text-slate-100' : 'text-slate-900'}>{formatDateUS(patient.dateOfBirth)}</span>
                 </div>
                 <div className="flex justify-between items-center text-sm">
                   <span className={`font-medium ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>Sex</span>
@@ -410,7 +412,7 @@ const PatientsPage: React.FC = () => {
                     <TableCell sx={{ color: isDark ? '#f1f5f9' : '#0f172a' }}>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                         <Calendar size={14} className={isDark ? 'text-slate-400' : 'text-slate-500'} />
-                        {patient.dateOfBirth}
+                        {formatDateUS(patient.dateOfBirth)}
                       </Box>
                     </TableCell>
                     <TableCell sx={{ color: isDark ? '#f1f5f9' : '#0f172a' }}>{patient.sex}</TableCell>
