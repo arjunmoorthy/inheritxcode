@@ -19,6 +19,7 @@ import { useThemeMode } from '@oncolife/ui-components';
 import {
   usePatientTimeline,
   usePatientDetails,
+  usePatientQuestions,
 } from '../../services/dashboard';
 
 export type PatientProfile = {
@@ -473,6 +474,14 @@ const PatientDetailPage: React.FC = () => {
     isFetching: patientDetailsFetching,
     refetch: refetchPatientDetails,
   } = usePatientDetails(uuid || '');
+
+  const {
+    data: questions,
+    isLoading: questionsLoading,
+    isFetching: questionsFetching,
+    refetch: refetchQuestions,
+  } = usePatientQuestions(uuid || '', 50);
+
   // Static payload is kept only for temporary debugging.
   const timelineData = USE_STATIC_TIMELINE ? STATIC_TIMELINE_DATA : timeline;
 
@@ -522,7 +531,11 @@ const PatientDetailPage: React.FC = () => {
     navigate('/dashboard');
   };
   const handleRefreshDashboard = async () => {
-    await Promise.all([refetchTimeline(), refetchPatientDetails()]);
+    await Promise.all([
+      refetchTimeline(), 
+      refetchPatientDetails(),
+      refetchQuestions()
+    ]);
   };
 
   const formatDate = (dateStr: string) => {
@@ -855,7 +868,7 @@ const PatientDetailPage: React.FC = () => {
           onProfileClick={() => setIsProfileModalOpen(true)}
           onRefreshClick={handleRefreshDashboard}
           onDownloadClick={handleDownloadReport}
-          isRefreshing={timelineFetching || patientDetailsFetching}
+          isRefreshing={timelineFetching || patientDetailsFetching || questionsFetching}
         />
       </div>
       {/* Main Content Area - scroll happens only here, header stays on top */}
@@ -967,6 +980,8 @@ const PatientDetailPage: React.FC = () => {
             {/* Tabs Section - Treatment, Questions, Diary */}
             <PatientTabs
               isDark={isDark}
+              questions={questions}
+              isLoading={questionsLoading}
             />
           </div>
         </div>
