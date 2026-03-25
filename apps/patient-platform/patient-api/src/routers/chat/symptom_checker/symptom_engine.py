@@ -100,6 +100,9 @@ class ConversationState:
     # Cross-symptom discomfort: reuse "Rate your discomfort" for APP-209 and CON-210
     # when both symptoms are selected in one session.
     session_discomfort_answer: Optional[str] = None
+    # Cross-symptom abdominal pain severity: reuse "Rate your abdominal pain"
+    # across DIA-205 and ABD-211 in one session.
+    session_abdominal_pain_severity_answer: Optional[str] = None
 
     def to_dict(self) -> Dict[str, Any]:
         """Serialize state to dictionary."""
@@ -130,6 +133,7 @@ class ConversationState:
             'session_vomiting_answer': self.session_vomiting_answer,
             'session_abdominal_pain_answer': self.session_abdominal_pain_answer,
             'session_discomfort_answer': self.session_discomfort_answer,
+            'session_abdominal_pain_severity_answer': self.session_abdominal_pain_severity_answer,
         }
 
     @classmethod
@@ -162,6 +166,7 @@ class ConversationState:
             session_vomiting_answer=data.get('session_vomiting_answer'),
             session_abdominal_pain_answer=data.get('session_abdominal_pain_answer'),
             session_discomfort_answer=data.get('session_discomfort_answer'),
+            session_abdominal_pain_severity_answer=data.get('session_abdominal_pain_severity_answer'),
         )
 
 
@@ -723,6 +728,14 @@ class SymptomCheckerEngine:
         """
         return question_id == 'discomfort' and symptom_id in ('APP-209', 'CON-210')
 
+    def _is_abdominal_pain_severity_question(self, question_id: str, symptom_id: Optional[str]) -> bool:
+        """Shared abdominal pain severity rating asked in DIA-205 and ABD-211."""
+        if symptom_id == 'DIA-205':
+            return question_id == 'abd_pain_sev'
+        if symptom_id == 'ABD-211':
+            return question_id == 'severity'
+        return False
+
     def _get_next_question(self, symptom: SymptomDef, prefix_message: Optional[str] = None) -> EngineResponse:
         """Get the next applicable question for the current symptom."""
         questions = symptom.follow_up_questions if self.state.is_follow_up else symptom.screening_questions
@@ -793,6 +806,21 @@ class SymptomCheckerEngine:
                     f"{self.state.session_discomfort_answer}"
                 )
                 self.state.answers[question.id] = self.state.session_discomfort_answer
+                self.state.current_question_index += 1
+                continue
+
+            # Cross-symptom abdominal pain severity reuse for DIA-205 <-> ABD-211.
+            # Respect per-question conditions (e.g. DIA asks severity only if abd_pain is yes).
+            if (
+                self._is_abdominal_pain_severity_question(question.id, self.state.current_symptom_id)
+                and self.state.session_abdominal_pain_severity_answer is not None
+                and (question.condition is None or question.condition(self.state.answers))
+            ):
+                logger.info(
+                    f"Reusing abdominal pain severity for question {question.id}: "
+                    f"{self.state.session_abdominal_pain_severity_answer}"
+                )
+                self.state.answers[question.id] = self.state.session_abdominal_pain_severity_answer
                 self.state.current_question_index += 1
                 continue
             
@@ -1023,6 +1051,8 @@ class SymptomCheckerEngine:
                     self.state.session_abdominal_pain_answer = bool(user_response)
                 if self._is_discomfort_question(question.id, self.state.current_symptom_id):
                     self.state.session_discomfort_answer = str(user_response)
+                if self._is_abdominal_pain_severity_question(question.id, self.state.current_symptom_id):
+                    self.state.session_abdominal_pain_severity_answer = str(user_response)
                 logger.info(f"Stored answer for {question.id}: {user_response}")
 
         self.state.current_question_index += 1
@@ -1083,6 +1113,8 @@ class SymptomCheckerEngine:
                     self.state.session_abdominal_pain_answer = bool(user_response)
                 if self._is_discomfort_question(question.id, self.state.current_symptom_id):
                     self.state.session_discomfort_answer = str(user_response)
+                if self._is_abdominal_pain_severity_question(question.id, self.state.current_symptom_id):
+                    self.state.session_abdominal_pain_severity_answer = str(user_response)
                 logger.info(f"Stored follow-up answer for {question.id}: {user_response}")
 
         self.state.current_question_index += 1
