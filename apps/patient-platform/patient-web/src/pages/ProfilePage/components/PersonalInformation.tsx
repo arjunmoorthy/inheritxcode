@@ -1,5 +1,7 @@
 import React from 'react';
 import styled from 'styled-components';
+import dayjs from 'dayjs';
+import { DatePicker } from '@oncolife/ui-components';
 import {
   InputGroup,
   InputLabel,
@@ -121,6 +123,12 @@ const PersonalInformation: React.FC<PersonalInformationProps> = ({
     }
   };
 
+  const formatDateForDisplay = (dateString: string | null | undefined) => {
+    const normalized = formatDateForInput(dateString);
+    if (!normalized) return '';
+    return dayjs(normalized, 'YYYY-MM-DD', true).format('MM/DD/YYYY');
+  };
+
   return (
     <div>
       <SectionTitle $isDark={isDark}>Personal Information</SectionTitle>
@@ -215,39 +223,6 @@ const PersonalInformation: React.FC<PersonalInformationProps> = ({
           </InputGroup>
 
           <InputGroup>
-            <TreatmentInputLabel $isDark={isDark}>Treatment Start Date</TreatmentInputLabel>
-            <InputField
-              type="date"
-              value={formatDateForInput(formData.chemo_start_date)}
-              onChange={handleInputChange('chemo_start_date')}
-              disabled={!isEditing}
-              isEditing={isEditing}
-            />
-          </InputGroup>
-
-          <InputGroup>
-            <TreatmentInputLabel $isDark={isDark}>Treatment End Date</TreatmentInputLabel>
-            <InputField
-              type="date"
-              value={formatDateForInput(formData.chemo_end_date)}
-              onChange={handleInputChange('chemo_end_date')}
-              disabled={!isEditing}
-              isEditing={isEditing}
-            />
-          </InputGroup>
-
-          <InputGroup>
-            <TreatmentInputLabel $isDark={isDark}>Next Chemo Therapy Treatment</TreatmentInputLabel>
-            <InputField
-              type="date"
-              value={formatDateForInput(formData.next_physician_visit)}
-              onChange={handleInputChange('next_physician_visit')}
-              disabled={!isEditing}
-              isEditing={isEditing}
-            />
-          </InputGroup>
-
-          <InputGroup>
             <TreatmentInputLabel $isDark={isDark}>Day of Chemo Treatment</TreatmentInputLabel>
             <InputField
               type="text"
@@ -256,6 +231,69 @@ const PersonalInformation: React.FC<PersonalInformationProps> = ({
               disabled={!isEditing}
               isEditing={isEditing}
             />
+          </InputGroup>
+
+          <InputGroup>
+            <TreatmentInputLabel $isDark={isDark}>Treatment Start Date</TreatmentInputLabel>
+            {isEditing ? (
+              <DatePicker
+                value={formData.chemo_start_date ? dayjs(formatDateForInput(formData.chemo_start_date), 'YYYY-MM-DD', true) : null}
+                onChange={(newValue) => onFieldChange('chemo_start_date', newValue.format('YYYY-MM-DD'))}
+                label="Treatment Start Date"
+                placeholder="Treatment Start Date"
+                views={['day', 'month', 'year']}
+                fullWidth
+              />
+            ) : (
+              <InputField
+                type="text"
+                value={formatDateForDisplay(formData.chemo_start_date)}
+                disabled={true}
+                isEditing={isEditing}
+              />
+            )}
+          </InputGroup>
+
+          <InputGroup>
+            <TreatmentInputLabel $isDark={isDark}>Treatment End Date</TreatmentInputLabel>
+            {isEditing ? (
+              <DatePicker
+                value={formData.chemo_end_date ? dayjs(formatDateForInput(formData.chemo_end_date), 'YYYY-MM-DD', true) : null}
+                onChange={(newValue) => onFieldChange('chemo_end_date', newValue.format('YYYY-MM-DD'))}
+                label="Treatment End Date"
+                placeholder="Treatment End Date"
+                views={['day', 'month', 'year']}
+                fullWidth
+              />
+            ) : (
+              <InputField
+                type="text"
+                value={formatDateForDisplay(formData.chemo_end_date)}
+                disabled={true}
+                isEditing={isEditing}
+              />
+            )}
+          </InputGroup>
+
+          <InputGroup>
+            <TreatmentInputLabel $isDark={isDark}>Next Chemo Therapy Treatment</TreatmentInputLabel>
+            {isEditing ? (
+              <DatePicker
+                value={formData.next_physician_visit ? dayjs(formatDateForInput(formData.next_physician_visit), 'YYYY-MM-DD', true) : null}
+                onChange={(newValue) => onFieldChange('next_physician_visit', newValue.format('YYYY-MM-DD'))}
+                label="Next Chemo Therapy Treatment"
+                placeholder="Next Chemo Therapy Treatment"
+                views={['day', 'month', 'year']}
+                fullWidth
+              />
+            ) : (
+              <InputField
+                type="text"
+                value={formatDateForDisplay(formData.next_physician_visit)}
+                disabled={true}
+                isEditing={isEditing}
+              />
+            )}
           </InputGroup>
         </TreatmentGrid>
       </TreatmentSection>
