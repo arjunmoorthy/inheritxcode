@@ -11,11 +11,15 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useTheme, useMediaQuery } from '@mui/material';
 import Button from '@mui/material/Button';
+import InputAdornment from '@mui/material/InputAdornment';
 import { Modal, ModalFooter } from '../../../components/ui/Modal';
 import { Input } from '../../../components/ui/Input';
 import { Select, type SelectOption } from '../../../components/ui/Select';
 import type { SingleValue, MultiValue } from 'react-select';
 import { useThemeMode } from '@oncolife/ui-components';
+import { DatePicker as MUIDatePicker } from '@mui/x-date-pickers/DatePicker';
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import {
   User,
   Mail,
@@ -26,6 +30,7 @@ import {
   AlertCircle,
 } from 'lucide-react';
 import { useStaffListDoctors } from '../../../services/staff';
+import dayjs from 'dayjs';
 
 // Validation Schema
 const patientSchema = z.object({
@@ -191,6 +196,7 @@ export const AddPatientModal: React.FC<AddPatientModalProps> = ({
       titleDescription="Enter patient information to create a new profile."
       size="xl"
     >
+      <LocalizationProvider dateAdapter={AdapterDayjs} adapterLocale="en">
       <div className={`${isDark ? 'text-slate-100' : 'text-slate-900'}`}>
         <style>{`
           .compact-form [class*="mb-5"] {
@@ -298,15 +304,45 @@ export const AddPatientModal: React.FC<AddPatientModalProps> = ({
                 name="dateOfBirth"
                 control={control}
                 render={({ field }) => (
-                  <Input
-                    {...field}
-                    label="Date of Birth"
-                    type="date"
-                    lang="en-US"
-                    icon={<Calendar size={18} />}
-                    error={errors.dateOfBirth?.message}
-                    fullWidth
-                  />
+                  <div className="w-full mb-5">
+                    <label
+                      className={`block text-[13px] font-semibold mb-1 uppercase tracking-wide transition-colors ${
+                        isDark ? 'text-slate-300' : 'text-slate-900'
+                      }`}
+                    >
+                      Date of Birth
+                    </label>
+                    <MUIDatePicker
+                      value={field.value ? dayjs(field.value, 'YYYY-MM-DD', true) : null}
+                      onChange={(newValue) => field.onChange(newValue && newValue.isValid() ? newValue.format('YYYY-MM-DD') : '')}
+                      format="MM/DD/YYYY"
+                      views={['day', 'month', 'year']}
+                      slotProps={{
+                        popper: {
+                          sx: { zIndex: 100000 },
+                        },
+                        textField: {
+                          fullWidth: true,
+                          placeholder: 'Date of Birth',
+                          error: !!errors.dateOfBirth?.message,
+                          helperText: errors.dateOfBirth?.message,
+                          sx: {
+                            '& .MuiInputBase-root': {
+                              backgroundColor: isDark ? '#2A2725' : '#F8FAFC',
+                            },
+                            '& .MuiOutlinedInput-notchedOutline': {
+                              borderColor: errors.dateOfBirth?.message
+                                ? '#EF4444'
+                                : (isDark ? '#3A3835' : '#E2E8F0'),
+                            },
+                            '& .MuiInputBase-input': {
+                              fontSize: '15px',
+                            },
+                          },
+                        },
+                      }}
+                    />
+                  </div>
                 )}
               />
 
@@ -508,15 +544,50 @@ export const AddPatientModal: React.FC<AddPatientModalProps> = ({
                 name="treatmentStartDate"
                 control={control}
                 render={({ field }) => (
-                  <Input
-                    {...field}
-                    label="Treatment Start Date"
-                    type="date"
-                    lang="en-US"
-                    icon={<Calendar size={18} />}
-                    error={errors.treatmentStartDate?.message}
-                    fullWidth
-                  />
+                  <div className="w-full mb-5">
+                    <label
+                      className={`block text-[13px] font-semibold mb-1.5 uppercase tracking-wide transition-colors ${
+                        isDark ? 'text-slate-300' : 'text-slate-900'
+                      }`}
+                    >
+                      Treatment Start Date
+                    </label>
+                    <MUIDatePicker
+                      value={field.value ? dayjs(field.value) : null}
+                      onChange={(newValue) => field.onChange(newValue && newValue.isValid() ? newValue.format('YYYY-MM-DD') : '')}
+                      format="MM/DD/YYYY"
+                      slotProps={{
+                        popper: { sx: { zIndex: 100000 } },
+                        textField: {
+                          fullWidth: true,
+                          placeholder: 'Treatment Start Date',
+                          error: !!errors.treatmentStartDate?.message,
+                          helperText: errors.treatmentStartDate?.message,
+                          InputProps: {
+                            startAdornment: (
+                              <InputAdornment position="start">
+                                <Calendar size={18} />
+                              </InputAdornment>
+                            ),
+                          },
+                          sx: {
+                            '& .MuiInputBase-root': {
+                              minHeight: '52px',
+                              backgroundColor: isDark ? '#2A2725' : '#F8FAFC',
+                            },
+                            '& .MuiOutlinedInput-notchedOutline': {
+                              borderColor: errors.treatmentStartDate?.message
+                                ? '#EF4444'
+                                : (isDark ? '#3A3835' : '#E2E8F0'),
+                            },
+                            '& .MuiInputBase-input': {
+                              fontSize: '15px',
+                            },
+                          },
+                        },
+                      }}
+                    />
+                  </div>
                 )}
               />
 
@@ -525,15 +596,50 @@ export const AddPatientModal: React.FC<AddPatientModalProps> = ({
                 name="nextChemoDate"
                 control={control}
                 render={({ field }) => (
-                  <Input
-                    {...field}
-                    label="Next Chemotherapy Treatment"
-                    type="date"
-                    lang="en-US"
-                    icon={<Calendar size={18} />}
-                    error={errors.nextChemoDate?.message}
-                    fullWidth
-                  />
+                  <div className="w-full mb-5">
+                    <label
+                      className={`block text-[13px] font-semibold mb-1.5 uppercase tracking-wide transition-colors ${
+                        isDark ? 'text-slate-300' : 'text-slate-900'
+                      }`}
+                    >
+                      Next Chemotherapy Treatment
+                    </label>
+                    <MUIDatePicker
+                      value={field.value ? dayjs(field.value) : null}
+                      onChange={(newValue) => field.onChange(newValue && newValue.isValid() ? newValue.format('YYYY-MM-DD') : '')}
+                      format="MM/DD/YYYY"
+                      slotProps={{
+                        popper: { sx: { zIndex: 100000 } },
+                        textField: {
+                          fullWidth: true,
+                          placeholder: 'Next Chemotherapy Treatment',
+                          error: !!errors.nextChemoDate?.message,
+                          helperText: errors.nextChemoDate?.message,
+                          InputProps: {
+                            startAdornment: (
+                              <InputAdornment position="start">
+                                <Calendar size={18} />
+                              </InputAdornment>
+                            ),
+                          },
+                          sx: {
+                            '& .MuiInputBase-root': {
+                              minHeight: '52px',
+                              backgroundColor: isDark ? '#2A2725' : '#F8FAFC',
+                            },
+                            '& .MuiOutlinedInput-notchedOutline': {
+                              borderColor: errors.nextChemoDate?.message
+                                ? '#EF4444'
+                                : (isDark ? '#3A3835' : '#E2E8F0'),
+                            },
+                            '& .MuiInputBase-input': {
+                              fontSize: '15px',
+                            },
+                          },
+                        },
+                      }}
+                    />
+                  </div>
                 )}
               />
 
@@ -542,15 +648,50 @@ export const AddPatientModal: React.FC<AddPatientModalProps> = ({
                 name="endDate"
                 control={control}
                 render={({ field }) => (
-                  <Input
-                    {...field}
-                    label="Treatment End Date"
-                    type="date"
-                    lang="en-US"
-                    icon={<Calendar size={18} />}
-                    error={errors.endDate?.message}
-                    fullWidth
-                  />
+                  <div className="w-full mb-5">
+                    <label
+                      className={`block text-[13px] font-semibold mb-1.5 uppercase tracking-wide transition-colors ${
+                        isDark ? 'text-slate-300' : 'text-slate-900'
+                      }`}
+                    >
+                      Treatment End Date
+                    </label>
+                    <MUIDatePicker
+                      value={field.value ? dayjs(field.value) : null}
+                      onChange={(newValue) => field.onChange(newValue && newValue.isValid() ? newValue.format('YYYY-MM-DD') : '')}
+                      format="MM/DD/YYYY"
+                      slotProps={{
+                        popper: { sx: { zIndex: 100000 } },
+                        textField: {
+                          fullWidth: true,
+                          placeholder: 'Treatment End Date',
+                          error: !!errors.endDate?.message,
+                          helperText: errors.endDate?.message,
+                          InputProps: {
+                            startAdornment: (
+                              <InputAdornment position="start">
+                                <Calendar size={18} />
+                              </InputAdornment>
+                            ),
+                          },
+                          sx: {
+                            '& .MuiInputBase-root': {
+                              minHeight: '52px',
+                              backgroundColor: isDark ? '#2A2725' : '#F8FAFC',
+                            },
+                            '& .MuiOutlinedInput-notchedOutline': {
+                              borderColor: errors.endDate?.message
+                                ? '#EF4444'
+                                : (isDark ? '#3A3835' : '#E2E8F0'),
+                            },
+                            '& .MuiInputBase-input': {
+                              fontSize: '15px',
+                            },
+                          },
+                        },
+                      }}
+                    />
+                  </div>
                 )}
               />
 
@@ -665,6 +806,7 @@ export const AddPatientModal: React.FC<AddPatientModalProps> = ({
           </ModalFooter>
         </form>
       </div>
+      </LocalizationProvider>
     </Modal>
   );
 };

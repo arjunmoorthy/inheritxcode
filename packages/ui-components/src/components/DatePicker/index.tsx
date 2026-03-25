@@ -7,10 +7,11 @@ import { Calendar } from 'lucide-react';
 import { DatePickerContainer, DateDisplayButton } from './DatePicker.styles';
 
 interface SharedDatePickerProps {
-  value: Dayjs;
+  value: Dayjs | null;
   onChange: (date: Dayjs) => void;
   label?: string;
-  views?: ('month' | 'year')[];
+  placeholder?: string;
+  views?: ('day' | 'month' | 'year')[];
   fullWidth?: boolean;
 }
 
@@ -18,6 +19,7 @@ const SharedDatePicker: React.FC<SharedDatePickerProps> = ({
   value,
   onChange,
   label = 'Select Month & Year',
+  placeholder,
   views = ['month', 'year'],
   fullWidth = false,
 }) => {
@@ -30,10 +32,12 @@ const SharedDatePicker: React.FC<SharedDatePickerProps> = ({
     }
   };
 
-  const formatCurrentDate = (date: Dayjs) => date.format('MMMM YYYY');
+  const hasDayView = views.includes('day');
+  const formatCurrentDate = (date: Dayjs) =>
+    hasDayView ? date.format('MM/DD/YYYY') : date.format('MMMM YYYY');
 
   return (
-    <LocalizationProvider dateAdapter={AdapterDayjs}>
+    <LocalizationProvider dateAdapter={AdapterDayjs} adapterLocale="en">
       <DatePickerContainer $fullWidth={fullWidth}>
         {open ? (
           <MUIDatePicker
@@ -43,12 +47,16 @@ const SharedDatePicker: React.FC<SharedDatePickerProps> = ({
             onChange={handleDateChange}
             open={true}
             onClose={() => setOpen(false)}
+            format={hasDayView ? 'MM/DD/YYYY' : 'MM/YYYY'}
             slotProps={{
+              popper: {
+                sx: { zIndex: 100000 },
+              },
               textField: {
                 size: 'small',
                 sx: {
                   '& .MuiInputBase-root': { 
-                    height: '40px',
+                    height: '48px',
                     width: fullWidth ? '100%' : 'auto'
                   },
                   '& .MuiInputLabel-root': { fontSize: '14px' },
@@ -59,7 +67,11 @@ const SharedDatePicker: React.FC<SharedDatePickerProps> = ({
           />
         ) : (
           <DateDisplayButton onClick={() => setOpen(true)} $fullWidth={fullWidth}>
-            <span>{formatCurrentDate(value)}</span>
+            <span>
+              {value
+                ? formatCurrentDate(value)
+                : (placeholder || label)}
+            </span>
             <Calendar />
           </DateDisplayButton>
         )}
