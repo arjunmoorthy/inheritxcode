@@ -462,7 +462,7 @@ const NotesPage: React.FC = () => {
       await saveNewNotesMutation.mutateAsync({
         content: newEntryText.trim(),
         title: newEntryTitle.trim() || dayjs().format('MMMM D, YYYY'),
-        marked_for_doctor: markForDoctor,
+        // marked_for_doctor: markForDoctor,
       });
       setIsModalOpen(false);
       setNewEntryTitle('');
@@ -497,8 +497,8 @@ const NotesPage: React.FC = () => {
       <button
         onClick={toggleTheme}
         className={`fixed top-4 right-4 z-[1001] p-3 rounded-full transition-all duration-200 ${isDark
-            ? 'bg-[#2A2725] text-white hover:bg-[#3A3835] border border-slate-700 shadow-lg'
-            : 'bg-white text-slate-700 hover:bg-slate-50 border border-slate-200 shadow-lg'
+          ? 'bg-[#2A2725] text-white hover:bg-[#3A3835] border border-slate-700 shadow-lg'
+          : 'bg-white text-slate-700 hover:bg-slate-50 border border-slate-200 shadow-lg'
           }`}
         aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
       >
@@ -605,7 +605,7 @@ const NotesPage: React.FC = () => {
               </ModalBody>
 
               <ModalFooter>
-                <MarkForDoctorCheckbox>
+                {/* <MarkForDoctorCheckbox>
                   <input
                     type="checkbox"
                     checked={markForDoctor}
@@ -613,7 +613,7 @@ const NotesPage: React.FC = () => {
                   />
                   <Stethoscope />
                   Mark for Doctor
-                </MarkForDoctorCheckbox>
+                </MarkForDoctorCheckbox> */}
 
                 <ButtonGroup>
                   <CancelButton onClick={handleCloseModal}>
