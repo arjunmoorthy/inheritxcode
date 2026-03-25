@@ -103,6 +103,9 @@ class ConversationState:
     # Cross-symptom abdominal pain severity: reuse "Rate your abdominal pain"
     # across DIA-205 and ABD-211 in one session.
     session_abdominal_pain_severity_answer: Optional[str] = None
+    # Cross-symptom ADL/self-care: reuse "able to perform daily self care/activities?"
+    # across related GI/constitutional symptom modules in one session.
+    session_adl_answer: Optional[bool] = None
 
     def to_dict(self) -> Dict[str, Any]:
         """Serialize state to dictionary."""
@@ -134,6 +137,7 @@ class ConversationState:
             'session_abdominal_pain_answer': self.session_abdominal_pain_answer,
             'session_discomfort_answer': self.session_discomfort_answer,
             'session_abdominal_pain_severity_answer': self.session_abdominal_pain_severity_answer,
+            'session_adl_answer': self.session_adl_answer,
         }
 
     @classmethod
@@ -167,6 +171,7 @@ class ConversationState:
             session_abdominal_pain_answer=data.get('session_abdominal_pain_answer'),
             session_discomfort_answer=data.get('session_discomfort_answer'),
             session_abdominal_pain_severity_answer=data.get('session_abdominal_pain_severity_answer'),
+            session_adl_answer=data.get('session_adl_answer'),
         )
 
 
@@ -743,6 +748,10 @@ class SymptomCheckerEngine:
             return question_id == 'severity'
         return False
 
+    def _is_adl_question(self, question_id: str) -> bool:
+        """Check if question is the shared ADL/self-care yes/no prompt."""
+        return question_id == 'adl'
+
     def _get_next_question(self, symptom: SymptomDef, prefix_message: Optional[str] = None) -> EngineResponse:
         """Get the next applicable question for the current symptom."""
         questions = symptom.follow_up_questions if self.state.is_follow_up else symptom.screening_questions
@@ -828,6 +837,20 @@ class SymptomCheckerEngine:
                     f"{self.state.session_abdominal_pain_severity_answer}"
                 )
                 self.state.answers[question.id] = self.state.session_abdominal_pain_severity_answer
+                self.state.current_question_index += 1
+                continue
+
+            # Cross-symptom ADL/self-care reuse.
+            if (
+                self._is_adl_question(question.id)
+                and self.state.session_adl_answer is not None
+                and (question.condition is None or question.condition(self.state.answers))
+            ):
+                logger.info(
+                    f"Reusing ADL answer for question {question.id}: "
+                    f"{self.state.session_adl_answer}"
+                )
+                self.state.answers[question.id] = self.state.session_adl_answer
                 self.state.current_question_index += 1
                 continue
             
@@ -1060,6 +1083,8 @@ class SymptomCheckerEngine:
                     self.state.session_discomfort_answer = str(user_response)
                 if self._is_abdominal_pain_severity_question(question.id, self.state.current_symptom_id):
                     self.state.session_abdominal_pain_severity_answer = str(user_response)
+                if self._is_adl_question(question.id):
+                    self.state.session_adl_answer = bool(user_response)
                 logger.info(f"Stored answer for {question.id}: {user_response}")
 
         self.state.current_question_index += 1
@@ -1122,6 +1147,8 @@ class SymptomCheckerEngine:
                     self.state.session_discomfort_answer = str(user_response)
                 if self._is_abdominal_pain_severity_question(question.id, self.state.current_symptom_id):
                     self.state.session_abdominal_pain_severity_answer = str(user_response)
+                if self._is_adl_question(question.id):
+                    self.state.session_adl_answer = bool(user_response)
                 logger.info(f"Stored follow-up answer for {question.id}: {user_response}")
 
         self.state.current_question_index += 1
