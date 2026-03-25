@@ -220,6 +220,7 @@ const ProfilePage: React.FC = () => {
           <ProfileHeader
             profile={isEditing ? (formData as unknown as ProfileData) : profile}
             isEditing={isEditing}
+            isDark={isDark}
             onEditProfile={handleEditProfile}
             onEditImage={handleEditImage}
           />
@@ -231,6 +232,7 @@ const ProfilePage: React.FC = () => {
             onSave={handleSave}
             onCancel={handleCancel}
             isSaving={updateProfileMutation.isPending}
+            isDark={isDark}
           />
         </ProfileCard>
         

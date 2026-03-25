@@ -8,6 +8,7 @@ import {
   SaveButton,
   CancelButton,
   ButtonGroup,
+  TreatmentInputLabel,
 } from '../ProfilePage.styles';
 import type { ProfileFormData } from '../types';
 
@@ -18,6 +19,7 @@ interface PersonalInformationProps {
   onSave: () => void;
   onCancel: () => void;
   isSaving?: boolean;
+  isDark?: boolean;
 }
 
 const GridContainer = styled.div`
@@ -97,6 +99,7 @@ const PersonalInformation: React.FC<PersonalInformationProps> = ({
   onSave,
   onCancel,
   isSaving = false,
+  isDark = false,
 }) => {
   const handleInputChange = (field: keyof ProfileFormData) => (
     e: React.ChangeEvent<HTMLInputElement>
@@ -120,10 +123,10 @@ const PersonalInformation: React.FC<PersonalInformationProps> = ({
 
   return (
     <div>
-      <SectionTitle>Personal Information</SectionTitle>
+      <SectionTitle $isDark={isDark}>Personal Information</SectionTitle>
       <GridContainer>
         <InputGroup>
-          <InputLabel>First Name</InputLabel>
+          <InputLabel $isDark={isDark}>First Name</InputLabel>
           <InputField
             type="text"
             value={formData.first_name || ''}
@@ -133,7 +136,7 @@ const PersonalInformation: React.FC<PersonalInformationProps> = ({
           />
         </InputGroup>
         <InputGroup>
-          <InputLabel>Last Name</InputLabel>
+          <InputLabel $isDark={isDark}>Last Name</InputLabel>
           <InputField
             type="text"
             value={formData.last_name || ''}
@@ -143,7 +146,7 @@ const PersonalInformation: React.FC<PersonalInformationProps> = ({
           />
         </InputGroup>
         <InputGroup>
-          <InputLabel>Email</InputLabel>
+          <InputLabel $isDark={isDark}>Email</InputLabel>
           <InputField
             type="email"
             value={formData.email_address || ''}
@@ -190,7 +193,7 @@ const PersonalInformation: React.FC<PersonalInformationProps> = ({
         <TreatmentTitle>Treatment Information</TreatmentTitle>
         <TreatmentGrid>
           <InputGroup>
-            <InputLabel>Assigned Oncologist</InputLabel>
+            <TreatmentInputLabel $isDark={isDark}>Assigned Oncologist</TreatmentInputLabel>
             <InputField
               type="text"
               value={formData.doctor_name || ''}
@@ -201,7 +204,7 @@ const PersonalInformation: React.FC<PersonalInformationProps> = ({
           </InputGroup>
 
           <InputGroup>
-            <InputLabel>Regimen Name</InputLabel>
+            <TreatmentInputLabel $isDark={isDark}>Regimen Name</TreatmentInputLabel>
             <InputField
               type="text"
               value={formData.chemo_plan_name || ''}
@@ -212,7 +215,7 @@ const PersonalInformation: React.FC<PersonalInformationProps> = ({
           </InputGroup>
 
           <InputGroup>
-            <InputLabel>Treatment Start Date</InputLabel>
+            <TreatmentInputLabel $isDark={isDark}>Treatment Start Date</TreatmentInputLabel>
             <InputField
               type="date"
               value={formatDateForInput(formData.chemo_start_date)}
@@ -223,7 +226,7 @@ const PersonalInformation: React.FC<PersonalInformationProps> = ({
           </InputGroup>
 
           <InputGroup>
-            <InputLabel>Treatment End Date</InputLabel>
+            <TreatmentInputLabel $isDark={isDark}>Treatment End Date</TreatmentInputLabel>
             <InputField
               type="date"
               value={formatDateForInput(formData.chemo_end_date)}
@@ -234,7 +237,7 @@ const PersonalInformation: React.FC<PersonalInformationProps> = ({
           </InputGroup>
 
           <InputGroup>
-            <InputLabel>Next Chemo Therapy Treatment</InputLabel>
+            <TreatmentInputLabel $isDark={isDark}>Next Chemo Therapy Treatment</TreatmentInputLabel>
             <InputField
               type="date"
               value={formatDateForInput(formData.next_physician_visit)}
@@ -245,7 +248,7 @@ const PersonalInformation: React.FC<PersonalInformationProps> = ({
           </InputGroup>
 
           <InputGroup>
-            <InputLabel>Day of Chemo Treatment</InputLabel>
+            <TreatmentInputLabel $isDark={isDark}>Day of Chemo Treatment</TreatmentInputLabel>
             <InputField
               type="text"
               value={formData.chemotherapy_day || ''}
