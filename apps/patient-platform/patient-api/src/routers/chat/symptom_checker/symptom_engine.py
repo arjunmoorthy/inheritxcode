@@ -94,6 +94,9 @@ class ConversationState:
     session_temperature: Optional[float] = None
     # Cross-symptom vomiting: reuse "Have you been vomiting?" answer (e.g. ABD-211 then DEH-201)
     session_vomiting_answer: Optional[bool] = None
+    # Cross-symptom abdominal pain: reuse "Do you have abdominal pain/cramping?" answer
+    # to avoid duplicate prompts when multiple GI symptoms are selected together.
+    session_abdominal_pain_answer: Optional[bool] = None
 
     def to_dict(self) -> Dict[str, Any]:
         """Serialize state to dictionary."""
@@ -122,6 +125,7 @@ class ConversationState:
             'dehydration_signs_present': self.dehydration_signs_present,
             'session_temperature': self.session_temperature,
             'session_vomiting_answer': self.session_vomiting_answer,
+            'session_abdominal_pain_answer': self.session_abdominal_pain_answer,
         }
 
     @classmethod
@@ -152,6 +156,7 @@ class ConversationState:
             dehydration_signs_present=data.get('dehydration_signs_present', False),
             session_temperature=data.get('session_temperature'),
             session_vomiting_answer=data.get('session_vomiting_answer'),
+            session_abdominal_pain_answer=data.get('session_abdominal_pain_answer'),
         )
 
 
@@ -613,36 +618,57 @@ class SymptomCheckerEngine:
 
     def _start_next_symptom(self, greeting_message: Optional[str] = None) -> EngineResponse:
         """Start processing the next symptom in the queue."""
+        def _should_skip_symptom(symptom_id: str) -> bool:
+            # Product rule: if both nausea and vomiting are selected together,
+            # show both in selection UI but skip nausea questions and jump to vomiting.
+            return (
+                symptom_id == 'NAU-203'
+                and 'VOM-204' in self.state.selected_symptoms
+            )
+
         # Check if there are branched symptoms to process first
         if self.state.branch_stack:
             next_symptom_id = self.state.branch_stack.pop(0)
         else:
-            # Get next unprocessed symptom
-            remaining = [s for s in self.state.selected_symptoms 
-                        if s not in self.state.completed_symptoms]
-            if not remaining:
-                def _build_temperature_guidance() -> Optional[str]:
-                    temp = self.state.session_temperature
-                    if temp is None:
-                        return None
+            # Get next unprocessed symptom, skipping NAU-203 when VOM-204 is also selected.
+            while True:
+                remaining = [s for s in self.state.selected_symptoms
+                             if s not in self.state.completed_symptoms]
+                if not remaining:
+                    def _build_temperature_guidance() -> Optional[str]:
+                        temp = self.state.session_temperature
+                        if temp is None:
+                            return None
 
-                    threshold = TEMP_FEVER_THRESHOLD
-                    if temp >= threshold:
+                        threshold = TEMP_FEVER_THRESHOLD
+                        if temp >= threshold:
+                            return (
+                                f"You reported **{temp:.1f}°F**. Because this meets or exceeds **{threshold:.1f}°F**, "
+                                "please contact your care team right away."
+                            )
+
                         return (
-                            f"You reported **{temp:.1f}°F**. Because this meets or exceeds **{threshold:.1f}°F**, "
-                            "please contact your care team right away."
+                            f"You reported **{temp:.1f}°F**. Continue to monitor your temperature. "
+                            f"If it reaches **{threshold:.1f}°F** or higher, please contact your care team."
                         )
 
-                    return (
-                        f"You reported **{temp:.1f}°F**. Continue to monitor your temperature. "
-                        f"If it reaches **{threshold:.1f}°F** or higher, please contact your care team."
-                    )
+                    # Prefer explicitly passed non-urgent guidance (from last symptom completion),
+                    # otherwise fall back to temperature guidance derived from the session temp.
+                    prefix_message = greeting_message or _build_temperature_guidance()
+                    return self._generate_summary(prefix_message=prefix_message)
 
-                # Prefer explicitly passed non-urgent guidance (from last symptom completion),
-                # otherwise fall back to temperature guidance derived from the session temp.
-                prefix_message = greeting_message or _build_temperature_guidance()
-                return self._generate_summary(prefix_message=prefix_message)
-            next_symptom_id = remaining[0]
+                candidate = remaining[0]
+                if _should_skip_symptom(candidate):
+                    logger.info(
+                        "Skipping nausea questions because vomiting is also selected "
+                        "(NAU-203 + VOM-204)."
+                    )
+                    self.state.symptom_answers[candidate] = {}
+                    self.state.completed_symptoms.append(candidate)
+                    continue
+
+                next_symptom_id = candidate
+                break
 
         symptom = get_symptom_by_id(next_symptom_id)
         if not symptom:
@@ -680,6 +706,10 @@ class SymptomCheckerEngine:
     def _is_vomiting_question(self, question_id: str) -> bool:
         """Check if question is 'Have you been vomiting?' (ABD-211 uses 'vomiting', DEH-201 uses 'vomiting_check')."""
         return question_id in ('vomiting', 'vomiting_check')
+
+    def _is_abdominal_pain_question(self, question_id: str) -> bool:
+        """Check if question is the shared abdominal pain yes/no prompt."""
+        return question_id == 'abd_pain'
 
     def _get_next_question(self, symptom: SymptomDef, prefix_message: Optional[str] = None) -> EngineResponse:
         """Get the next applicable question for the current symptom."""
@@ -724,6 +754,20 @@ class SymptomCheckerEngine:
                     f"{self.state.session_vomiting_answer}"
                 )
                 self.state.answers[question.id] = self.state.session_vomiting_answer
+                self.state.current_question_index += 1
+                continue
+
+            # Cross-symptom abdominal pain reuse: if already answered once this session,
+            # auto-fill repeated "abd_pain" prompts (e.g. Vomiting + Diarrhea selected together).
+            if (
+                self._is_abdominal_pain_question(question.id)
+                and self.state.session_abdominal_pain_answer is not None
+            ):
+                logger.info(
+                    f"Reusing session abdominal pain answer for question {question.id}: "
+                    f"{self.state.session_abdominal_pain_answer}"
+                )
+                self.state.answers[question.id] = self.state.session_abdominal_pain_answer
                 self.state.current_question_index += 1
                 continue
             
@@ -950,6 +994,8 @@ class SymptomCheckerEngine:
                 # self._store_answer(question.id, user_response)
                 if self._is_vomiting_question(question.id):
                     self.state.session_vomiting_answer = bool(user_response)
+                if self._is_abdominal_pain_question(question.id):
+                    self.state.session_abdominal_pain_answer = bool(user_response)
                 logger.info(f"Stored answer for {question.id}: {user_response}")
 
         self.state.current_question_index += 1
@@ -1006,6 +1052,8 @@ class SymptomCheckerEngine:
                 # self._store_answer(question.id, user_response)
                 if self._is_vomiting_question(question.id):
                     self.state.session_vomiting_answer = bool(user_response)
+                if self._is_abdominal_pain_question(question.id):
+                    self.state.session_abdominal_pain_answer = bool(user_response)
                 logger.info(f"Stored follow-up answer for {question.id}: {user_response}")
 
         self.state.current_question_index += 1
