@@ -97,6 +97,9 @@ class ConversationState:
     # Cross-symptom abdominal pain: reuse "Do you have abdominal pain/cramping?" answer
     # to avoid duplicate prompts when multiple GI symptoms are selected together.
     session_abdominal_pain_answer: Optional[bool] = None
+    # Cross-symptom discomfort: reuse "Rate your discomfort" for APP-209 and CON-210
+    # when both symptoms are selected in one session.
+    session_discomfort_answer: Optional[str] = None
 
     def to_dict(self) -> Dict[str, Any]:
         """Serialize state to dictionary."""
@@ -126,6 +129,7 @@ class ConversationState:
             'session_temperature': self.session_temperature,
             'session_vomiting_answer': self.session_vomiting_answer,
             'session_abdominal_pain_answer': self.session_abdominal_pain_answer,
+            'session_discomfort_answer': self.session_discomfort_answer,
         }
 
     @classmethod
@@ -157,6 +161,7 @@ class ConversationState:
             session_temperature=data.get('session_temperature'),
             session_vomiting_answer=data.get('session_vomiting_answer'),
             session_abdominal_pain_answer=data.get('session_abdominal_pain_answer'),
+            session_discomfort_answer=data.get('session_discomfort_answer'),
         )
 
 
@@ -711,6 +716,13 @@ class SymptomCheckerEngine:
         """Check if question is the shared abdominal pain yes/no prompt."""
         return question_id == 'abd_pain'
 
+    def _is_discomfort_question(self, question_id: str, symptom_id: Optional[str]) -> bool:
+        """
+        Shared discomfort rating asked in both APP-209 and CON-210.
+        Reuse only within these two symptoms.
+        """
+        return question_id == 'discomfort' and symptom_id in ('APP-209', 'CON-210')
+
     def _get_next_question(self, symptom: SymptomDef, prefix_message: Optional[str] = None) -> EngineResponse:
         """Get the next applicable question for the current symptom."""
         questions = symptom.follow_up_questions if self.state.is_follow_up else symptom.screening_questions
@@ -768,6 +780,19 @@ class SymptomCheckerEngine:
                     f"{self.state.session_abdominal_pain_answer}"
                 )
                 self.state.answers[question.id] = self.state.session_abdominal_pain_answer
+                self.state.current_question_index += 1
+                continue
+
+            # Cross-symptom discomfort reuse for APP-209 <-> CON-210
+            if (
+                self._is_discomfort_question(question.id, self.state.current_symptom_id)
+                and self.state.session_discomfort_answer is not None
+            ):
+                logger.info(
+                    f"Reusing session discomfort answer for question {question.id}: "
+                    f"{self.state.session_discomfort_answer}"
+                )
+                self.state.answers[question.id] = self.state.session_discomfort_answer
                 self.state.current_question_index += 1
                 continue
             
@@ -996,6 +1021,8 @@ class SymptomCheckerEngine:
                     self.state.session_vomiting_answer = bool(user_response)
                 if self._is_abdominal_pain_question(question.id):
                     self.state.session_abdominal_pain_answer = bool(user_response)
+                if self._is_discomfort_question(question.id, self.state.current_symptom_id):
+                    self.state.session_discomfort_answer = str(user_response)
                 logger.info(f"Stored answer for {question.id}: {user_response}")
 
         self.state.current_question_index += 1
@@ -1054,6 +1081,8 @@ class SymptomCheckerEngine:
                     self.state.session_vomiting_answer = bool(user_response)
                 if self._is_abdominal_pain_question(question.id):
                     self.state.session_abdominal_pain_answer = bool(user_response)
+                if self._is_discomfort_question(question.id, self.state.current_symptom_id):
+                    self.state.session_discomfort_answer = str(user_response)
                 logger.info(f"Stored follow-up answer for {question.id}: {user_response}")
 
         self.state.current_question_index += 1
