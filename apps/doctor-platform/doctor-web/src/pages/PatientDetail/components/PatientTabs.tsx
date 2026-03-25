@@ -7,23 +7,23 @@ import React from 'react';
 import Box from '@mui/material/Box';
 import Paper from '@mui/material/Paper';
 import Typography from '@mui/material/Typography';
-import { useParams } from 'react-router-dom';
 import Chip from '@mui/material/Chip';
 import Skeleton from '@mui/material/Skeleton';
 import Stack from '@mui/material/Stack';
 import { MessageSquare, CheckCircle2, Clock } from 'lucide-react';
-import { usePatientQuestions } from '../../../services/dashboard';
+import type { SharedQuestion } from '../../../services/dashboard';
 
 interface PatientTabsProps {
   isDark: boolean;
+  questions?: SharedQuestion[];
+  isLoading: boolean;
 }
 
 const PatientTabs: React.FC<PatientTabsProps> = ({
   isDark,
+  questions,
+  isLoading,
 }) => {
-  const { uuid } = useParams<{ uuid: string }>();
-  const { data: questions, isLoading } = usePatientQuestions(uuid || '', 50);
-
   const renderQuestions = () => {
     if (isLoading) {
       return (
@@ -125,9 +125,9 @@ const PatientTabs: React.FC<PatientTabsProps> = ({
               >
                 {q.question_text}
               </Typography>
-              <Chip
+              {/* <Chip
                 icon={q.is_answered ? <CheckCircle2 size={14} /> : <Clock size={14} />}
-                label={q.is_answered ? 'Answered' : 'Pending'}
+                // label={q.is_answered ? 'Answered' : 'Pending'}
                 size="small"
                 variant="outlined"
                 sx={{
@@ -144,7 +144,7 @@ const PatientTabs: React.FC<PatientTabsProps> = ({
                     ? (isDark ? 'rgba(34, 197, 94, 0.2)' : 'rgba(34, 197, 94, 0.2)')
                     : (isDark ? 'rgba(234, 179, 8, 0.2)' : 'rgba(234, 179, 8, 0.2)'),
                 }}
-              />
+              /> */}
             </Box>
             <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
               {q.category && (
