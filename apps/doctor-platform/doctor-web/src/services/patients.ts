@@ -133,7 +133,7 @@ const transformPatientDetail = (backend: BackendPatientDetail): Patient => ({
   race: '',
   phoneNumber: backend.phone_number || '',
   physician: '',
-  diseaseType: backend.disease_type || backend.cancer_type || backend.diagnosis || '',
+  diseaseType: backend.diagnosis || backend.cancer_type || backend.disease_type || '',
   associateClinic: '',
   treatmentType: backend.treatment_type || backend.plan_name || '',
   cancer_type: backend.cancer_type,
@@ -257,7 +257,6 @@ export interface AddManualPatientPayload {
   email?: string;
   phone_number?: string;
   location?: string;
-  cancer_type?: string;
   diagnosis?: string;
   oncologist?: string;
   start_date?: string;
@@ -283,7 +282,6 @@ export interface PatientProfileUpdatePayload {
   email?: string;
   phone_number?: string;
   location?: string;
-  cancer_type?: string;
   diagnosis?: string;
   physician_ids?: number[];
   start_date?: string;
