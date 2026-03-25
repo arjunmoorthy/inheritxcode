@@ -22,7 +22,8 @@ const ProfilePage: React.FC = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
-  const { data: screenData, isLoading: isScreenLoading } = useFetchProfileScreen('d4a956fe-95e0-4b78-9817-f5ddead4155f');
+  // patient_uuid is taken from login (localStorage) via getPatientUuid()
+  const { data: screenData, isLoading: isScreenLoading } = useFetchProfileScreen();
   const updateProfileMutation = useUpdateProfile();
 
   useEffect(() => {
