@@ -207,7 +207,7 @@ const QuestionsPage: React.FC = () => {
                 <option value="other">Other</option>
               </CategorySelect>
 
-              <ShareToggle $isDark={isDark}>
+              {/* <ShareToggle $isDark={isDark}>
                 <input
                   type="checkbox"
                   checked={shareNew}
@@ -217,7 +217,7 @@ const QuestionsPage: React.FC = () => {
                   <Share2 size={16} />
                   Share with doctor
                 </span>
-              </ShareToggle>
+              </ShareToggle> */}
             </div>
 
             <SubmitButton 
