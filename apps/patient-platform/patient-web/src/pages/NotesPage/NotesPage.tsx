@@ -4,11 +4,12 @@
  */
 import React, { useState } from 'react';
 import styled from 'styled-components';
-import { Plus, Calendar, Stethoscope, X, Moon, Sun } from 'lucide-react';
+import { Plus, Calendar, Stethoscope, X, Moon, Sun, CheckCircle } from 'lucide-react';
 import dayjs, { Dayjs } from 'dayjs';
 import { Container, Header, Title } from '@oncolife/ui-components';
 import { useThemeMode } from '@oncolife/ui-components';
 import { useFetchNotes, useSaveNewNotes, useDeleteNote } from '../../services/notes';
+import { getPatientUuid } from '../../utils/patientUuid';
 import type { Note, NoteResponse } from './types';
 
 // =============================================================================
@@ -151,9 +152,17 @@ const ForDoctorBadge = styled.span`
   }
 `;
 
+const CardTitle = styled.h3<{ $isDark?: boolean }>`
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: ${props => props.$isDark ? '#F1F5F9' : colors.foreground};
+  margin: 0.25rem 0 0.5rem 0;
+  transition: color 0.3s ease;
+`;
+
 const CardContent = styled.p<{ $isDark?: boolean }>`
   font-size: 1rem;
-  color: ${props => props.$isDark ? '#F1F5F9' : colors.foreground};
+  color: ${props => props.$isDark ? '#94A3B8' : colors.muted};
   transition: color 0.3s ease;
   line-height: 1.6;
   margin: 0;
@@ -178,6 +187,35 @@ const EmptyState = styled.div<{ $isDark?: boolean }>`
     color: ${props => props.$isDark ? '#F1F5F9' : colors.foreground};
     margin-bottom: 0.5rem;
     transition: color 0.3s ease;
+  }
+`;
+
+const SuccessMessage = styled.div`
+  position: fixed;
+  top: 1.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #2E7D32;
+  color: white;
+  padding: 0.75rem 1.5rem;
+  border-radius: 12px;
+  font-weight: 600;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  z-index: 2000;
+  animation: slideDownFade 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  
+  @keyframes slideDownFade {
+    from { 
+      transform: translate(-50%, -20px); 
+      opacity: 0; 
+    }
+    to { 
+      transform: translate(-50%, 0); 
+      opacity: 1; 
+    }
   }
 `;
 
@@ -273,6 +311,28 @@ const CloseButton = styled.button`
 
 const ModalBody = styled.div`
   padding: 0 1.5rem;
+`;
+
+const DiaryTitleInput = styled.input<{ $isDark?: boolean }>`
+  width: 100%;
+  padding: 0.875rem 1rem;
+  margin-bottom: 1rem;
+  border: 2px solid ${props => props.$isDark ? '#3A3835' : colors.border};
+  border-radius: 12px;
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: ${props => props.$isDark ? '#F1F5F9' : colors.foreground};
+  background: ${props => props.$isDark ? '#1A1917' : '#FFFEF8'};
+  transition: all 0.2s ease;
+  
+  &::placeholder {
+    color: ${props => props.$isDark ? '#94A3B8' : colors.muted};
+  }
+  
+  &:focus {
+    outline: none;
+    border-color: ${colors.primary};
+  }
 `;
 
 const DiaryTextarea = styled.textarea<{ $isDark?: boolean }>`
@@ -380,19 +440,22 @@ const NotesPage: React.FC = () => {
   const { isDark, toggleTheme } = useThemeMode();
   const [selectedDate] = useState<Dayjs>(dayjs());
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [newEntryTitle, setNewEntryTitle] = useState('');
   const [newEntryText, setNewEntryText] = useState('');
   const [markForDoctor, setMarkForDoctor] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
+  const patientUuid = getPatientUuid() || '';
+  const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
   
   // Fetch notes from API
-  const { data: notesResponse, isLoading } = useFetchNotes(
-    selectedDate.year(), 
-    selectedDate.month() + 1
+  const { data: notesResponse, isLoading } = useFetchNotes(patientUuid, timezone);
+  const notes: Note[] = ((notesResponse as NoteResponse)?.data ?? []).sort((a, b) => 
+    dayjs(b.created_at).valueOf() - dayjs(a.created_at).valueOf()
   );
-  const notes: Note[] = (notesResponse as NoteResponse)?.data ?? [];
   
   // Mutation hooks
-  const saveNewNotesMutation = useSaveNewNotes(selectedDate.year(), selectedDate.month() + 1);
-  const deleteNoteMutation = useDeleteNote(selectedDate.year(), selectedDate.month() + 1);
+  const saveNewNotesMutation = useSaveNewNotes(patientUuid);
+  const deleteNoteMutation = useDeleteNote(patientUuid);
   
   // Format date for display (e.g., "Monday, January 5, 2026")
   const formatDate = (dateString: string) => {
@@ -405,6 +468,7 @@ const NotesPage: React.FC = () => {
   
   // Open modal for new entry
   const handleNewEntry = () => {
+    setNewEntryTitle('');
     setNewEntryText('');
     setMarkForDoctor(false);
     setIsModalOpen(true);
@@ -417,12 +481,17 @@ const NotesPage: React.FC = () => {
     try {
       await saveNewNotesMutation.mutateAsync({
         content: newEntryText.trim(),
-        title: dayjs().format('MMMM D, YYYY'),
+        title: newEntryTitle.trim() || dayjs().format('MMMM D, YYYY'),
         marked_for_doctor: markForDoctor,
       });
       setIsModalOpen(false);
+      setNewEntryTitle('');
       setNewEntryText('');
       setMarkForDoctor(false);
+      
+      // Show success message
+      setShowSuccess(true);
+      setTimeout(() => setShowSuccess(false), 3000);
     } catch (error) {
       console.error('Failed to save entry:', error);
     }
@@ -431,6 +500,7 @@ const NotesPage: React.FC = () => {
   // Close modal
   const handleCloseModal = () => {
     setIsModalOpen(false);
+    setNewEntryTitle('');
     setNewEntryText('');
     setMarkForDoctor(false);
   };
@@ -457,6 +527,13 @@ const NotesPage: React.FC = () => {
       >
         {isDark ? <Sun size={20} /> : <Moon size={20} />}
       </button>
+
+      {showSuccess && (
+        <SuccessMessage>
+          <CheckCircle size={18} />
+          Diary entry saved successfully!
+        </SuccessMessage>
+      )}
 
       <Container>
         <Header>
@@ -507,8 +584,13 @@ const NotesPage: React.FC = () => {
                       </ForDoctorBadge>
                     )}
                   </CardHeader>
+                  {note.title && (
+                    <CardTitle $isDark={isDark}>
+                      {note.title}
+                    </CardTitle>
+                  )}
                   <CardContent $isDark={isDark}>
-                    {note.diary_entry || note.title}
+                    {note.diary_entry}
                   </CardContent>
                 </DiaryCard>
               ))}
@@ -533,6 +615,12 @@ const NotesPage: React.FC = () => {
               </ModalHeader>
               
               <ModalBody>
+                <DiaryTitleInput
+                  $isDark={isDark}
+                  placeholder="Entry Title (Optional)"
+                  value={newEntryTitle}
+                  onChange={(e) => setNewEntryTitle(e.target.value)}
+                />
                 <DiaryTextarea
                   $isDark={isDark}
                   placeholder="How are you feeling today? Write your thoughts..."
