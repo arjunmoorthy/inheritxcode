@@ -692,6 +692,13 @@ class SymptomCheckerEngine:
         self.state.answers = {}
         self.state.phase = ConversationPhase.SCREENING
 
+        # If the user explicitly selected Abdominal Pain (ABD-211), we can safely treat
+        # the generic "abd_pain" yes/no cross-check as already true for this session.
+        # This prevents redundant "abdominal pain or cramping?" prompts when branching
+        # to other GI symptoms (e.g. VOM-204) from ABD-211.
+        if next_symptom_id == 'ABD-211' and self.state.session_abdominal_pain_answer is None:
+            self.state.session_abdominal_pain_answer = True
+
         return self._get_next_question(symptom, greeting_message)
 
     def _is_dehydration_question(self, question_id: str) -> bool:
