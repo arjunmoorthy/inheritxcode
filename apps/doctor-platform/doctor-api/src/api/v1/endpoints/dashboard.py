@@ -601,12 +601,38 @@ def _symptom_name(symptom_id: str) -> str:
 
 
 def _severity_from_detail(row: Dict[str, Any]) -> SeverityLabel:
+    def _normalize(value: Any) -> Optional[SeverityLabel]:
+        if not isinstance(value, str):
+            return None
+        v = value.strip().lower()
+        mapping = {
+            "mild": "mild",
+            "mod": "moderate",
+            "moderate": "moderate",
+            "sev": "severe",
+            "severe": "severe",
+            "urgent": "urgent",
+            "none": "none",
+        }
+        return mapping.get(v)  # type: ignore[return-value]
+
     severity_val = row.get("severity")
     triage_level = row.get("triage_level")
-    if severity_val:
-        s = str(severity_val).strip().lower()
-        if s in ("mild", "moderate", "severe", "urgent", "none"):
-            return s  # type: ignore[return-value]
+    sev = _normalize(severity_val)
+    if sev:
+        return sev
+
+    # Fallback to symptom answer payload when normalized severity was not persisted.
+    answers = row.get("answers_json") if isinstance(row.get("answers_json"), dict) else {}
+    # Explicit abdominal pain severity should be visible in trends.
+    sev = _normalize(answers.get("abd_pain_sev"))
+    if sev:
+        return sev
+    # APP-209 / CON-210 use discomfort as the severity-like input.
+    sev = _normalize(answers.get("discomfort"))
+    if sev:
+        return sev
+
     tl = (triage_level or "").strip().lower()
     if tl in ("call_911", "urgent"):
         return "severe"

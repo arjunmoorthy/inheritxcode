@@ -34,7 +34,7 @@ def save_symptom_analytics(db, patient_id, conversation_id, engine_state):
         }
         return mapping.get(v)
 
-    def _extract_user_severity(symptom_dict):
+    def _extract_user_severity(symptom_id, symptom_dict):
         if not isinstance(symptom_dict, dict):
             return None
         # Common severity keys across symptom definitions
@@ -42,12 +42,21 @@ def save_symptom_analytics(db, patient_id, conversation_id, engine_state):
             sev = _normalize_severity(symptom_dict.get(k))
             if sev:
                 return sev
+        # APP-209 and CON-210 use `discomfort` as the severity-like input.
+        if symptom_id in ("APP-209", "CON-210"):
+            sev = _normalize_severity(symptom_dict.get("discomfort"))
+            if sev:
+                return sev
+        # Some symptoms capture abdominal pain severity explicitly.
+        sev = _normalize_severity(symptom_dict.get("abd_pain_sev"))
+        if sev:
+            return sev
         return None
 
     severity_map = {}
     if symptom_answers:
         for sid, a in symptom_answers.items():
-            sev = _extract_user_severity(a)
+            sev = _extract_user_severity(sid, a)
             if sev:
                 severity_map[sid] = sev
 
