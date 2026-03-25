@@ -22,7 +22,10 @@ export const fetchProfileScreen = async (uuid?: string): Promise<ProfileScreenDa
 };
 
 export const updateProfile = async (data: any) => {
-  const patientUuid = getPatientUuid() || 'd4a956fe-95e0-4b78-9817-f5ddead4155f';
+  const patientUuid = getPatientUuid();
+  if (!patientUuid) {
+    throw new Error('Not authenticated. Please sign in.');
+  }
   const response = await apiClient.patch(`/profile/screen?patient_uuid=${encodeURIComponent(patientUuid)}`, data);
   return response.data;
 };
