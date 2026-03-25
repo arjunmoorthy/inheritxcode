@@ -102,6 +102,10 @@ export const Select = React.forwardRef<any, SelectProps>(({
             marginTop: '4px',
             overflow: 'hidden',
         }),
+        menuPortal: (base) => ({
+            ...base,
+            zIndex: 100000,
+        }),
         menuList: (base) => ({
             ...base,
             padding: '4px',
@@ -204,6 +208,8 @@ export const Select = React.forwardRef<any, SelectProps>(({
                 placeholder={placeholder}
                 isSearchable={isSearchable}
                 styles={customStyles}
+                menuPortalTarget={typeof window !== 'undefined' ? document.body : undefined}
+                menuPosition="fixed"
                 className={className}
                 classNamePrefix="react-select"
                 {...props}

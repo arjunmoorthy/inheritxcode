@@ -15,11 +15,13 @@ import type { ProfileData } from '../types';
 interface ProfileHeaderProps {
   profile: ProfileData;
   isEditing?: boolean;
+  isDark?: boolean;
   onEditProfile: () => void;
   onEditImage: () => void;
 }
 
 const ProfileHeader: React.FC<ProfileHeaderProps> = ({
+  isDark,
   profile,
   isEditing = false,
   onEditProfile,
@@ -32,7 +34,7 @@ const ProfileHeader: React.FC<ProfileHeaderProps> = ({
   return (
     <ProfileInfoHeader>
       <ProfileImageContainer>
-        <ProfileImage imageUrl={undefined}>
+        <ProfileImage imageUrl={undefined} $isDark={isDark}>
           {getInitials(profile.first_name, profile.last_name)}
         </ProfileImage>
         <EditImageButton onClick={onEditImage}>
@@ -41,8 +43,8 @@ const ProfileHeader: React.FC<ProfileHeaderProps> = ({
       </ProfileImageContainer>
       
       <ProfileInfo>
-        <ProfileName>{`${profile.first_name || ''} ${profile.last_name || ''}`}</ProfileName>
-        <ProfileEmail>
+        <ProfileName $isDark={isDark}>{`${profile.first_name || ''} ${profile.last_name || ''}`}</ProfileName>
+        <ProfileEmail $isDark={isDark}>
           <Mail />
           {profile.email_address || ''}
         </ProfileEmail>

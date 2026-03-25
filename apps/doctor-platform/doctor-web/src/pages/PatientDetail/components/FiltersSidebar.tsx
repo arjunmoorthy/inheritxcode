@@ -5,12 +5,13 @@
 
 import React from 'react';
 import IconButton from '@mui/material/IconButton';
-import TextField from '@mui/material/TextField';
 import Slider from '@mui/material/Slider';
 import Checkbox from '@mui/material/Checkbox';
 import Button from '@mui/material/Button';
 import Tooltip from '@mui/material/Tooltip';
 import { Filter, X, Calendar as CalendarIcon, Activity } from 'lucide-react';
+import { DatePicker } from '@oncolife/ui-components';
+import dayjs from 'dayjs';
 
 interface FiltersSidebarProps {
   isOpen: boolean;
@@ -117,29 +118,13 @@ const FiltersSidebar: React.FC<FiltersSidebarProps> = ({
             <label className={`block text-xs font-medium mb-1.5 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
               Start Date
             </label>
-            <TextField
-              type="date"
-              value={startDate}
-              onChange={(e) => onStartDateChange(e.target.value)}
-              size="small"
+            <DatePicker
+              value={startDate ? dayjs(startDate, 'YYYY-MM-DD', true) : null}
+              onChange={(newValue) => onStartDateChange(newValue.format('YYYY-MM-DD'))}
+              label="Start Date"
+              placeholder="Start Date"
+              views={['day', 'month', 'year']}
               fullWidth
-              sx={{
-                '& .MuiOutlinedInput-root': {
-                  backgroundColor: isDark ? '#1A1917' : 'white',
-                  color: isDark ? '#f1f5f9' : '#0f172a',
-                  fontSize: '0.875rem',
-                  '& fieldset': {
-                    borderColor: isDark ? '#334155' : '#e2e8f0',
-                  },
-                  '&:hover fieldset': {
-                    borderColor: isDark ? '#475569' : '#cbd5e1',
-                  },
-                  '&.Mui-focused fieldset': {
-                    borderColor: '#2563EB',
-                    borderWidth: '2px',
-                  },
-                },
-              }}
             />
           </div>
 
@@ -147,29 +132,13 @@ const FiltersSidebar: React.FC<FiltersSidebarProps> = ({
             <label className={`block text-xs font-medium mb-1.5 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
               End Date
             </label>
-            <TextField
-              type="date"
-              value={endDate}
-              onChange={(e) => onEndDateChange(e.target.value)}
-              size="small"
+            <DatePicker
+              value={endDate ? dayjs(endDate, 'YYYY-MM-DD', true) : null}
+              onChange={(newValue) => onEndDateChange(newValue.format('YYYY-MM-DD'))}
+              label="End Date"
+              placeholder="End Date"
+              views={['day', 'month', 'year']}
               fullWidth
-              sx={{
-                '& .MuiOutlinedInput-root': {
-                  backgroundColor: isDark ? '#1A1917' : 'white',
-                  color: isDark ? '#f1f5f9' : '#0f172a',
-                  fontSize: '0.875rem',
-                  '& fieldset': {
-                    borderColor: isDark ? '#334155' : '#e2e8f0',
-                  },
-                  '&:hover fieldset': {
-                    borderColor: isDark ? '#475569' : '#cbd5e1',
-                  },
-                  '&.Mui-focused fieldset': {
-                    borderColor: '#2563EB',
-                    borderWidth: '2px',
-                  },
-                },
-              }}
             />
           </div>
         </div>
