@@ -103,19 +103,19 @@ export const ProfileImageContainer = styled.div`
   justify-content: center;
 `;
 
-export const ProfileImage = styled.div<{ imageUrl?: string }>`
+export const ProfileImage = styled.div<{ imageUrl?: string, $isDark?: boolean }>`
   width: 88px;
   height: 88px;
   border-radius: 50%;
-  background-image: ${props => props.imageUrl 
-    ? `url(${props.imageUrl})` 
+  background-image: ${props => props.imageUrl
+    ? `url(${props.imageUrl})`
     : `linear-gradient(135deg, ${colors.primary} 0%, ${colors.secondary} 100%)`};
   background-size: cover;
   background-position: center;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: white;
+  color: ${props => props.$isDark ? '#ffffff' : "black"};
   font-size: 2rem;
   font-weight: 600;
   border: 4px solid ${colors.paper};
@@ -167,10 +167,10 @@ export const ProfileInfo = styled.div`
   }
 `;
 
-export const ProfileName = styled.h2`
+export const ProfileName = styled.h2<{ $isDark?: boolean }>`
   font-size: 1.5rem;
   font-weight: 700;
-  color: ${colors.text};
+  color: ${props => props.$isDark ? '#ffffff' : colors.text};
   margin: 0;
   
   @media (max-width: 576px) {
@@ -178,11 +178,11 @@ export const ProfileName = styled.h2`
   }
 `;
 
-export const ProfileEmail = styled.div`
+export const ProfileEmail = styled.div<{ $isDark?: boolean }>`
   display: flex;
   align-items: center;
   gap: 8px;
-  color: ${colors.textSecondary};
+  color: ${props => props.$isDark ? '#ffffff' : colors.textSecondary};
   font-size: 0.9375rem;
   
   svg {
@@ -224,10 +224,10 @@ export const EditProfileButton = styled.button`
   }
 `;
 
-export const SectionTitle = styled.h3`
+export const SectionTitle = styled.h3<{ $isDark?: boolean }>`
   font-size: 1rem;
   font-weight: 600;
-  color: ${colors.textSecondary};
+  color: ${props => props.$isDark ? '#ffffff' : colors.textSecondary};
   margin: 0 0 20px 0;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -269,10 +269,18 @@ export const InputGroup = styled.div`
   gap: 6px;
 `;
 
-export const InputLabel = styled.label`
+export const TreatmentInputLabel = styled.label<{ $isDark?: boolean }>`
   font-size: 0.8125rem;
   font-weight: 600;
   color: ${colors.textSecondary};
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+`;
+
+export const InputLabel = styled.label<{ $isDark?: boolean }>`
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: ${props => props.$isDark ? '#FFFFFF' : colors.textSecondary};
   text-transform: uppercase;
   letter-spacing: 0.03em;
 `;

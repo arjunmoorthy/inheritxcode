@@ -1,6 +1,10 @@
 import React, { useState } from 'react';
 import type { Message } from '../../types/chat';
 import { formatTimeForDisplay } from '@oncolife/shared-utils';
+import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
+import dayjs, { Dayjs } from 'dayjs';
 
 interface SymptomGroup {
   name: string;
@@ -326,18 +330,33 @@ export const SymptomMessageBubble: React.FC<SymptomMessageBubbleProps> = ({
       setNextChemoDate('');
     };
 
+    const nextChemoDayjs: Dayjs | null = nextChemoDate ? dayjs(nextChemoDate, 'YYYY-MM-DD', true) : null;
+
     return (
       <div className="chemo-today-check chemo-date-picker">
         {/* <p className="chemo-date-picker-label">
           Select your next chemotherapy appointment date
         </p> */}
-        <input
-          type="date"
-          value={nextChemoDate}
-          onChange={(e) => setNextChemoDate(e.target.value)}
-          className="chemo-date-input"
-          aria-label="Chemo date"
-        />
+        <LocalizationProvider dateAdapter={AdapterDayjs} adapterLocale="en">
+          <DatePicker
+            value={nextChemoDayjs}
+            onChange={(newValue) => {
+              if (!newValue || !newValue.isValid()) {
+                setNextChemoDate('');
+                return;
+              }
+              // Keep backend payload stable
+              setNextChemoDate(newValue.format('YYYY-MM-DD'));
+            }}
+            format="MM/DD/YYYY"
+            slotProps={{
+              textField: {
+                className: 'chemo-date-input',
+                inputProps: { 'aria-label': 'Chemo date' },
+              },
+            }}
+          />
+        </LocalizationProvider>
         <div className="chemo-date-actions">
           <button
             type="button"

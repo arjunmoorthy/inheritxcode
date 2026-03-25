@@ -10,9 +10,14 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useTheme, useMediaQuery } from '@mui/material';
 import Button from '@mui/material/Button';
+import InputAdornment from '@mui/material/InputAdornment';
 import { Modal, ModalFooter } from '../../../components/ui/Modal';
 import { Input } from '../../../components/ui/Input';
 import { Select, type SelectOption } from '../../../components/ui/Select';
+import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
+import dayjs from 'dayjs';
 import type { SingleValue, MultiValue } from 'react-select';
 import { useThemeMode } from '@oncolife/ui-components';
 import {
@@ -315,7 +320,8 @@ export const PatientFormModal: React.FC<PatientFormModalProps> = ({
       titleDescription={description}
       size="xl"
     >
-      <div className={`${isDark ? 'text-slate-100' : 'text-slate-900'}`}>
+      <LocalizationProvider dateAdapter={AdapterDayjs} adapterLocale="en">
+        <div className={`${isDark ? 'text-slate-100' : 'text-slate-900'}`}>
         <style>{`
           .compact-form [class*="mb-5"] {
             margin-bottom: 0.75rem !important;
@@ -351,7 +357,52 @@ export const PatientFormModal: React.FC<PatientFormModalProps> = ({
                 <Input {...field} label="MRN" placeholder="e.g., MRN123456" icon={<User size={18} />} fullWidth />
               )} />
               <Controller name="dateOfBirth" control={control} render={({ field }) => (
-                <Input {...field} label="Date of Birth" type="date" icon={<Calendar size={18} />} fullWidth />
+                <div className="w-full mb-5">
+                  <label
+                    className={`block text-[13px] font-semibold mb-1.5 uppercase tracking-wide transition-colors ${
+                      isDark ? 'text-slate-300' : 'text-slate-900'
+                    }`}
+                  >
+                    Date of Birth
+                  </label>
+                  <DatePicker
+                    value={field.value ? dayjs(field.value) : null}
+                    onChange={(newValue) => field.onChange(newValue && newValue.isValid() ? newValue.format('YYYY-MM-DD') : '')}
+                    format="MM/DD/YYYY"
+                    slotProps={{
+                      popper: {
+                        sx: { zIndex: 100000 },
+                      },
+                      textField: {
+                        fullWidth: true,
+                        placeholder: 'Date of Birth',
+                        error: !!errors.dateOfBirth?.message,
+                        helperText: errors.dateOfBirth?.message,
+                        InputProps: {
+                          startAdornment: (
+                            <InputAdornment position="start">
+                              <Calendar size={18} />
+                            </InputAdornment>
+                          ),
+                        },
+                        sx: {
+                          '& .MuiInputBase-root': {
+                            minHeight: '52px',
+                            backgroundColor: isDark ? '#2A2725' : '#F8FAFC',
+                          },
+                          '& .MuiOutlinedInput-notchedOutline': {
+                            borderColor: errors.dateOfBirth?.message
+                              ? '#EF4444'
+                              : (isDark ? '#3A3835' : '#E2E8F0'),
+                          },
+                          '& .MuiInputBase-input': {
+                            fontSize: '15px',
+                          },
+                        },
+                      },
+                    }}
+                  />
+                </div>
               )} />
               <Controller name="gender" control={control} render={({ field }) => {
                 const selectedOption = genderOptions.find(opt => opt.value === field.value);
@@ -479,13 +530,148 @@ export const PatientFormModal: React.FC<PatientFormModalProps> = ({
                 );
               }} />
               <Controller name="treatmentStartDate" control={control} render={({ field }) => (
-                <Input {...field} label="Treatment Start Date" type="date" icon={<Calendar size={18} />} fullWidth />
+                <div className="w-full mb-5">
+                  <label
+                    className={`block text-[13px] font-semibold mb-1.5 uppercase tracking-wide transition-colors ${
+                      isDark ? 'text-slate-300' : 'text-slate-900'
+                    }`}
+                  >
+                    Treatment Start Date
+                  </label>
+                  <DatePicker
+                    value={field.value ? dayjs(field.value) : null}
+                    onChange={(newValue) => field.onChange(newValue && newValue.isValid() ? newValue.format('YYYY-MM-DD') : '')}
+                    format="MM/DD/YYYY"
+                    slotProps={{
+                      popper: {
+                        sx: { zIndex: 100000 },
+                      },
+                      textField: {
+                        fullWidth: true,
+                        placeholder: 'Treatment Start Date',
+                        error: !!errors.treatmentStartDate?.message,
+                        helperText: errors.treatmentStartDate?.message,
+                        InputProps: {
+                          startAdornment: (
+                            <InputAdornment position="start">
+                              <Calendar size={18} />
+                            </InputAdornment>
+                          ),
+                        },
+                        sx: {
+                          '& .MuiInputBase-root': {
+                            minHeight: '52px',
+                            backgroundColor: isDark ? '#2A2725' : '#F8FAFC',
+                          },
+                          '& .MuiOutlinedInput-notchedOutline': {
+                            borderColor: errors.treatmentStartDate?.message
+                              ? '#EF4444'
+                              : (isDark ? '#3A3835' : '#E2E8F0'),
+                          },
+                          '& .MuiInputBase-input': {
+                            fontSize: '15px',
+                          },
+                        },
+                      },
+                    }}
+                  />
+                </div>
               )} />
               <Controller name="nextChemoDate" control={control} render={({ field }) => (
-                <Input {...field} label="Next Chemotherapy Treatment" type="date" icon={<Calendar size={18} />} fullWidth />
+                <div className="w-full mb-5">
+                  <label
+                    className={`block text-[13px] font-semibold mb-1.5 uppercase tracking-wide transition-colors ${
+                      isDark ? 'text-slate-300' : 'text-slate-900'
+                    }`}
+                  >
+                    Next Chemotherapy Treatment
+                  </label>
+                  <DatePicker
+                    value={field.value ? dayjs(field.value) : null}
+                    onChange={(newValue) => field.onChange(newValue && newValue.isValid() ? newValue.format('YYYY-MM-DD') : '')}
+                    format="MM/DD/YYYY"
+                    slotProps={{
+                      popper: {
+                        sx: { zIndex: 100000 },
+                      },
+                      textField: {
+                        fullWidth: true,
+                        placeholder: 'Next Chemotherapy Treatment',
+                        error: !!errors.nextChemoDate?.message,
+                        helperText: errors.nextChemoDate?.message,
+                        InputProps: {
+                          startAdornment: (
+                            <InputAdornment position="start">
+                              <Calendar size={18} />
+                            </InputAdornment>
+                          ),
+                        },
+                        sx: {
+                          '& .MuiInputBase-root': {
+                            minHeight: '52px',
+                            backgroundColor: isDark ? '#2A2725' : '#F8FAFC',
+                          },
+                          '& .MuiOutlinedInput-notchedOutline': {
+                            borderColor: errors.nextChemoDate?.message
+                              ? '#EF4444'
+                              : (isDark ? '#3A3835' : '#E2E8F0'),
+                          },
+                          '& .MuiInputBase-input': {
+                            fontSize: '15px',
+                          },
+                        },
+                      },
+                    }}
+                  />
+                </div>
               )} />
               <Controller name="endDate" control={control} render={({ field }) => (
-                <Input {...field} label="Treatment End Date" type="date" icon={<Calendar size={18} />} fullWidth />
+                <div className="w-full mb-5">
+                  <label
+                    className={`block text-[13px] font-semibold mb-1.5 uppercase tracking-wide transition-colors ${
+                      isDark ? 'text-slate-300' : 'text-slate-900'
+                    }`}
+                  >
+                    Treatment End Date
+                  </label>
+                  <DatePicker
+                    value={field.value ? dayjs(field.value) : null}
+                    onChange={(newValue) => field.onChange(newValue && newValue.isValid() ? newValue.format('YYYY-MM-DD') : '')}
+                    format="MM/DD/YYYY"
+                    slotProps={{
+                      popper: {
+                        sx: { zIndex: 100000 },
+                      },
+                      textField: {
+                        fullWidth: true,
+                        placeholder: 'Treatment End Date',
+                        error: !!errors.endDate?.message,
+                        helperText: errors.endDate?.message,
+                        InputProps: {
+                          startAdornment: (
+                            <InputAdornment position="start">
+                              <Calendar size={18} />
+                            </InputAdornment>
+                          ),
+                        },
+                        sx: {
+                          '& .MuiInputBase-root': {
+                            minHeight: '52px',
+                            backgroundColor: isDark ? '#2A2725' : '#F8FAFC',
+                          },
+                          '& .MuiOutlinedInput-notchedOutline': {
+                            borderColor: errors.endDate?.message
+                              ? '#EF4444'
+                              : (isDark ? '#3A3835' : '#E2E8F0'),
+                          },
+                          '& .MuiInputBase-input': {
+                            fontSize: '15px',
+                          },
+                        },
+                      },
+                    }}
+                  />
+                </div>
               )} />
               {/* <Controller name="oncologist" control={control} render={({ field }) => (
                 <Input {...field} label="Oncologist" placeholder="e.g., Dr. Sarah Smith" icon={<Stethoscope size={18} />} fullWidth />
@@ -523,7 +709,8 @@ export const PatientFormModal: React.FC<PatientFormModalProps> = ({
             </Button>
           </ModalFooter>
         </form>
-      </div>
+        </div>
+      </LocalizationProvider>
     </Modal>
   );
 };
