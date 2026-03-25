@@ -2591,12 +2591,14 @@ SYMPTOMS['URG-114'] = SymptomDef(
 # HEA-210: Headache (HIGH RISK - CNS)
 def _eval_headache(answers: Dict[str, Any]) -> LogicResult:
     worst_ever = answers.get('worst_ever') is True
+    sudden_strong = answers.get('sudden_strong') is True
     neuro_symptoms = answers.get('neuro_symptoms', [])
     severity = answers.get('severity')
     
     # Check for ANY neurological red flags (per oncologist spec)
     has_neuro_red_flags = (
         worst_ever or
+        sudden_strong or
         'vision' in neuro_symptoms or
         'speech' in neuro_symptoms or
         'face_droop' in neuro_symptoms or
@@ -2609,7 +2611,9 @@ def _eval_headache(answers: Dict[str, Any]) -> LogicResult:
     if has_neuro_red_flags:
         reasons = []
         if worst_ever:
-            reasons.append('Worst headache of life / sudden onset')
+            reasons.append('Worst headache of life')
+        if sudden_strong:
+            reasons.append('Sudden and very strong onset')
         if 'vision' in neuro_symptoms:
             reasons.append('Blurred or double vision')
         if 'speech' in neuro_symptoms:
@@ -2684,7 +2688,12 @@ SYMPTOMS['HEA-210'] = SymptomDef(
     screening_questions=[
         Question(
             id='worst_ever',
-            text='Is this the worst headache you\'ve ever had, or did it start suddenly and very strongly?',
+            text='Is this the worst headache you have ever had?',
+            input_type=InputType.YES_NO
+        ),
+        Question(
+            id='sudden_strong',
+            text='Did the headache start suddenly and very strongly?',
             input_type=InputType.YES_NO
         ),
         Question(
