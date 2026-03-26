@@ -66,18 +66,30 @@ const SymptomGraph: React.FC<SymptomGraphProps> = ({
     if (!containerRef.current || typeof window === 'undefined') return;
 
     const node = containerRef.current;
-    const updateWidth = () => {
-      const width = node.getBoundingClientRect().width;
-      setContainerWidth(Math.max(320, Math.floor(width)));
+    const updateWidth = (entries?: ResizeObserverEntry[]) => {
+      let width = node.clientWidth;
+      if (entries && entries.length > 0) {
+        // Use contentRect for robust layout size irrespective of transform scaling
+        width = entries[0].contentRect.width;
+      }
+      
+      // If width is 0 (hidden or unmounted), skip updating to avoid locking in bad sizes
+      if (width > 0) {
+        setContainerWidth(Math.floor(width));
+      }
     };
 
     updateWidth();
-    const observer = new ResizeObserver(updateWidth);
+    
+    const observer = new ResizeObserver((entries) => updateWidth(entries));
     observer.observe(node);
-    window.addEventListener('resize', updateWidth);
+    
+    const handleResize = () => updateWidth();
+    window.addEventListener('resize', handleResize);
+    
     return () => {
       observer.disconnect();
-      window.removeEventListener('resize', updateWidth);
+      window.removeEventListener('resize', handleResize);
     };
   }, []);
 
