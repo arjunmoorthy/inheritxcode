@@ -235,7 +235,7 @@ class Settings(BaseSettings):
         description="S3 bucket for storing referral documents"
     )
     s3_education_bucket: str = Field(
-        default="oncolife-education",
+        default="oncolife-education-east-296062592436",
         description="S3 bucket for storing education documents"
     )
     
