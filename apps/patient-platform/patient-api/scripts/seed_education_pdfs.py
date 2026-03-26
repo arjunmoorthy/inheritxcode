@@ -23,7 +23,7 @@ from datetime import datetime
 # Database connection - uses environment variable or defaults to local
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
-    "postgresql://postgres:bulbulkj@localhost:5432/oncolife_patient_dev"
+    "postgresql://oncolife_user:oncolife_password@localhost:5432/oncolife_patient"
 )
 
 # =============================================================================
