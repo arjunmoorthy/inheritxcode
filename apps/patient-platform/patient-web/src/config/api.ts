@@ -80,6 +80,7 @@ export const API_CONFIG = {
 
     // Conversation Summaries
     SUMMARIES: {
+      RECENT: '/summaries/recent',
       BY_MONTH: (year: number, month: number) => `/summaries/${year}/${month}`,
       DETAIL: (uuid: string) => `/summaries/detail/${uuid}`,
     },

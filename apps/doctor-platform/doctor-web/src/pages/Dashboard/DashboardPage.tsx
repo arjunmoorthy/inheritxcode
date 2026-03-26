@@ -428,8 +428,7 @@ const mapSeverityToPriority = (severity: string | null | undefined): 'low' | 'me
             ) : (
               <div className="flex flex-row gap-4 items-end flex-wrap w-full">
                 {/* Provider Filter - Admin Only */}
-                {user?.role === 'admin' && (
-                  <div className="flex flex-col gap-1.5">
+                 <div className="flex flex-col gap-1.5">
                     <Typography variant="caption" sx={{ fontWeight: 700, color: isDark ? '#64748b' : '#94a3b8', ml: 0.5, textTransform: 'uppercase', letterSpacing: '0.05em', fontSize: '0.65rem' }}>
                       Provider
                     </Typography>
@@ -508,7 +507,6 @@ const mapSeverityToPriority = (severity: string | null | undefined): 'low' | 'me
                       </Select>
                     </FormControl>
                   </div>
-                )}
 
                 {/* Search Filter */}
                 <div className="flex flex-col gap-1.5 flex-1 min-w-[300px]">
@@ -861,12 +859,12 @@ const mapSeverityToPriority = (severity: string | null | undefined): 'low' | 'me
                                 {patient.patientName}
                               </div>
                               {/* Chat Summary Section */}
-                              <div className={`hidden md:flex items-center gap-2 px-3 py-1 rounded-full border ${isDark ? 'bg-blue-500/5 border-blue-500/20 text-blue-400' : 'bg-blue-50 border-blue-100 text-blue-600'}`}>
+                              {/* <div className={`hidden md:flex items-center gap-2 px-3 py-1 rounded-full border ${isDark ? 'bg-blue-500/5 border-blue-500/20 text-blue-400' : 'bg-blue-50 border-blue-100 text-blue-600'}`}>
                                 <MessageCircle size={12} className="shrink-0" />
                                 <span className="text-[11px] font-medium truncate max-w-[250px]">
                                   {patient.summary && patient.summary !== '—' ? patient.summary : 'Recently reported mild cough and pain'}
                                 </span>
-                              </div>
+                              </div> */}
                             </div>
                             <div className={`text-xs mt-0.5 flex items-center gap-3 sm:gap-4 flex-wrap ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
                               <span className="flex items-center gap-1.5">

@@ -31,7 +31,7 @@ import {
   EmptyState,
 } from './SummariesPage.styles';
 import { Container, Header, Title, Content } from '@oncolife/ui-components';
-import { useSummaries, type Summary } from '../../services/summaries';
+import { useRecentSummaries, type Summary } from '../../services/summaries';
 import { useNavigate } from 'react-router-dom';
 
 // Date filter options
@@ -112,10 +112,11 @@ const getSeverity = (summary: Summary): 'mild' | 'moderate' | 'severe' | 'urgent
   const bulletedSummary = summary.bulleted_summary || '';
   const lowerText = bulletedSummary.toLowerCase();
   const triageLevel = summary.triage_level?.toLowerCase() || '';
+  const conversationState = summary.conversation_state?.toLowerCase() || '';
   
-  if (lowerText.includes('urgent') || triageLevel.includes('call_911')) return 'urgent';
+  if (lowerText.includes('urgent') || triageLevel.includes('call_911') || conversationState === 'emergency') return 'urgent';
   if (lowerText.includes('severe') || triageLevel.includes('urgent')) return 'severe';
-  if (lowerText.includes('moderate') || triageLevel.includes('notify')) return 'moderate';
+  if (lowerText.includes('moderate') || triageLevel.includes('notify') || lowerText.includes('notify care team')) return 'moderate';
   return 'mild';
 };
 
@@ -154,8 +155,8 @@ const generateNaturalSummary = (summary: Summary): string => {
 // Extract personal notes from summary (if any)
 const extractPersonalNotes = (summary: Summary): string | null => {
   // Check for personal_notes field first
-  if ((summary as any).personal_notes) {
-    return (summary as any).personal_notes;
+  if (summary.personal_notes) {
+    return summary.personal_notes;
   }
   // Check in longer_summary for quoted text
   const longerSummary = summary.longer_summary || '';
@@ -235,12 +236,9 @@ const SummariesPage: React.FC = () => {
   const [dateFilter, setDateFilter] = useState('all');
   const [symptomFilter, setSymptomFilter] = useState('all');
   
-  // Fetch all summaries (we'll filter client-side for now)
+  // Fetch recent summaries (we'll filter client-side for now)
   // TODO: Move filtering to backend for better performance
-  const { data, isLoading, error } = useSummaries(
-    new Date().getFullYear(),
-    new Date().getMonth() + 1
-  );
+  const { data, isLoading, error } = useRecentSummaries(50);
   
   // Get all summaries
   const allSummaries = data?.data || [];

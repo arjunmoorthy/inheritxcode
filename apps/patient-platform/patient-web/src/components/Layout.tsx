@@ -85,7 +85,7 @@ const Layout: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { isDark } = useThemeMode();
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
   const p = isDark ? PATIENT_LAYOUT_FALLBACK.dark : PATIENT_LAYOUT_FALLBACK.light;
@@ -193,7 +193,7 @@ const Layout: React.FC = () => {
             height: 44,
           }}
         >
-          U
+          {user?.first_name?.[0]?.toUpperCase() || 'P'}
         </Avatar>
         <Box sx={{ flex: 1, minWidth: 0 }}>
           <Typography variant="body2" color="text.secondary">
@@ -208,7 +208,7 @@ const Layout: React.FC = () => {
               whiteSpace: 'nowrap',
             }}
           >
-            Patient
+            {user?.full_name || user?.name || user?.first_name || 'Patient'}
           </Typography>
         </Box>
       </Box>
@@ -402,7 +402,7 @@ const Layout: React.FC = () => {
                     fontSize: '0.875rem',
                   }}
                 >
-                  U
+                  {user?.first_name?.[0]?.toUpperCase() || 'P'}
                 </Avatar>
               </IconButton>
             </Toolbar>
