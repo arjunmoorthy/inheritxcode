@@ -55,6 +55,7 @@ from db.patient_models import (
     Messages as MessageModel,
     PatientDiaryEntries as DiaryEntry,
 )
+from db.models import ConversationSummary
 
 
 # Core
@@ -458,14 +459,24 @@ class ChatService:
                 chat.bulleted_summary = summaries['bulleted']
                 chat.longer_summary = summaries['longer']
                 
-                # AUTO-SAVE to diary when conversation completes
+                # AUTO-SAVE to conversation summaries when conversation completes
                 # This happens automatically - no user action required
                 try:
-                    self._save_chat_to_diary(chat)
-                    logger.info(f"Auto-saved symptom check to diary: chat={chat_uuid}")
+                    self._save_chat_to_conversation_summary(chat)
+                    logger.info(f"Auto-saved symptom check to conversation summaries: chat={chat_uuid}")
                 except Exception as e:
-                    # Don't fail the whole flow if diary save fails
-                    logger.error(f"Failed to auto-save to diary: {e}")
+                    # Don't fail the whole flow if summary save fails
+                    self.db.rollback()
+                    logger.error(f"Failed to auto-save to conversation summaries: {e}")
+
+                # AUTO-SAVE to diary when conversation completes (deprecated)
+                # This happens automatically - no user action required
+                # try:
+                #     self._save_chat_to_diary(chat)
+                #     logger.info(f"Auto-saved symptom check to diary: chat={chat_uuid}")
+                # except Exception as e:
+                #     # Don't fail the whole flow if diary save fails
+                #     logger.error(f"Failed to auto-save to diary: {e}")
             else:
                 chat.conversation_state = engine_response.state.phase.value
         
@@ -656,6 +667,78 @@ class ChatService:
     # =========================================================================
     # Diary Integration
     # =========================================================================
+    
+    def _save_chat_to_conversation_summary(self, chat: ChatModel) -> ConversationSummary:
+        """
+        Save a completed symptom check session to conversation_summaries.
+        
+        Args:
+            chat: The chat model with symptom check data
+            
+        Returns:
+            The created conversation summary
+        """
+        # conversation_summaries.patient_uuid maps to chat_patients.uuid
+        # because patient identity comes from doctor-api fax flow.
+        self._ensure_chat_patient(chat.patient_uuid)
+
+        engine_state = getattr(chat, "engine_state", {}) or {}
+        triage_level = chat.triage_level or engine_state.get("highest_triage_level", "none")
+        summaries = self._generate_conversation_summaries(
+            chat=chat,
+            engine_state=engine_state,
+            triage_level=triage_level,
+        )
+        symptom_list = chat.symptom_list or []
+        symptom_names = [self._get_symptom_name(s) for s in symptom_list]
+        triage_results = engine_state.get("triage_results", [])
+        triage_reasons = [r.get("message", "") for r in triage_results if r.get("message")]
+        follow_up_needed = triage_level in ["call_911", "urgent", "same_day", "notify_care_team"]
+        
+        # One summary row per conversation (conversation_uuid is unique)
+        existing = self.db.query(ConversationSummary).filter(
+            ConversationSummary.conversation_uuid == chat.uuid
+        ).first()
+        if existing:
+            existing.summary_type = "symptom_check"
+            existing.chief_complaints = symptom_names[:3]
+            existing.symptoms_reported = symptom_names
+            existing.triage_level = triage_level
+            existing.triage_reasons = triage_reasons
+            existing.recommendations = []
+            existing.follow_up_needed = follow_up_needed
+            existing.follow_up_timeframe = "immediate" if follow_up_needed else None
+            existing.brief_summary = summaries["bulleted"]
+            existing.detailed_summary = summaries["longer"]
+            self.db.commit()
+            self.db.refresh(existing)
+            logger.info(f"Updated conversation summary: {existing.uuid} for chat: {chat.uuid}")
+            return existing
+        
+        conversation_summary = ConversationSummary(
+            conversation_uuid=chat.uuid,
+            patient_uuid=chat.patient_uuid,
+            summary_type="symptom_check",
+            chief_complaints=symptom_names[:3],
+            symptoms_reported=symptom_names,
+            triage_level=triage_level,
+            triage_reasons=triage_reasons,
+            recommendations=[],
+            follow_up_needed=follow_up_needed,
+            follow_up_timeframe="immediate" if follow_up_needed else None,
+            brief_summary=summaries["bulleted"],
+            detailed_summary=summaries["longer"],
+        )
+        
+        self.db.add(conversation_summary)
+        self.db.commit()
+        self.db.refresh(conversation_summary)
+        
+        logger.info(
+            f"Created conversation summary: {conversation_summary.uuid} "
+            f"for patient: {chat.patient_uuid}"
+        )
+        return conversation_summary
     
     def _save_chat_to_diary(self, chat: ChatModel) -> DiaryEntry:
         """
