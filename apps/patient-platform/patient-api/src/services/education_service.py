@@ -119,13 +119,15 @@ class EducationService:
         """Get or create S3 client with Signature Version 4."""
         if self._s3_client is None:
             from botocore.config import Config
-            # Use signature v4 for modern S3 regions
             s3_config = Config(signature_version='s3v4')
-            self._s3_client = boto3.client(
-                "s3",
-                region_name=settings.aws_region,
-                config=s3_config,
-            )
+            client_kwargs = {
+                "region_name": settings.aws_region,
+                "config": s3_config,
+            }
+            if settings.aws_access_key_id and settings.aws_secret_access_key:
+                client_kwargs["aws_access_key_id"] = settings.aws_access_key_id
+                client_kwargs["aws_secret_access_key"] = settings.aws_secret_access_key
+            self._s3_client = boto3.client("s3", **client_kwargs)
         return self._s3_client
     
     # =========================================================================

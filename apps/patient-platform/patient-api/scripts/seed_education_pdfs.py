@@ -9,6 +9,7 @@ Run with: python scripts/seed_education_pdfs.py
 
 import os
 import sys
+import json
 from pathlib import Path
 
 # Add the src directory to the path
@@ -22,7 +23,7 @@ from datetime import datetime
 # Database connection - uses environment variable or defaults to local
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
-    "postgresql://oncolife_user:oncolife_password@localhost:5432/oncolife_patient"
+    "postgresql://oncolife-patient:f1HV9hz823qcmeVap2i4@oncolife-uat.c1om2gk4ycxn.us-east-2.rds.amazonaws.com:5432/oncolife-patient-db"
 )
 
 # =============================================================================
@@ -895,7 +896,7 @@ def seed_database():
                     INSERT INTO education_pdfs 
                     (id, symptom_code, symptom_name, title, source, file_path, summary, keywords, display_order, is_active)
                     VALUES 
-                    (:id, :symptom_code, :symptom_name, :title, :source, :file_path, :summary, :keywords, :display_order, true)
+                    (:id, :symptom_code, :symptom_name, :title, :source, :file_path, :summary, CAST(:keywords AS jsonb), :display_order, true)
                     ON CONFLICT DO NOTHING
                 """),
                 {
@@ -906,7 +907,7 @@ def seed_database():
                     "source": pdf.get("source"),
                     "file_path": pdf["file_path"],
                     "summary": pdf.get("summary"),
-                    "keywords": pdf.get("keywords", []),
+                    "keywords": json.dumps(pdf.get("keywords", [])),
                     "display_order": idx,
                 }
             )
