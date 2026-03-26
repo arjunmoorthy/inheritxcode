@@ -23,7 +23,7 @@ from datetime import datetime
 # Database connection - uses environment variable or defaults to local
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
-    "postgresql://oncolife-patient:f1HV9hz823qcmeVap2i4@oncolife-uat.c1om2gk4ycxn.us-east-2.rds.amazonaws.com:5432/oncolife-patient-db"
+    "postgresql://oncolife_user:oncolife_password@localhost:5432/oncolife_patient"
 )
 
 # =============================================================================
@@ -896,7 +896,7 @@ def seed_database():
                     INSERT INTO education_pdfs 
                     (id, symptom_code, symptom_name, title, source, file_path, summary, keywords, display_order, is_active)
                     VALUES 
-                    (:id, :symptom_code, :symptom_name, :title, :source, :file_path, :summary, CAST(:keywords AS jsonb), :display_order, true)
+                    (:id, :symptom_code, :symptom_name, :title, :source, :file_path, :summary, :keywords, :display_order, true)
                     ON CONFLICT DO NOTHING
                 """),
                 {
