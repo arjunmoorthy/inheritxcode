@@ -45,6 +45,8 @@ services:
       context: ./apps/patient-platform/patient-api
       dockerfile: Dockerfile
     container_name: oncolife-patient-api
+    env_file:
+      - ./apps/doctor-platform/doctor-api/.env
     environment:
       # Application
       - ENVIRONMENT=development
