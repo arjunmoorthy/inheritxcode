@@ -203,7 +203,7 @@ class Settings(BaseSettings):
     # ==========================================================================
     
     aws_region: str = Field(
-        default="us-west-2",
+        default="us-east-1",
         description="AWS region for all services"
     )
     aws_access_key_id: Optional[str] = Field(
