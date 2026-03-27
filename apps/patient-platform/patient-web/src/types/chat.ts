@@ -48,6 +48,7 @@ export interface Message {
     frontend_type?: string;
     triage_level?: 'call_911' | 'notify_care_team' | 'urgent' | 'none';
     is_complete?: boolean;
+    phase?: string;
     // Symptom checker specific fields
     symptom_groups?: Record<string, SymptomGroup>;
     sender?: 'ruby' | 'system' | 'user';

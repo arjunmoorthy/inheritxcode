@@ -223,6 +223,16 @@ const PersonalInformation: React.FC<PersonalInformationProps> = ({
           </InputGroup>
 
           <InputGroup>
+            <TreatmentInputLabel $isDark={isDark}>MRN</TreatmentInputLabel>
+            <InputField
+              type="text"
+              value={formData.mrn || ''}
+              disabled={true}
+              isEditing={isEditing}
+            />
+          </InputGroup>
+
+          <InputGroup>
             <TreatmentInputLabel $isDark={isDark}>Day of Chemo Treatment</TreatmentInputLabel>
             <InputField
               type="text"
