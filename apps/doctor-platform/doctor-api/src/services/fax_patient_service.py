@@ -32,8 +32,7 @@ _DATE_FORMATS = [
     "%b %d %Y",      # Feb 1 2026
 ]
 
-DEFAULT_FAX_PHYSICIAN_FIRST_NAME = "Default"
-DEFAULT_FAX_PHYSICIAN_LAST_NAME = "Doctor"
+DEFAULT_FAX_PHYSICIAN_EMAIL = "defaultdoctor@yopmail.com"
 
 
 def parse_date(value: str):
@@ -73,12 +72,10 @@ def parse_date(value: str):
 def _find_default_fax_physician(db):
     return (
         db.query(Staff)
-        .join(User, Staff.user_id == User.id)
         .filter(
             Staff.role == "physician",
             Staff.is_active == True,
-            func.lower(func.coalesce(User.first_name, "")) == DEFAULT_FAX_PHYSICIAN_FIRST_NAME,
-            func.lower(func.coalesce(User.last_name, "")) == DEFAULT_FAX_PHYSICIAN_LAST_NAME,
+            func.lower(func.coalesce(Staff.email, "")) == DEFAULT_FAX_PHYSICIAN_EMAIL,
         )
         .first()
     )
