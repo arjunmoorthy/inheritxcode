@@ -3,9 +3,11 @@ import re
 from datetime import datetime
 
 from fastapi import BackgroundTasks
+from sqlalchemy import func
 
 from core.config import settings
 from db.models.fax_models import Patient
+from db.models.staff import PhysicianPatient, Staff
 from db.models.user import User
 from helpers.email import send_welcome_email
 from utils.name_spilt import split_name
@@ -29,6 +31,9 @@ _DATE_FORMATS = [
     "%B %d %Y",      # February 1 2026
     "%b %d %Y",      # Feb 1 2026
 ]
+
+DEFAULT_FAX_PHYSICIAN_FIRST_NAME = "Default"
+DEFAULT_FAX_PHYSICIAN_LAST_NAME = "Doctor"
 
 
 def parse_date(value: str):
@@ -63,6 +68,47 @@ def parse_date(value: str):
                 continue
 
     return None
+
+
+def _find_default_fax_physician(db):
+    return (
+        db.query(Staff)
+        .join(User, Staff.user_id == User.id)
+        .filter(
+            Staff.role == "physician",
+            Staff.is_active == True,
+            func.lower(func.coalesce(User.first_name, "")) == DEFAULT_FAX_PHYSICIAN_FIRST_NAME,
+            func.lower(func.coalesce(User.last_name, "")) == DEFAULT_FAX_PHYSICIAN_LAST_NAME,
+        )
+        .first()
+    )
+
+
+def _assign_default_physician_if_needed(db, patient: Patient):
+    if not patient or not patient.id:
+        return
+
+    existing_assignment = (
+        db.query(PhysicianPatient)
+        .filter(
+            PhysicianPatient.patient_id == patient.id,
+            PhysicianPatient.is_active == True,
+        )
+        .first()
+    )
+    if existing_assignment:
+        return
+
+    default_physician = _find_default_fax_physician(db)
+    if not default_physician:
+        return
+
+    db.add(
+        PhysicianPatient(
+            physician_id=default_physician.id,
+            patient_id=patient.id,
+        )
+    )
 
 def create_or_update_fax_patient(db, fax, structured, background_tasks: BackgroundTasks):
 
@@ -146,6 +192,10 @@ def create_or_update_fax_patient(db, fax, structured, background_tasks: Backgrou
 
     db.commit()
     db.refresh(patient)
+
+    # OCR-created fax patients currently have no manual doctor selection, so
+    # attach them to the dedicated fallback physician when available.
+    _assign_default_physician_if_needed(db, patient)
 
     fax.patient_id = patient.id
     db.commit()
