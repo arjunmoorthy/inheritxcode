@@ -122,6 +122,7 @@ class PatientProfileScreenData(BaseModel):
     first_name: Optional[str] = None
     last_name: Optional[str] = None
     email: Optional[str] = None
+    mrn: Optional[str] = None
     assigned_oncologist: Optional[str] = None
     treatment_start_date: Optional[date] = None
     treatment_end_date: Optional[date] = None
@@ -324,6 +325,7 @@ async def get_patient_profile_screen(
                 fp.first_name,
                 fp.last_name,
                 u.email,
+                fp.mrn,
                 COALESCE(
                     NULLIF(
                         string_agg(
@@ -367,6 +369,7 @@ async def get_patient_profile_screen(
             first_name=row["first_name"],
             last_name=row["last_name"],
             email=row["email"],
+            mrn=row["mrn"],
             assigned_oncologist=row["assigned_oncologist"],
             treatment_start_date=row["treatment_start_date"],
             treatment_end_date=row["treatment_end_date"],
@@ -456,6 +459,7 @@ async def update_patient_profile_screen(
                 fp.first_name,
                 fp.last_name,
                 u.email,
+                fp.mrn,
                 COALESCE(
                     NULLIF(
                         string_agg(
@@ -493,6 +497,7 @@ async def update_patient_profile_screen(
             first_name=row["first_name"],
             last_name=row["last_name"],
             email=row["email"],
+            mrn=row["mrn"],
             assigned_oncologist=row["assigned_oncologist"],
             treatment_start_date=row["treatment_start_date"],
             treatment_end_date=row["treatment_end_date"],
