@@ -390,6 +390,10 @@ def patient_listing_dashboard(
         default=None,
         description="Search by first name, last name, or full name"
     ),
+    physician_ids: list[str] | None = Query(
+        default=None,
+        description="Filter by one or more physician IDs (repeat param or comma-separated)",
+    ),
     current_user: TokenData = Depends(require_roles("physician", "nurse", "admin")),
     db: Session = Depends(get_doctor_db_session),
     patient_db: Session = Depends(get_patient_db_session),
@@ -415,43 +419,64 @@ def patient_listing_dashboard(
                 detail="Staff not found"
             )
 
+        # Resolve role-based allowed physician ids first.
+        allowed_physician_ids: Optional[list[int]]
         if current_user.role == "physician":
-            query = query.join(
-                PhysicianPatient,
-                PhysicianPatient.patient_id == FaxPatient.id
-            ).filter(
-                PhysicianPatient.physician_id == staff.id
-            )
-
+            allowed_physician_ids = [staff.id]
         elif current_user.role == "nurse":
-
-            physician_ids = db.query(
+            nurse_physician_ids = db.query(
                 PhysicianNurseAssignment.physician_id
             ).filter(
                 PhysicianNurseAssignment.nurse_id == staff.id
             ).all()
-
-            physician_ids = [p[0] for p in physician_ids]
-
-            if not physician_ids:
+            allowed_physician_ids = [p[0] for p in nurse_physician_ids]
+            if not allowed_physician_ids:
                 return {"status": "success", "count": 0, "data": []}
-
-            query = query.join(
-                PhysicianPatient,
-                PhysicianPatient.patient_id == FaxPatient.id
-            ).filter(
-                PhysicianPatient.physician_id.in_(physician_ids)
-            )
-        
         elif current_user.role == "admin":
-            # ✅ No join, no filtering → fetch ALL patients
-            pass
-
+            allowed_physician_ids = None
         else:
             raise HTTPException(
                 status_code=403,
                 detail="Not authorized to view patients"
             )
+
+        requested_physician_ids: list[int] = []
+        if physician_ids:
+            for raw in physician_ids:
+                if raw is None:
+                    continue
+                for token in str(raw).split(","):
+                    token = token.strip()
+                    if not token:
+                        continue
+                    if not token.isdigit():
+                        raise HTTPException(
+                            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                            detail=f"Invalid physician id: {token}",
+                        )
+                    requested_physician_ids.append(int(token))
+
+        # remove duplicates
+        if requested_physician_ids:
+            requested_physician_ids = list(dict.fromkeys(requested_physician_ids))
+
+        # ✅ FINAL LOGIC (Always assign)
+        if requested_physician_ids:
+            # override
+            effective_physician_ids = requested_physician_ids
+        else:
+            # fallback
+            effective_physician_ids = allowed_physician_ids
+
+        if effective_physician_ids is not None:
+            if not effective_physician_ids:
+                return {"status": "success", "count": 0, "data": []}
+            query = query.join(
+                PhysicianPatient,
+                PhysicianPatient.patient_id == FaxPatient.id
+            ).filter(
+                PhysicianPatient.physician_id.in_(effective_physician_ids)
+            ).distinct()
 
         if search:
             terms = search.strip().split()
