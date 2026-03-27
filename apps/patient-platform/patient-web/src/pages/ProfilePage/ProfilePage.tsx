@@ -47,6 +47,7 @@ const ProfilePage: React.FC = () => {
         total_cycles: null,
         last_chemo_date: null,
         next_physician_visit: screenData.next_chemotherapy_treatment,
+        mrn: screenData.mrn,
         emergency_contact_name: null,
         emergency_contact_phone: null,
       };
@@ -123,6 +124,7 @@ const ProfilePage: React.FC = () => {
         total_cycles: profile.total_cycles || null,
         last_chemo_date: profile.last_chemo_date || null,
         next_physician_visit: profile.next_physician_visit || null,
+        mrn: profile.mrn || '',
         // Emergency contact
         emergency_contact_name: profile.emergency_contact_name || null,
         emergency_contact_phone: profile.emergency_contact_phone || null,

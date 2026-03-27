@@ -18,6 +18,7 @@ export interface ProfileData {
   total_cycles: number | null;
   last_chemo_date: string | null;
   next_physician_visit: string | null;
+  mrn: string;
   // Emergency contact
   emergency_contact_name: string | null;
   emergency_contact_phone: string | null;
@@ -43,6 +44,7 @@ export interface ProfileFormData {
   total_cycles?: number | null;
   last_chemo_date: string | null;
   next_physician_visit: string | null;
+  mrn?: string;
   // Emergency contact
   emergency_contact_name: string | null;
   emergency_contact_phone: string | null;
@@ -58,6 +60,7 @@ export interface ProfileScreenData {
   next_chemotherapy_treatment: string;
   day_of_chemo_treatment: string;
   regimen_name: string;
+  mrn: string;
 }
 
 export interface ProfileScreenApiResponse {

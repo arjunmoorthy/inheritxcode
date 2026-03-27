@@ -29,6 +29,7 @@ const SymptomChatPage: React.FC = () => {
   const [textInput, setTextInput] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const lastMessageRef = useRef<HTMLDivElement>(null);
 
   // Handle incoming WebSocket messages
   const handleNewMessage = useCallback((wsMessage: any) => {
@@ -59,18 +60,22 @@ const SymptomChatPage: React.FC = () => {
     handleNewMessage
   );
 
-  // Auto-scroll to bottom (after layout so initial load shows latest message)
+  // Auto-scroll to ensure last message top is visible
   useEffect(() => {
-    const scrollToBottom = () => {
-      const container = messagesContainerRef.current;
-      if (container) {
-        container.scrollTop = container.scrollHeight;
+    const scrollToLastMessage = () => {
+      if (lastMessageRef.current) {
+        // Scroll specifically to the top of the last message
+        lastMessageRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      } else if (messagesContainerRef.current) {
+        messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
       } else {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
       }
     };
+    
+    // Use requestAnimationFrame to ensure layout is complete
     const rafId = requestAnimationFrame(() => {
-      requestAnimationFrame(scrollToBottom);
+      requestAnimationFrame(scrollToLastMessage);
     });
     return () => cancelAnimationFrame(rafId);
   }, [messages, isThinking]);
@@ -118,7 +123,10 @@ const SymptomChatPage: React.FC = () => {
   };
 
   // Send a message
-  const sendUserMessage = (content: string, messageType: Message['message_type'] = 'text') => {
+  const sendUserMessage = (
+    content: string, 
+    messageType: 'text' | 'button_response' | 'multi_select_response' | 'feeling_response' = 'text'
+  ) => {
     if (!chatSession || !isConnected) return;
 
     const userMessage: Message = {
@@ -345,29 +353,34 @@ const SymptomChatPage: React.FC = () => {
       {/* Messages */}
       <div ref={messagesContainerRef} className="symptom-messages-container">
         {messages.map((message, index) => (
-          <SymptomMessageBubble
-            key={`${message.id}-${index}`}
-            message={message}
-            onOptionSelect={handleOptionSelect}
-            onTextSubmit={handleTextSubmitFromBubble}
-            onMultiSelectSubmit={handleMultiSelectSubmit}
-            onSymptomSelect={handleSymptomSelect}
-            onDisclaimerAccept={() => handleOptionSelect('accept')}
-            onEmergencyCheck={(selected) => {
-              // Send emergency selection - 'none' or array of selected symptoms
-              const content = selected.join(', ') || 'none';
-              sendUserMessage(content, 'button_response');
-            }}
-            onSummaryAction={(action) => {
-              // Handle download action
-              if (action === 'download') {
-                downloadSummary();
-              }
-              // Send message to backend for other actions
-              sendUserMessage(action, 'button_response');
-            }}
-            shouldShowInteractive={shouldShowInteractive(message, index)}
-          />
+          <div 
+            key={`${message.id}-${index}`} 
+            ref={index === messages.length - 1 && !isThinking ? lastMessageRef : null}
+            className="message-bubble-wrapper"
+          >
+            <SymptomMessageBubble
+              message={message}
+              onOptionSelect={handleOptionSelect}
+              onTextSubmit={handleTextSubmitFromBubble}
+              onMultiSelectSubmit={handleMultiSelectSubmit}
+              onSymptomSelect={handleSymptomSelect}
+              onDisclaimerAccept={() => handleOptionSelect('accept')}
+              onEmergencyCheck={(selected) => {
+                // Send emergency selection - 'none' or array of selected symptoms
+                const content = selected.join(', ') || 'none';
+                sendUserMessage(content, 'button_response');
+              }}
+              onSummaryAction={(action) => {
+                // Handle download action
+                if (action === 'download') {
+                  downloadSummary();
+                }
+                // Send message to backend for other actions
+                sendUserMessage(action, 'button_response');
+              }}
+              shouldShowInteractive={shouldShowInteractive(message, index)}
+            />
+          </div>
         ))}
         {isThinking && renderThinkingIndicator()}
         <div ref={messagesEndRef} />

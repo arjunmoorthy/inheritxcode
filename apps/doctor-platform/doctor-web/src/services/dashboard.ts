@@ -220,18 +220,7 @@ export interface DashboardResponse {
 // Transform Functions
 // =============================================================================
 
-const mapSeverityToPriority = (severity: string | null): 'high' | 'medium' | 'low' => {
-  if (!severity) return 'low';
-  switch (severity.toLowerCase()) {
-    case 'urgent':
-    case 'severe':
-      return 'high';
-    case 'moderate':
-      return 'medium';
-    default:
-      return 'low';
-  }
-};
+
 
 /*
 // Helper function to transform patient ranking items to summary format
@@ -270,7 +259,7 @@ const fetchPatientListingDashboard = async (
   
   if (physicianIds && physicianIds.length > 0) {
     physicianIds.forEach(id => {
-      if (id !== 'all') params.append('physician_id', String(id));
+      if (id !== 'all') params.append('physician_ids', String(id));
     });
   }
 
