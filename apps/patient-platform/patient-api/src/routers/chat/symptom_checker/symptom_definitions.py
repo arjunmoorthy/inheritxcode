@@ -2940,7 +2940,7 @@ def _eval_leg_pain(answers: Dict[str, Any]) -> LogicResult:
         return LogicResult(
             action='continue',
             triage_level=TriageLevel.CALL_911,
-            triage_message=f"⚠️ DVT CONCERN - URGENT: {', '.join(reasons)}. Notify Care Team immediately for evaluation."
+            triage_message=f"⚠️ DVT CONCERN - URGENT: {', '.join(reasons)}. Contact Care Team immediately for evaluation."
         )
     
     return LogicResult(action='continue')
