@@ -740,6 +740,85 @@ class SharedQuestionResponse(BaseModel):
     created_at: Optional[str] = None
 
 
+class PatientConversationSummaryResponse(BaseModel):
+    uuid: str
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
+    conversation_state: Optional[str] = None
+    symptom_list: Optional[List[str]] = None
+    severity_list: Optional[Any] = None
+    longer_summary: Optional[str] = None
+    medication_list: Optional[List[Any]] = None
+    bulleted_summary: Optional[str] = None
+    overall_feeling: Optional[str] = None
+
+
+@router.get(
+    "/patient/{patient_uuid}/summaries",
+    response_model=APIResponse[List[PatientConversationSummaryResponse]],
+    summary="Patient conversation summaries",
+    description="List processed conversation summaries for a patient UUID.",
+)
+def get_patient_summaries(
+    patient_uuid: UUID,
+    limit: int = Query(10, ge=1, le=100),
+    current_user: User = Depends(require_roles("physician", "nurse", "admin")),
+    patient_db: Session = Depends(get_patient_db_session),
+    doctor_db: Session = Depends(get_doctor_db_session),
+):
+    """
+    Return the patient's completed conversation summaries in reverse
+    chronological order.
+    """
+    assert_staff_can_access_dashboard_patient(doctor_db, current_user, patient_uuid)
+
+    rows = patient_db.execute(
+        text(
+            """
+        SELECT
+            uuid,
+            created_at,
+            updated_at,
+            conversation_state,
+            symptom_list,
+            severity_list,
+            longer_summary,
+            medication_list,
+            bulleted_summary,
+            overall_feeling
+        FROM conversations
+        WHERE patient_uuid = :patient_uuid
+          AND bulleted_summary IS NOT NULL
+        ORDER BY created_at DESC
+        LIMIT :limit
+        """
+        ),
+        {"patient_uuid": str(patient_uuid), "limit": limit},
+    ).mappings().all()
+
+    summaries = [
+        PatientConversationSummaryResponse(
+            uuid=str(row["uuid"]),
+            created_at=row["created_at"].isoformat() if row.get("created_at") else None,
+            updated_at=row["updated_at"].isoformat() if row.get("updated_at") else None,
+            conversation_state=row["conversation_state"],
+            symptom_list=row["symptom_list"] or [],
+            severity_list=row["severity_list"],
+            longer_summary=row["longer_summary"],
+            medication_list=row["medication_list"] or [],
+            bulleted_summary=row["bulleted_summary"],
+            overall_feeling=row["overall_feeling"],
+        )
+        for row in rows
+    ]
+
+    return APIResponse(
+        success=True,
+        message="Patient summaries fetched successfully",
+        data=summaries,
+    )
+
+
 @router.get(
     "/patient/{patient_uuid}/questions",
     response_model=APIResponse[List[SharedQuestionResponse]],
