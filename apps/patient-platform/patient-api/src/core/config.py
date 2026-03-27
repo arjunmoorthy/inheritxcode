@@ -203,7 +203,7 @@ class Settings(BaseSettings):
     # ==========================================================================
     
     aws_region: str = Field(
-        default="us-west-2",
+        default="us-east-1",
         description="AWS region for all services"
     )
     aws_access_key_id: Optional[str] = Field(
@@ -235,7 +235,7 @@ class Settings(BaseSettings):
         description="S3 bucket for storing referral documents"
     )
     s3_education_bucket: str = Field(
-        default="oncolife-education",
+        default="oncolife-education-east-296062592436",
         description="S3 bucket for storing education documents"
     )
     

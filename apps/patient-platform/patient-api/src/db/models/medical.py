@@ -55,7 +55,7 @@ class ChemoSession(Base, TimestampMixin):
     # Patient reference
     patient_uuid = Column(
         UUID(as_uuid=True),
-        ForeignKey("patients.uuid", ondelete="CASCADE"),
+        ForeignKey("chat_patients.uuid", ondelete="CASCADE"),
         nullable=False,
         index=True
     )
@@ -124,7 +124,7 @@ class ChemoSession(Base, TimestampMixin):
     )
     
     # Relationships
-    patient = relationship("Patient", back_populates="chemo_sessions")
+    # patient = relationship("Patient", back_populates="chemo_sessions")  # FK moved to chat_patients in migration 0006
     symptoms = relationship(
         "ChemoSymptom",
         back_populates="chemo_session",
@@ -168,7 +168,7 @@ class ChemoSymptom(Base, TimestampMixin):
     )
     patient_uuid = Column(
         UUID(as_uuid=True),
-        ForeignKey("patients.uuid", ondelete="CASCADE"),
+        ForeignKey("chat_patients.uuid", ondelete="CASCADE"),
         nullable=False,
         index=True
     )
@@ -260,7 +260,7 @@ class DiaryEntry(Base, TimestampMixin):
     # Patient reference
     patient_uuid = Column(
         UUID(as_uuid=True),
-        ForeignKey("patients.uuid", ondelete="CASCADE"),
+        ForeignKey("chat_patients.uuid", ondelete="CASCADE"),
         nullable=False,
         index=True
     )
@@ -334,7 +334,7 @@ class DiaryEntry(Base, TimestampMixin):
     )
     
     # Relationships
-    patient = relationship("Patient", back_populates="diary_entries")
+    # patient = relationship("Patient", back_populates="diary_entries")  # FK moved to chat_patients in migration 0006
     
     def __repr__(self) -> str:
         return (
@@ -371,7 +371,7 @@ class ConversationSummary(Base, TimestampMixin):
     )
     patient_uuid = Column(
         UUID(as_uuid=True),
-        ForeignKey("patients.uuid", ondelete="CASCADE"),
+        ForeignKey("chat_patients.uuid", ondelete="CASCADE"),
         nullable=False,
         index=True
     )

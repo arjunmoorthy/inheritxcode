@@ -114,24 +114,27 @@ class Patient(Base, TimestampMixin):
     )
     
     # Relationships
+    # NOTE: chemo_sessions and diary_entries FKs were moved to chat_patients
+    # in migration 0006. These relationships no longer resolve against
+    # patients.uuid and break SQLAlchemy mapper configuration if left active.
     conversations = relationship(
         "Conversation",
         back_populates="patient",
         cascade="all, delete-orphan",
         order_by="desc(Conversation.created_at)"
     )
-    chemo_sessions = relationship(
-        "ChemoSession",
-        back_populates="patient",
-        cascade="all, delete-orphan",
-        order_by="desc(ChemoSession.session_date)"
-    )
-    diary_entries = relationship(
-        "DiaryEntry",
-        back_populates="patient",
-        cascade="all, delete-orphan",
-        order_by="desc(DiaryEntry.entry_date)"
-    )
+    # chemo_sessions = relationship(
+    #     "ChemoSession",
+    #     back_populates="patient",
+    #     cascade="all, delete-orphan",
+    #     order_by="desc(ChemoSession.session_date)"
+    # )
+    # diary_entries = relationship(
+    #     "DiaryEntry",
+    #     back_populates="patient",
+    #     cascade="all, delete-orphan",
+    #     order_by="desc(DiaryEntry.entry_date)"
+    # )
     
     @property
     def full_name(self) -> str:

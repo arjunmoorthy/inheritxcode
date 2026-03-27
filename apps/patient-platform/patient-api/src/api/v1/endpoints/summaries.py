@@ -10,7 +10,7 @@ Endpoints for conversation summary operations:
 
 from uuid import UUID
 from datetime import datetime
-from typing import List, Optional
+from typing import Any, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
@@ -63,7 +63,7 @@ class ConversationSummarySchema(BaseModel):
     created_at: datetime
     conversation_state: Optional[str] = None
     symptom_list: Optional[List[str]] = None
-    severity_list: Optional[dict] = None
+    severity_list: Optional[Any] = None
     longer_summary: Optional[str] = None
     medication_list: Optional[List] = None
     bulleted_summary: Optional[str] = None
@@ -80,7 +80,7 @@ class ConversationDetailSchema(BaseModel):
     updated_at: Optional[datetime] = None
     conversation_state: Optional[str] = None
     symptom_list: Optional[List[str]] = None
-    severity_list: Optional[dict] = None
+    severity_list: Optional[Any] = None
     longer_summary: Optional[str] = None
     medication_list: Optional[List] = None
     bulleted_summary: Optional[str] = None

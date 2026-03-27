@@ -9,6 +9,7 @@ Run with: python scripts/seed_education_pdfs.py
 
 import os
 import sys
+import json
 from pathlib import Path
 
 # Add the src directory to the path
@@ -906,7 +907,7 @@ def seed_database():
                     "source": pdf.get("source"),
                     "file_path": pdf["file_path"],
                     "summary": pdf.get("summary"),
-                    "keywords": pdf.get("keywords", []),
+                    "keywords": json.dumps(pdf.get("keywords", [])),
                     "display_order": idx,
                 }
             )
