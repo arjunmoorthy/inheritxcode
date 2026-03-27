@@ -625,7 +625,7 @@ class ChatService:
         if triage_level == 'call_911':
             bulleted_lines.append("Assessment: Emergency - Immediate attention required")
         elif triage_level in ['urgent', 'notify_care_team']:
-            bulleted_lines.append(f"Assessment: {triage_display} - Care team notified")
+            bulleted_lines.append(f"Assessment: {triage_display} - Please contact your care team")
         else:
             bulleted_lines.append("Assessment: No urgent concerns identified")
         
@@ -649,7 +649,7 @@ class ChatService:
         if triage_level == 'call_911':
             longer_summary += "This requires immediate emergency attention. Please call 911."
         elif triage_level in ['urgent', 'notify_care_team']:
-            longer_summary += f"Your care team has been notified and will follow up with you."
+            longer_summary += f"Please contact your care team for further evaluation."
             if triage_results:
                 flagged = [r.get('symptom_name', '') for r in triage_results]
                 longer_summary += f" Concerns flagged: {', '.join(flagged)}."
