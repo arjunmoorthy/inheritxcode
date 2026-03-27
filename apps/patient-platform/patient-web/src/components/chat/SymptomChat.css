@@ -271,6 +271,20 @@
    MESSAGE BUBBLES
    ============================================================================= */
 
+.message-bubble-wrapper {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.message-bubble-wrapper.user {
+  align-items: flex-end;
+}
+
+.message-bubble-wrapper.assistant {
+  align-items: flex-start;
+}
+
 .message-wrapper {
   display: flex;
   flex-direction: column;

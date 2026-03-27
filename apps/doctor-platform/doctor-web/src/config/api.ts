@@ -59,7 +59,7 @@ export const API_CONFIG = {
       LIST: '/patients',
       BY_UUID: (uuid: string) => `/patients/${uuid}`,
       ALERTS: (uuid: string) => `/patients/${uuid}/alerts`,
-      CONVERSATIONS: (uuid: string) => `/patients/${uuid}/conversations`,
+      CONVERSATIONS: (uuid: string) => `/dashboard/patient/${uuid}/summaries`,
       DIARY: (uuid: string) => `/patients/${uuid}/diary`,
       STATS: (uuid: string) => `/patients/${uuid}/stats`,
     },

@@ -356,7 +356,7 @@ const SymptomChatPage: React.FC = () => {
           <div 
             key={`${message.id}-${index}`} 
             ref={index === messages.length - 1 && !isThinking ? lastMessageRef : null}
-            className="message-bubble-wrapper"
+            className={`message-bubble-wrapper ${message.sender === 'user' ? 'user' : 'assistant'}`}
           >
             <SymptomMessageBubble
               message={message}
