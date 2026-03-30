@@ -779,6 +779,20 @@ def _to_provider_voice(summary: Optional[str]) -> Optional[str]:
     for pattern, target in replacements:
         text_value = re.sub(pattern, target, text_value, flags=re.IGNORECASE)
 
+    # Normalize legacy robotic clauses that may already be stored in DB.
+    text_value = re.sub(
+        r"For\s+[^,]+,\s*how long have you had [^:]+:\s*([^.]+)\.",
+        r"The patient reports this has been present for \1.",
+        text_value,
+        flags=re.IGNORECASE,
+    )
+    text_value = re.sub(
+        r"For\s+[^,]+,\s*have you been able to eat/drink normally:\s*([^.]+)\.",
+        r"The patient reports oral intake as \1.",
+        text_value,
+        flags=re.IGNORECASE,
+    )
+
     # Clean stale artifacts from older generated summaries.
     text_value = re.sub(
         r"(?:The patient reports|The patient has|The patient is)\s+yes regarding:\s*[^.]+\.?",

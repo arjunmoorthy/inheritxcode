@@ -394,9 +394,9 @@ def _generic_natural_clause(symptom: SymptomDef, q: Question, val: Any, answers:
             day_word = "day" if float(val) == 1 else "days"
             return f"You have had {sl} for {int(float(val))} {day_word}."
         lab = q.text.strip().rstrip("?").lower()
-        if len(lab) > 60:
-            lab = lab[:57] + "…"
-        return f"For {sl}, the reported value for {lab} was {val}."
+        if "how many" in lab and "last 24 hours" in lab:
+            return f"You reported {val} in the last 24 hours."
+        return f"You reported a value of {val}."
 
     if it == InputType.CHOICE and qid == "mucus":
         lab = _choice_label(q, val)
@@ -428,15 +428,17 @@ def _generic_natural_clause(symptom: SymptomDef, q: Question, val: Any, answers:
         vs = _coerce_str(val)
         if len(vs) > 200:
             vs = vs[:197] + "…"
-        return f"For {sl}, additional details ({qid.replace('_', ' ')}): {vs}."
+        return f"You provided additional details: {vs}."
 
     if it == InputType.CHOICE:
         lab = _choice_label(q, val)
         if lab:
             shortq = q.text.strip().rstrip("?").lower()
-            if len(shortq) > 70:
-                shortq = shortq[:67] + "…"
-            return f"For {sl}, {shortq}: {lab.lower()}."
+            if "when did" in shortq or "how long" in shortq:
+                return f"You reported this has been present for {lab.lower()}."
+            if "where" in shortq and ("hurt" in shortq or "pain" in shortq):
+                return f"You reported pain location as {lab.lower()}."
+            return f"You reported {lab.lower()}."
 
     return None
 
@@ -503,9 +505,7 @@ def _narrate_other_symptom(symptom: SymptomDef, answers: Dict[str, Any]) -> List
             chunk = ", ".join(str(x) for x in val if x not in (None, ""))
             if not chunk:
                 continue
-        lines.append(
-            f"For {sl}, you noted {key.replace('_', ' ')}: {chunk}."
-        )
+        lines.append(f"You noted {key.replace('_', ' ')}: {chunk}.")
     return lines
 
 
@@ -528,9 +528,7 @@ def _fallback_unknown(symptom_id: str, answers: Dict[str, Any], resolver: Callab
             chunk = str(val).strip()
             if not chunk:
                 continue
-        out.append(
-            f"For {label.lower()}, you noted {key.replace('_', ' ')}: {chunk}."
-        )
+        out.append(f"You noted {key.replace('_', ' ')}: {chunk}.")
     return out
 
 
