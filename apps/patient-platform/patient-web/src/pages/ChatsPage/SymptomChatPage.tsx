@@ -125,7 +125,8 @@ const SymptomChatPage: React.FC = () => {
   // Send a message
   const sendUserMessage = (
     content: string, 
-    messageType: 'text' | 'button_response' | 'multi_select_response' | 'feeling_response' = 'text'
+    messageType: 'text' | 'button_response' | 'multi_select_response' | 'feeling_response' = 'text',
+    structuredData?: Record<string, any>
   ) => {
     if (!chatSession || !isConnected) return;
 
@@ -140,7 +141,7 @@ const SymptomChatPage: React.FC = () => {
     
     setMessages(prev => [...prev, userMessage]);
     setIsThinking(true);
-    sendMessage(content, messageType);
+    sendMessage(content, messageType, structuredData);
   };
 
   // Handle option selection (yes/no, single choice)

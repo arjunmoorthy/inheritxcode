@@ -17,7 +17,7 @@ interface SymptomMessageBubbleProps {
   onOptionSelect?: (value: string | boolean) => void;
   onTextSubmit?: (value: string) => void;
   onMultiSelectSubmit?: (values: string[]) => void;
-  onSymptomSelect?: (symptomIds: string[]) => void;
+  onSymptomSelect?: (symptomIds: string[], displayText: string) => void;
   onDisclaimerAccept?: () => void;
   onEmergencyCheck?: (selected: string[]) => void;
   onSummaryAction?: (action: string) => void;
@@ -73,7 +73,9 @@ const formatUserResponse = (content: string): string => {
   };
   
   // Remove any line breaks that might be in the content
-  const cleanContent = content.replace(/\n/g, ' ').trim();
+  const cleanContent = (content || '').replace(/\n/g, ' ').trim();
+  
+  if (!cleanContent) return '';
   
   // Check for exact match (case insensitive)
   const lowerContent = cleanContent.toLowerCase();
@@ -173,7 +175,41 @@ export const SymptomMessageBubble: React.FC<SymptomMessageBubbleProps> = ({
   // Handle symptom selection submit
   const handleSymptomSubmit = () => {
     if (onSymptomSelect) {
-      onSymptomSelect(selectedSymptoms.length > 0 ? selectedSymptoms : ['none']);
+      const selectedIds = selectedSymptoms.length > 0 ? selectedSymptoms : ['none'];
+      
+      // Construct display text for the chat bubble
+      let displayText = "";
+      if (selectedIds.includes('none')) {
+        displayText = "None of these";
+      } else {
+        // Find names for selected IDs to show in the user's message bubble
+        const names: string[] = [];
+        
+        // Check grouped symptoms
+        if (symptomGroups) {
+          Object.values(symptomGroups).forEach(group => {
+            group.symptoms.forEach(s => {
+              if (selectedIds.includes(s.id)) {
+                names.push(s.name);
+              }
+            });
+          });
+        } 
+        
+        // Check legacy symptoms if names not found or no groups
+        if (names.length === 0) {
+          const optionsData = message.structured_data?.options_data || [];
+          optionsData.forEach((opt: any) => {
+            if (selectedIds.includes(opt.value)) {
+              names.push(opt.label);
+            }
+          });
+        }
+        
+        displayText = names.join(', ');
+      }
+      
+      onSymptomSelect(selectedIds, displayText);
       setSelectedSymptoms([]);
     }
   };
