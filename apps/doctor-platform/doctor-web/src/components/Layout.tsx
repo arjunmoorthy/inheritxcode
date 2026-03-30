@@ -39,11 +39,17 @@ import {
   Sun,
   FileText,
   User,
-  ChevronDown
+  UserCog,
+  UserPlus,
+  Settings,
+  ChevronDown,
+  ChevronRight
 } from 'lucide-react';
 import { useUser } from '../contexts/UserContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useThemeMode } from '@oncolife/ui-components';
+import { useStaffManagement } from '../contexts/StaffManagementContext';
+import StaffManagementModals from './StaffManagementModals';
 // Sidebar width (commented out - kept for reference)
 // const DRAWER_WIDTH = 260;
 // const DRAWER_WIDTH_COLLAPSED = 72;
@@ -89,7 +95,10 @@ const Layout: React.FC = () => {
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
   const [profileMenuAnchor, setProfileMenuAnchor] = useState<null | HTMLElement>(null);
+  const [staffMenuAnchor, setStaffMenuAnchor] = useState<null | HTMLElement>(null);
+  const isStaffMenuOpen = Boolean(staffMenuAnchor);
   const { toggleTheme } = useThemeMode();
+  const { openAddStaffModal, openUpdateStaffModal } = useStaffManagement();
   // const [sidebarCollapsed, setSidebarCollapsed] = useState(false); // Commented out - sidebar removed
 
   // Check authentication
@@ -189,6 +198,15 @@ const Layout: React.FC = () => {
 
   const handleProfileMenuClose = () => {
     setProfileMenuAnchor(null);
+    setStaffMenuAnchor(null);
+  };
+
+  const handleStaffMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
+    setStaffMenuAnchor(event.currentTarget);
+  };
+
+  const handleStaffMenuClose = () => {
+    setStaffMenuAnchor(null);
   };
 
   const handleProfileClick = () => {
@@ -209,7 +227,7 @@ const Layout: React.FC = () => {
   // To restore the sidebar, you would need to implement it based on the header
   // structure below, but using a Drawer component instead of AppBar.
   // ============================================================================
-  
+
   /* 
   // Original SidebarContent component - removed to avoid parsing issues
   // The full implementation can be found in git history if needed
@@ -217,7 +235,7 @@ const Layout: React.FC = () => {
     return null; // Placeholder - original code removed to avoid parsing issues
   };
   */
-  
+
   // ============================================================================
   // END OF COMMENTED SIDEBAR CODE
   // ============================================================================
@@ -265,7 +283,7 @@ const Layout: React.FC = () => {
         </Box>
         <IconButton
           onClick={() => setMobileDrawerOpen(false)}
-          sx={{ 
+          sx={{
             color: isDark ? '#f1f5f9' : '#0f172a',
             minWidth: 44,
             minHeight: 44,
@@ -427,16 +445,16 @@ const Layout: React.FC = () => {
         }}
         sx={{ transition: 'all 0.3s ease' }}
       >
-        <Toolbar sx={{ 
+        <Toolbar sx={{
           minHeight: { xs: 64, md: 70 },
           px: { xs: 2, md: 3 },
           justifyContent: 'space-between',
         }}>
           {/* Left: Logo */}
-          <Box 
-            sx={{ 
-              display: 'flex', 
-              alignItems: 'center', 
+          <Box
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
               gap: 1.5,
               cursor: 'pointer',
               '&:hover': { opacity: 0.9 },
@@ -508,7 +526,7 @@ const Layout: React.FC = () => {
                     </Button>
                   );
                 })}
-                
+
                 {/* Dark Mode Toggle */}
                 <Tooltip title={isDark ? 'Light Mode' : 'Dark Mode'}>
                   <IconButton
@@ -523,7 +541,7 @@ const Layout: React.FC = () => {
                     {isDark ? <Sun size={20} /> : <Moon size={20} />}
                   </IconButton>
                 </Tooltip>
-                
+
                 {/* Profile Dropdown */}
                 <Tooltip title="Profile Menu">
                   <IconButton
@@ -552,7 +570,7 @@ const Layout: React.FC = () => {
                     </Box>
                   </IconButton>
                 </Tooltip>
-                
+
                 {/* Profile Menu Dropdown */}
                 <Menu
                   anchorEl={profileMenuAnchor}
@@ -573,7 +591,7 @@ const Layout: React.FC = () => {
                       bgcolor: isDark ? '#1A1917' : 'white',
                       border: `1px solid ${isDark ? '#334155' : '#e2e8f0'}`,
                       borderRadius: 2,
-                      boxShadow: isDark 
+                      boxShadow: isDark
                         ? '0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2)'
                         : '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
                     },
@@ -614,6 +632,28 @@ const Layout: React.FC = () => {
                     <User size={18} style={{ marginRight: 12 }} />
                     Profile
                   </MenuItem>
+                  {profile?.role === 'admin' && (
+                    <MenuItem
+                      onClick={handleStaffMenuOpen}
+                      sx={{
+                        py: 1.5,
+                        px: 2,
+                        color: isDark ? '#f1f5f9' : '#0f172a',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        '&:hover': {
+                          bgcolor: isDark ? '#2A2725' : '#f1f5f9',
+                        },
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center' }}>
+                        <UserCog size={18} style={{ marginRight: 12 }} />
+                        Manage Staff
+                      </div>
+                      <ChevronRight size={16} />
+                    </MenuItem>
+                  )}
                   <Divider sx={{ my: 0.5, borderColor: isDark ? '#334155' : '#e2e8f0' }} />
                   <MenuItem
                     onClick={() => {
@@ -633,6 +673,61 @@ const Layout: React.FC = () => {
                     Logout
                   </MenuItem>
                 </Menu>
+
+                {/* Manage Staff Sub-menu */}
+                <Menu
+                  anchorEl={staffMenuAnchor}
+                  open={isStaffMenuOpen}
+                  onClose={handleStaffMenuClose}
+                  anchorOrigin={{ vertical: 'top', horizontal: 'left' }}
+                  transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+                  PaperProps={{
+                    sx: {
+                      width: 210,
+                      mt: 0,
+                      ml: -1,
+                      bgcolor: isDark ? '#1A1917' : '#ffffff',
+                      border: `1px solid ${isDark ? '#334155' : '#e2e8f0'}`,
+                      boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
+                    },
+                  }}
+                >
+                  <MenuItem
+                    onClick={() => {
+                      openAddStaffModal();
+                      handleProfileMenuClose();
+                    }}
+                    sx={{
+                      py: 1.5,
+                      px: 2,
+                      color: isDark ? '#f1f5f9' : '#0f172a',
+                      '&:hover': {
+                        bgcolor: isDark ? '#2A2725' : '#f1f5f9',
+                      },
+                    }}
+                  >
+                    <UserPlus size={18} style={{ marginRight: 12 }} />
+                    Add New Staff
+                  </MenuItem>
+                  <MenuItem
+                    onClick={() => {
+                      openUpdateStaffModal();
+                      handleProfileMenuClose();
+                    }}
+                    sx={{
+                      py: 1.5,
+                      px: 2,
+                      color: isDark ? '#f1f5f9' : '#0f172a',
+                      '&:hover': {
+                        bgcolor: isDark ? '#2A2725' : '#f1f5f9',
+                      },
+                    }}
+                  >
+                    <Settings size={18} style={{ marginRight: 12 }} />
+                    Update Existing Staff
+                  </MenuItem>
+                </Menu>
+                <StaffManagementModals />
               </>
             )}
 
