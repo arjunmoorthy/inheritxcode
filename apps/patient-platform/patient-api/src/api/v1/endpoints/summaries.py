@@ -65,6 +65,7 @@ class ConversationSummarySchema(BaseModel):
     symptom_list: Optional[List[str]] = None
     severity_list: Optional[Any] = None
     longer_summary: Optional[str] = None
+    clinical_narrative_summary: Optional[str] = None
     medication_list: Optional[List] = None
     bulleted_summary: Optional[str] = None
     overall_feeling: Optional[str] = None
@@ -82,6 +83,7 @@ class ConversationDetailSchema(BaseModel):
     symptom_list: Optional[List[str]] = None
     severity_list: Optional[Any] = None
     longer_summary: Optional[str] = None
+    clinical_narrative_summary: Optional[str] = None
     medication_list: Optional[List] = None
     bulleted_summary: Optional[str] = None
     overall_feeling: Optional[str] = None

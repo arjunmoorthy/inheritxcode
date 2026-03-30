@@ -58,6 +58,7 @@ class SummaryService:
             "symptom_list": conversation.symptom_list,
             "severity_list": conversation.severity_list,
             "longer_summary": conversation.longer_summary,
+            "clinical_narrative_summary": conversation.clinical_narrative_summary,
             "medication_list": conversation.medication_list,
             "bulleted_summary": conversation.bulleted_summary,
             "overall_feeling": conversation.overall_feeling,

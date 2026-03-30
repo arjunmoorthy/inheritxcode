@@ -704,6 +704,12 @@ class SymptomCheckerEngine:
         if next_symptom_id == 'ABD-211' and self.state.session_abdominal_pain_answer is None:
             self.state.session_abdominal_pain_answer = True
 
+        # Vomiting (VOM-204) was explicitly selected — treat "have you been vomiting?" as yes
+        # for cross-symptom reuse (DEH-201 vomiting_check, ABD-211 vomiting) so we do not
+        # re-ask after abdominal pain or dehydration follow-ups in the same session.
+        if next_symptom_id == 'VOM-204' and self.state.session_vomiting_answer is None:
+            self.state.session_vomiting_answer = True
+
         return self._get_next_question(symptom, greeting_message)
 
     def _is_dehydration_question(self, question_id: str) -> bool:
@@ -781,6 +787,21 @@ class SymptomCheckerEngine:
                     f"{self.state.session_temperature}"
                 )
                 self.state.answers[question.id] = self.state.session_temperature
+                self.state.current_question_index += 1
+                continue
+
+            # Nausea + Vomiting both selected: "Have you vomited?" on NAU-203 is redundant with VOM-204.
+            # (NAU is usually skipped when VOM is selected; this covers edge cases.)
+            if (
+                self.state.current_symptom_id == 'NAU-203'
+                and question.id == 'vomiting_check'
+                and 'VOM-204' in self.state.selected_symptoms
+            ):
+                logger.info(
+                    "Skipping nausea vomiting_check — Vomiting (VOM-204) already selected in session"
+                )
+                self.state.answers[question.id] = True
+                self.state.session_vomiting_answer = True
                 self.state.current_question_index += 1
                 continue
 

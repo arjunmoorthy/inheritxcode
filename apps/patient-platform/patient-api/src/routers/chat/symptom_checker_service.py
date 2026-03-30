@@ -15,6 +15,7 @@ import logging
 
 from .symptom_checker import SymptomCheckerEngine, TriageLevel
 from .symptom_checker.symptom_engine import ConversationState, EngineResponse
+from .symptom_checker.symptom_definitions import SYMPTOMS
 from .models import (
     WebSocketMessageIn, WebSocketMessageOut,
     ConnectionEstablished, Message
@@ -22,6 +23,40 @@ from .models import (
 from db.patient_models import Conversations as ChatModel, Messages as MessageModel
 
 logger = logging.getLogger(__name__)
+
+
+def _display_content_for_user_symptom_message(message: WebSocketMessageIn) -> str:
+    """
+    Persist and echo human-readable symptom names when the client sends known symptom IDs
+    (e.g. multi-select or grouped symptom selection). Engine parsing still uses the raw inbound message.
+    """
+    raw = (message.content or "").strip()
+    msg_type = message.message_type
+    if msg_type not in ("multi_select_response", "symptom_select_response"):
+        return message.content or ""
+
+    sd = message.structured_data or {}
+    ids: List[str] = []
+
+    if msg_type == "symptom_select_response":
+        if "selected_symptoms" in sd:
+            ids = [str(x).strip() for x in (sd.get("selected_symptoms") or []) if str(x).strip()]
+        elif "selected_values" in sd:
+            ids = [str(x).strip() for x in (sd.get("selected_values") or []) if str(x).strip()]
+    elif msg_type == "multi_select_response" and "selected_values" in sd:
+        ids = [str(x).strip() for x in (sd.get("selected_values") or []) if str(x).strip()]
+
+    if not ids and raw:
+        ids = [s.strip() for s in raw.split(",") if s.strip()]
+
+    if not ids:
+        return message.content or ""
+
+    if not any(t in SYMPTOMS for t in ids):
+        return message.content or ""
+
+    parts = [SYMPTOMS[t].name if t in SYMPTOMS else t for t in ids]
+    return ", ".join(parts)
 
 
 # Diary auto-populate helper
@@ -320,12 +355,13 @@ class SymptomCheckerService:
             logger.error(f"Chat {chat_uuid} not found")
             return
 
-        # 1. Save the user's message
+        # 1. Save the user's message (display names for known symptom IDs; engine still parses raw codes below)
+        display_content = _display_content_for_user_symptom_message(message)
         user_msg = MessageModel(
             chat_uuid=chat_uuid,
             sender="user",
             message_type=message.message_type,
-            content=message.content
+            content=display_content,
         )
         self.db.add(user_msg)
         self.db.commit()
