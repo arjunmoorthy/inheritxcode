@@ -611,17 +611,35 @@ SeverityLabel = Literal["mild", "moderate", "severe", "urgent", "none"]
 
 
 def _symptom_name(symptom_id: str) -> str:
+    # Labels match patient-api `routers/chat/symptom_checker/symptom_definitions.py` (SymptomDef.name).
     symptom_map = {
+        "URG-101": "Trouble Breathing",
+        "URG-102": "Chest Pain",
+        "URG-103": "Bleeding / Bruising",
+        "URG-107": "Fainting / Syncope",
+        "URG-108": "Altered Mental Status",
+        "URG-114": "Port/IV Site Pain",
         "FEV-202": "Fever",
-        "COU-215": "Cough",
+        "DEH-201": "Dehydration",
         "NAU-203": "Nausea",
         "VOM-204": "Vomiting",
-        "CON-210": "Constipation",
         "DIA-205": "Diarrhea",
-        "ABD-211": "Abdominal Pain",
-        "PAI-213": "Pain / General Aches",
+        "PAI-213": "Pain",
+        "CON-210": "Constipation",
         "FAT-206": "Fatigue / Weakness",
-        "NEU-216": "Neuropathy",
+        "NEU-216": "Neuropathy (Numbness/Tingling)",
+        "COU-215": "Cough",
+        "SWE-214": "Swelling",
+        "MSO-208": "Mouth Sores",
+        "EYE-207": "Eye Complaints",
+        "SKI-212": "Skin Rash / Redness",
+        "URI-211": "Urinary Problems",
+        "APP-209": "No Appetite",
+        "HEA-210": "Headache",
+        "ABD-211": "Abdominal Pain",
+        "LEG-208": "Leg/Calf Pain",
+        "JMP-212": "Joint/Muscle/General Pain",
+        "NEU-304": "Falls & Balance",
     }
     return symptom_map.get(symptom_id, symptom_id)
 
