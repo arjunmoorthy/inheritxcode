@@ -7,12 +7,12 @@
  */
 
 import React, { useState } from 'react';
-import { 
-  MessageCircleQuestion, 
-  Plus, 
-  Share2, 
-  Edit3, 
-  Trash2, 
+import {
+  MessageCircleQuestion,
+  Plus,
+  Share2,
+  Edit3,
+  Trash2,
   CheckCircle,
   Clock,
   Send,
@@ -52,7 +52,7 @@ type FilterType = 'all' | 'shared' | 'private' | 'answered';
 
 const QuestionsPage: React.FC = () => {
   const { isDark, toggleTheme } = useThemeMode();
-  
+
   // State
   const [filter, setFilter] = useState<FilterType>('all');
   const [newQuestion, setNewQuestion] = useState('');
@@ -71,7 +71,7 @@ const QuestionsPage: React.FC = () => {
   // Filter questions
   const filteredQuestions = React.useMemo(() => {
     if (!data?.questions) return [];
-    
+
     return data.questions.filter(q => {
       switch (filter) {
         case 'shared':
@@ -157,17 +157,15 @@ const QuestionsPage: React.FC = () => {
   };
 
   return (
-    <div className={`min-h-screen transition-colors duration-300 ${
-      isDark ? 'bg-[#1A1917]' : 'bg-[#F5F7FA]'
-    }`}>
+    <div className={`min-h-screen transition-colors duration-300 ${isDark ? 'bg-[#1A1917]' : 'bg-[#F5F7FA]'
+      }`}>
       {/* Dark Mode Toggle */}
       <button
         onClick={toggleTheme}
-        className={`fixed top-4 right-4 z-50 p-3 rounded-full transition-all duration-200 ${
-          isDark 
-            ? 'bg-[#2A2725] text-white hover:bg-[#3A3835] border border-slate-700 shadow-lg' 
+        className={`fixed top-4 right-4 z-50 p-3 rounded-full transition-all duration-200 ${isDark
+            ? 'bg-[#2A2725] text-white hover:bg-[#3A3835] border border-slate-700 shadow-lg'
             : 'bg-white text-slate-700 hover:bg-slate-50 border border-slate-200 shadow-lg'
-        }`}
+          }`}
         aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
       >
         {isDark ? <Sun size={20} /> : <Moon size={20} />}
@@ -180,8 +178,8 @@ const QuestionsPage: React.FC = () => {
             Questions to Ask Doctor
           </h1>
           <p>
-            Write down questions you'd like to discuss with your care team. 
-            Share them to make them visible in your doctor's portal.
+            Write down questions you'd like to discuss with your care team.
+            Share them to make them visible to your care team.
           </p>
         </PageHeader>
 
@@ -194,7 +192,7 @@ const QuestionsPage: React.FC = () => {
             onChange={(e) => setNewQuestion(e.target.value)}
             maxLength={2000}
           />
-          
+
           <div className="form-actions">
             <div className="form-row">
               <CategorySelect $isDark={isDark}
@@ -220,8 +218,8 @@ const QuestionsPage: React.FC = () => {
               </ShareToggle> */}
             </div>
 
-            <SubmitButton 
-              type="submit" 
+            <SubmitButton
+              type="submit"
               disabled={!newQuestion.trim() || createMutation.isPending}
             >
               <Plus size={18} />
@@ -259,7 +257,7 @@ const QuestionsPage: React.FC = () => {
             <MessageCircleQuestion className="icon" />
             <h3>No questions yet</h3>
             <p>
-              {filter === 'all' 
+              {filter === 'all'
                 ? "Write down questions you'd like to ask your doctor."
                 : `No ${filter} questions found.`}
             </p>
@@ -267,31 +265,31 @@ const QuestionsPage: React.FC = () => {
         ) : (
           <QuestionsList>
             {filteredQuestions.map((question) => (
-              <QuestionCard 
+              <QuestionCard
                 key={question.id}
                 $isDark={isDark}
                 $shared={question.share_with_physician}
                 $answered={question.is_answered}
               >
-              <div className="question-header">
-                <div className="question-meta">
-                  <Badge $variant="category">
-                    {getCategoryLabel(question.category)}
-                  </Badge>
-                  {question.share_with_physician && (
-                    <Badge $variant="shared">
-                      <Eye size={12} />
-                      Shared with Doctor
+                <div className="question-header">
+                  <div className="question-meta">
+                    <Badge $variant="category">
+                      {getCategoryLabel(question.category)}
                     </Badge>
-                  )}
-                  {question.is_answered && (
-                    <Badge $variant="answered">
-                      <CheckCircle size={12} />
-                      Answered
-                    </Badge>
-                  )}
+                    {question.share_with_physician && (
+                      <Badge $variant="shared">
+                        <Eye size={12} />
+                        Shared with Doctor
+                      </Badge>
+                    )}
+                    {question.is_answered && (
+                      <Badge $variant="answered">
+                        <CheckCircle size={12} />
+                        Answered
+                      </Badge>
+                    )}
+                  </div>
                 </div>
-              </div>
 
                 {editingId === question.id ? (
                   <div style={{ marginBottom: 16 }}>
@@ -302,7 +300,7 @@ const QuestionsPage: React.FC = () => {
                       style={{ minHeight: 80 }}
                     />
                     <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-                      <ActionButton 
+                      <ActionButton
                         $variant="share"
                         onClick={() => handleSaveEdit(question.id)}
                         disabled={updateMutation.isPending}
@@ -326,7 +324,7 @@ const QuestionsPage: React.FC = () => {
                   </span>
 
                   <div className="question-actions">
-                    <ActionButton
+                    {/* <ActionButton
                       $variant="share"
                       onClick={() => handleToggleShare(question)}
                       disabled={shareMutation.isPending}
@@ -334,16 +332,16 @@ const QuestionsPage: React.FC = () => {
                     >
                       {question.share_with_physician ? <EyeOff size={14} /> : <Share2 size={14} />}
                       {question.share_with_physician ? 'Unshare' : 'Share'}
-                    </ActionButton>
+                    </ActionButton> */}
 
-                    <ActionButton
+                    {/* <ActionButton
                       $variant="mark"
                       onClick={() => handleMarkAnswered(question)}
                       disabled={updateMutation.isPending}
                     >
                       <CheckCircle size={14} />
                       {question.is_answered ? 'Reopen' : 'Mark Answered'}
-                    </ActionButton>
+                    </ActionButton> */}
 
                     <ActionButton
                       $variant="edit"

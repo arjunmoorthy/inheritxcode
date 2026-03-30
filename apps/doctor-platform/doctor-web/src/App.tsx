@@ -14,6 +14,7 @@ import ProfilePage from './pages/Profile/ProfilePage';
 import { useAuth } from './contexts/AuthContext';
 import Layout from './components/Layout';
 import PatientDetailPage from './pages/PatientDetail';
+import { StaffManagementProvider } from './contexts/StaffManagementContext';
 
 // Protected Route Component
 interface ProtectedRouteProps {
@@ -52,12 +53,13 @@ const App: React.FC = () => {
                         <Route path="/auth/callback" element={<AuthCallback />} />
                         <Route path="/complete-profile" element={<CompleteProfile />} />
 
-                        {/* Protected Routes with Layout */}
                         <Route
                             path="/"
                             element={
                                 <ProtectedRoute>
-                                    <Layout />
+                                    <StaffManagementProvider>
+                                        <Layout />
+                                    </StaffManagementProvider>
                                 </ProtectedRoute>
                             }
                         >
