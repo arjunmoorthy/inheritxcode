@@ -34,6 +34,7 @@
 from typing import List, Optional
 from uuid import UUID
 from datetime import date, datetime
+import re
 
 from fastapi import APIRouter, Depends, Query, HTTPException, status, Request
 from pydantic import BaseModel, Field, EmailStr
@@ -754,6 +755,60 @@ class PatientConversationSummaryResponse(BaseModel):
     overall_feeling: Optional[str] = None
 
 
+def _to_provider_voice(summary: Optional[str]) -> Optional[str]:
+    """Convert patient-facing narrative into doctor-facing language."""
+    if not summary:
+        return summary
+
+    text_value = summary.strip()
+    replacements = [
+        (r"\bYou reported\b", "The patient reports"),
+        (r"\bYou have had\b", "The patient has had"),
+        (r"\bYou are reporting\b", "The patient reports"),
+        (r"\bYou are\b", "The patient is"),
+        (r"\bYou have\b", "The patient has"),
+        (r"\bYou can\b", "The patient can"),
+        (r"\bYou cannot\b", "The patient cannot"),
+        (r"\bYou denied\b", "The patient denied"),
+        (r"\bYou noted\b", "The patient noted"),
+        (r"\bYou vomited\b", "The patient vomited"),
+        (r"\bYou indicated\b", "The patient indicated"),
+        (r"\bYou provided details\b", "The patient provided details"),
+        (r"\bYour\b", "The patient's"),
+    ]
+    for pattern, target in replacements:
+        text_value = re.sub(pattern, target, text_value, flags=re.IGNORECASE)
+
+    # Clean stale artifacts from older generated summaries.
+    text_value = re.sub(
+        r"(?:The patient reports|The patient has|The patient is)\s+yes regarding:\s*[^.]+\.?",
+        "",
+        text_value,
+        flags=re.IGNORECASE,
+    )
+    # Drop noisy generic detail artifacts that are not clinically useful.
+    text_value = re.sub(
+        r"(?:The patient provided details \([^)]+\):\s*(?:yes|no)\.?)",
+        "",
+        text_value,
+        flags=re.IGNORECASE,
+    )
+    text_value = re.sub(
+        r"\bthe patient's last bowel movement\b",
+        "their last bowel movement",
+        text_value,
+        flags=re.IGNORECASE,
+    )
+
+    # Normalize spacing/punctuation after removals.
+    text_value = re.sub(r"\s*\.\s*\.", ".", text_value)
+    text_value = re.sub(r"\s{2,}", " ", text_value).strip()
+    text_value = re.sub(r"^\.\s*", "", text_value)
+    if text_value and not text_value.endswith("."):
+        text_value += "."
+    return text_value
+
+
 @router.get(
     "/patient/{patient_uuid}/summaries",
     response_model=APIResponse[List[PatientConversationSummaryResponse]],
@@ -807,7 +862,9 @@ def get_patient_summaries(
             symptom_list=row["symptom_list"] or [],
             severity_list=row["severity_list"],
             longer_summary=row["longer_summary"],
-            clinical_narrative_summary=row.get("clinical_narrative_summary"),
+            clinical_narrative_summary=_to_provider_voice(
+                row.get("clinical_narrative_summary")
+            ),
             medication_list=row["medication_list"] or [],
             bulleted_summary=row["bulleted_summary"],
             overall_feeling=row["overall_feeling"],

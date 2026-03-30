@@ -335,11 +335,15 @@ def _generic_natural_clause(symptom: SymptomDef, q: Question, val: Any, answers:
         # Low-value follow-ups: omit "no" for urine prompts to reduce noise
         if "urine" in ql and val is False:
             return None
+        # Symptom-agnostic yes/no wording for all modules.
+        # Keep positives; only include negatives for high-signal prompts.
+        question_text = q.text.strip().rstrip("?")
+        if len(question_text) > 110:
+            question_text = question_text[:107] + "..."
         if val:
-            topic = q.text.strip().rstrip("?")
-            if len(topic) > 90:
-                topic = topic[:87] + "…"
-            return f"You reported yes regarding: {topic}."
+            return f"You reported that {question_text[0].lower() + question_text[1:]}."
+        if any(k in ql for k in ("interfere", "daily activities", "self care", "vision", "fever", "shortness of breath")):
+            return f"You reported that {question_text[0].lower() + question_text[1:]} is not present."
         return None
 
     if qid == "meds" and it == InputType.CHOICE:
@@ -381,10 +385,18 @@ def _generic_natural_clause(symptom: SymptomDef, q: Question, val: Any, answers:
             return f"You reported a temperature of {val}."
         if "o2" in qid or "sat" in qid or "oxygen" in ql:
             return f"You reported oxygen saturation of {val}."
-        lab = q.text.strip().rstrip("?")
+        if qid in ("days_bm", "days_gas"):
+            day_word = "day" if float(val) == 1 else "days"
+            if qid == "days_bm":
+                return f"You have had no bowel movement for {int(float(val))} {day_word}."
+            return f"You have had no gas passage for {int(float(val))} {day_word}."
+        if qid in ("days", "preface"):
+            day_word = "day" if float(val) == 1 else "days"
+            return f"You have had {sl} for {int(float(val))} {day_word}."
+        lab = q.text.strip().rstrip("?").lower()
         if len(lab) > 60:
             lab = lab[:57] + "…"
-        return f"You reported {val} for: {lab}."
+        return f"For {sl}, the reported value for {lab} was {val}."
 
     if it == InputType.CHOICE and qid == "mucus":
         lab = _choice_label(q, val)
@@ -394,6 +406,10 @@ def _generic_natural_clause(symptom: SymptomDef, q: Question, val: Any, answers:
     if it == InputType.MULTISELECT:
         lab = _choice_label_multiselect(q, val)
         if lab:
+            if "dehydration" in ql:
+                return f"You reported signs of dehydration: {lab}."
+            if "where does it hurt" in ql or qid == "loc":
+                return f"You reported pain locations: {lab}."
             if "stool" in ql or qid == "stool_type":
                 parts: List[str] = []
                 raw = val if isinstance(val, list) else [val]
@@ -412,15 +428,15 @@ def _generic_natural_clause(symptom: SymptomDef, q: Question, val: Any, answers:
         vs = _coerce_str(val)
         if len(vs) > 200:
             vs = vs[:197] + "…"
-        return f"You provided details ({qid.replace('_', ' ')}): {vs}."
+        return f"For {sl}, additional details ({qid.replace('_', ' ')}): {vs}."
 
     if it == InputType.CHOICE:
         lab = _choice_label(q, val)
         if lab:
-            shortq = q.text.strip().rstrip("?")
+            shortq = q.text.strip().rstrip("?").lower()
             if len(shortq) > 70:
                 shortq = shortq[:67] + "…"
-            return f"You indicated {lab.lower()} for: {shortq}."
+            return f"For {sl}, {shortq}: {lab.lower()}."
 
     return None
 
@@ -464,6 +480,7 @@ def _iterate_questions(symptom: SymptomDef) -> List[Question]:
 
 def _narrate_other_symptom(symptom: SymptomDef, answers: Dict[str, Any]) -> List[str]:
     lines: List[str] = []
+    sl = symptom.name.lower()
     q_by_id = {q.id: q for q in _iterate_questions(symptom)}
     for q in _iterate_questions(symptom):
         if q.id not in answers:
@@ -480,7 +497,8 @@ def _narrate_other_symptom(symptom: SymptomDef, answers: Dict[str, Any]) -> List
         if chunk is None:
             continue
         if isinstance(val, bool):
-            chunk = "yes" if val else "no"
+            # Skip generic yes/no leftovers to avoid noisy "yes regarding" style output.
+            continue
         elif isinstance(val, list):
             chunk = ", ".join(str(x) for x in val if x not in (None, ""))
             if not chunk:
