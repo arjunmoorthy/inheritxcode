@@ -132,7 +132,7 @@ const SummariesDetailsPage: React.FC = () => {
               </S.CardHeader>
               <S.DetailedSummaryText>
                 <p>
-                  {summary.longer_summary || 'No detailed summary available.'}
+                  {summary?.clinical_narrative_summary || 'No detailed summary available.'}
                 </p>
               </S.DetailedSummaryText>
             </S.Card>

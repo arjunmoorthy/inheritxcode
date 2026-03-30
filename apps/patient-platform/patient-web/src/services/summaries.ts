@@ -15,6 +15,7 @@ export interface Summary {
   triage_level?: string;
   personal_notes?: string;
   conversation_state?: string;
+  clinical_narrative_summary?: string;
   // Add other fields as needed
 }
 

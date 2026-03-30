@@ -222,6 +222,8 @@ const searchSummaries = (summaries: Summary[], query: string): Summary[] => {
     return (
       symptoms.some(s => s.toLowerCase().includes(lowerQuery)) ||
       (notes && notes.toLowerCase().includes(lowerQuery)) ||
+      (summary.longer_summary && summary.longer_summary.toLowerCase().includes(lowerQuery)) ||
+      (summary.clinical_narrative_summary && summary.clinical_narrative_summary.toLowerCase().includes(lowerQuery)) ||
       naturalSummary.toLowerCase().includes(lowerQuery)
     );
   });
@@ -387,9 +389,10 @@ const SummariesPage: React.FC = () => {
                           {severity === 'urgent' ? 'Severe' : severity.charAt(0).toUpperCase() + severity.slice(1)}
                         </SeverityBadge>
                       </EntryHeader>
-                      
-                      <SummaryText $isDark={isDark}>{naturalSummary}</SummaryText>
-                      
+
+                      {/* <SummaryText $isDark={isDark}>{naturalSummary}</SummaryText> */}
+                      <SummaryText $isDark={isDark}>{summary.longer_summary}</SummaryText>
+
                       {notes && (
                         <NotesQuote $isDark={isDark}>"{notes}"</NotesQuote>
                       )}
