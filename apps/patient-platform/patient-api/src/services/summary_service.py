@@ -13,6 +13,7 @@ Usage:
 
 from typing import List, Dict, Any
 from uuid import UUID
+import re
 
 from sqlalchemy.orm import Session
 
@@ -22,6 +23,43 @@ from core.exceptions import NotFoundError, ValidationError
 from utils.timezone_utils import utc_to_user_timezone
 
 logger = get_logger(__name__)
+
+
+def _normalize_clinical_narrative(text: Any) -> Any:
+    """Normalize legacy robotic phrases to patient-friendly narrative."""
+    if not isinstance(text, str):
+        return text
+
+    out = text.strip()
+    if not out:
+        return out
+
+    # Legacy "For <symptom>, <question>: <answer>." patterns
+    out = re.sub(
+        r"For\s+[^,]+,\s*how long have you had [^:]+:\s*([^.]+)\.",
+        r"You reported this has been present for \1.",
+        out,
+        flags=re.IGNORECASE,
+    )
+    out = re.sub(
+        r"For\s+[^,]+,\s*have you been able to eat/drink normally:\s*([^.]+)\.",
+        r"You reported oral intake as \1.",
+        out,
+        flags=re.IGNORECASE,
+    )
+    out = re.sub(
+        r"For\s+[^,]+,\s*([^.:\n]{3,80}):\s*([^.]+)\.",
+        r"You reported \2.",
+        out,
+        flags=re.IGNORECASE,
+    )
+
+    # Tidy repeated spacing/punctuation
+    out = re.sub(r"\s{2,}", " ", out)
+    out = re.sub(r"\s*\.\s*\.", ".", out).strip()
+    if out and not out.endswith("."):
+        out += "."
+    return out
 
 
 class SummaryService:
@@ -58,7 +96,9 @@ class SummaryService:
             "symptom_list": conversation.symptom_list,
             "severity_list": conversation.severity_list,
             "longer_summary": conversation.longer_summary,
-            "clinical_narrative_summary": conversation.clinical_narrative_summary,
+            "clinical_narrative_summary": _normalize_clinical_narrative(
+                conversation.clinical_narrative_summary
+            ),
             "medication_list": conversation.medication_list,
             "bulleted_summary": conversation.bulleted_summary,
             "overall_feeling": conversation.overall_feeling,
