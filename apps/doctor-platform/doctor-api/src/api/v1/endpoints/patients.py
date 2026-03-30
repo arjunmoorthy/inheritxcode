@@ -99,6 +99,7 @@ class ConversationSummary(BaseModel):
     symptom_list: Optional[List[str]] = None
     overall_feeling: Optional[str] = None
     bulleted_summary: Optional[str] = None
+    clinical_narrative_summary: Optional[str] = None
 
     class Config:
         from_attributes = True

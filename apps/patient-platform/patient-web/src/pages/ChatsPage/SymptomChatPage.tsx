@@ -160,10 +160,11 @@ const SymptomChatPage: React.FC = () => {
     sendUserMessage(content, 'multi_select_response');
   };
 
-  // Handle symptom selection
-  const handleSymptomSelect = (symptomIds: string[]) => {
-    const content = symptomIds.join(', ');
-    sendUserMessage(content, 'multi_select_response');
+  // Symptom selection: show names in chat; IDs go in structured_data for the engine
+  const handleSymptomSelect = (symptomIds: string[], displayText: string) => {
+    sendUserMessage(displayText, 'multi_select_response', {
+      selected_values: symptomIds,
+    });
   };
 
   // Handle text input submission

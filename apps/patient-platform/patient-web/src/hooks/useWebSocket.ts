@@ -111,14 +111,18 @@ export const useWebSocket = (
 
   const sendMessage = useCallback((
     content: string,
-    message_type: 'text' | 'button_response' | 'multi_select_response' | 'feeling_response'
+    message_type: 'text' | 'button_response' | 'multi_select_response' | 'feeling_response',
+    structured_data?: Record<string, unknown>
   ) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
-      const payload = {
+      const payload: Record<string, unknown> = {
         type: 'user_message',
         message_type,
         content,
       };
+      if (structured_data && Object.keys(structured_data).length > 0) {
+        payload.structured_data = structured_data;
+      }
       wsRef.current.send(JSON.stringify(payload));
     } else {
       console.error('Cannot send message, WebSocket is not open.');

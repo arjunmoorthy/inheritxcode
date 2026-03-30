@@ -39,6 +39,7 @@ from sqlalchemy.orm import Session
 import pytz
 from services.symptom_analytics_service import save_symptom_analytics
 from services.chemo_service import ChemoService
+from services.clinical_narrative_summary import build_clinical_narrative_summary
 
 # Symptom checker engine
 from routers.chat.symptom_checker import SymptomCheckerEngine, TriageLevel
@@ -47,6 +48,7 @@ from routers.chat.models import (
     WebSocketMessageIn, WebSocketMessageOut,
     ConnectionEstablished, Message
 )
+from routers.chat.symptom_checker_service import _display_content_for_user_symptom_message
 
 # Database models
 from db.patient_models import (
@@ -362,12 +364,13 @@ class ChatService:
             logger.error(f"Chat not found: {chat_uuid}")
             return
         
-        # 1. Save the user's message
+        # 1. Save the user's message (symptom codes -> display names; engine still parses raw message below)
+        display_content = _display_content_for_user_symptom_message(message)
         user_msg = MessageModel(
             chat_uuid=chat_uuid,
             sender="user",
             message_type=message.message_type,
-            content=message.content,
+            content=display_content,
         )
         self.db.add(user_msg)
         self.db.commit()
@@ -458,6 +461,10 @@ class ChatService:
                 )
                 chat.bulleted_summary = summaries['bulleted']
                 chat.longer_summary = summaries['longer']
+                chat.clinical_narrative_summary = build_clinical_narrative_summary(
+                    engine_response.state.to_dict(),
+                    self._get_symptom_name,
+                )
                 
                 # AUTO-SAVE to conversation summaries when conversation completes
                 # This happens automatically - no user action required

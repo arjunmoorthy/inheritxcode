@@ -319,7 +319,7 @@ class PatientService(BaseService):
         result = self.patient_db.execute(
             text("""
             SELECT uuid, created_at, conversation_state, symptom_list, 
-                   overall_feeling, bulleted_summary
+                   overall_feeling, bulleted_summary, clinical_narrative_summary
             FROM conversations 
             WHERE patient_uuid = :patient_uuid
             ORDER BY created_at DESC
@@ -337,6 +337,7 @@ class PatientService(BaseService):
                 "symptom_list": row[3] if row[3] else [],
                 "overall_feeling": row[4],
                 "bulleted_summary": row[5],
+                "clinical_narrative_summary": row[6],
             })
         
         return conversations

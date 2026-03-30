@@ -37,6 +37,9 @@ def convert_conversation_to_user_timezone(conversation, user_timezone: str = "Am
         "symptom_list": conversation.symptom_list,
         "severity_list": conversation.severity_list,
         "longer_summary": conversation.longer_summary,
+        "clinical_narrative_summary": getattr(
+            conversation, "clinical_narrative_summary", None
+        ),
         "medication_list": conversation.medication_list,
         "bulleted_summary": conversation.bulleted_summary,
         "overall_feeling": conversation.overall_feeling,

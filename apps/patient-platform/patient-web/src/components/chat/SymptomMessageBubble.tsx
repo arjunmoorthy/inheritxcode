@@ -427,7 +427,9 @@ export const SymptomMessageBubble: React.FC<SymptomMessageBubbleProps> = ({
           </button>
           <button 
             className="symptom-continue-btn secondary"
-            onClick={() => onSymptomSelect && onSymptomSelect(['none'])}
+            onClick={() =>
+              onSymptomSelect && onSymptomSelect(["none"], "I'm feeling fine today")
+            }
           >
             ✨ I'm feeling fine today
           </button>

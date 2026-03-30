@@ -748,6 +748,7 @@ class PatientConversationSummaryResponse(BaseModel):
     symptom_list: Optional[List[str]] = None
     severity_list: Optional[Any] = None
     longer_summary: Optional[str] = None
+    clinical_narrative_summary: Optional[str] = None
     medication_list: Optional[List[Any]] = None
     bulleted_summary: Optional[str] = None
     overall_feeling: Optional[str] = None
@@ -783,6 +784,7 @@ def get_patient_summaries(
             symptom_list,
             severity_list,
             longer_summary,
+            clinical_narrative_summary,
             medication_list,
             bulleted_summary,
             overall_feeling
@@ -805,6 +807,7 @@ def get_patient_summaries(
             symptom_list=row["symptom_list"] or [],
             severity_list=row["severity_list"],
             longer_summary=row["longer_summary"],
+            clinical_narrative_summary=row.get("clinical_narrative_summary"),
             medication_list=row["medication_list"] or [],
             bulleted_summary=row["bulleted_summary"],
             overall_feeling=row["overall_feeling"],

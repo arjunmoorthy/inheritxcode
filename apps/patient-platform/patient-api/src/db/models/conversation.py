@@ -42,6 +42,11 @@ class Conversation(Base, TimestampMixin):
         engine_state: Complete state of the symptom checker engine
         overall_feeling: Patient's self-reported feeling
         triage_level: Final triage recommendation
+    
+    Note:
+        Live symptom-check chat read/write uses ``db.patient_models.Conversations`` (same
+        ``conversations`` table). Fields such as ``clinical_narrative_summary`` are declared
+        there; this model stays for Patient/SymptomDetail ORM relationships.
     """
     
     __tablename__ = "conversations"
@@ -122,7 +127,7 @@ class Conversation(Base, TimestampMixin):
         nullable=True,
         doc="Detailed narrative summary"
     )
-    
+
     # Medication tracking
     medication_list = Column(
         JSONB,
