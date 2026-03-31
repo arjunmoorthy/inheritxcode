@@ -148,9 +148,9 @@ const ChatsPage: React.FC = () => {
       setMessages(Array.isArray(sessionData.messages) ? sessionData.messages : []);
       
       // Update symptom list in localStorage based on backend response
-      if (sessionData.symptom_list && Array.isArray(sessionData.symptom_list)) {
-        console.log('Loading symptom list from backend:', sessionData.symptom_list);
-        updateSymptomList(sessionData.symptom_list);
+      if (sessionData.symptom_names && Array.isArray(sessionData.symptom_names)) {
+        console.log('Loading symptom list from backend:', sessionData.symptom_names);
+        updateSymptomList(sessionData.symptom_names);
       } else {
         console.log('No symptom list from backend, resetting to empty');
         resetSymptomList();
@@ -182,8 +182,8 @@ const ChatsPage: React.FC = () => {
       setMessages(Array.isArray(sessionData.messages) ? sessionData.messages : []);
       
       // Ensure symptom list is empty for new conversation
-      if (sessionData.symptom_list && Array.isArray(sessionData.symptom_list)) {
-        updateSymptomList(sessionData.symptom_list);
+      if (sessionData.symptom_names && Array.isArray(sessionData.symptom_names)) {
+        updateSymptomList(sessionData.symptom_names);
       }
     } catch (error) {
       setError('Failed to start a new chat session');

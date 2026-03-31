@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 
-const SYMPTOM_LIST_KEY = 'symptom_list';
+const SYMPTOM_LIST_KEY = 'symptom_names';
 
 export const useSymptomList = () => {
   const [symptomList, setSymptomList] = useState<string[]>([]);
