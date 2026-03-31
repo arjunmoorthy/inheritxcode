@@ -598,9 +598,9 @@ INPUT_HINTS = {
 # =============================================================================
 
 SUMMARY_ACTIONS = [
-    {"label": "✏️ Add Personal Notes", "value": "add_notes", "icon": "edit"},
-    {"label": "📥 Download Summary", "value": "download", "icon": "download"},
-    {"label": "📔 View in My Diary", "value": "view_diary", "icon": "diary"},
+    # {"label": "✏️ Add Personal Notes", "value": "add_notes", "icon": "edit"},
+    # {"label": "📥 Download Summary", "value": "download", "icon": "download"},
+    # {"label": "📔 View in My Diary", "value": "view_diary", "icon": "diary"},
     {"label": "🔄 Report Another Symptom", "value": "report_another", "icon": "repeat"},
     {"label": "✅ Done for Today", "value": "done", "icon": "check"},
 ]
