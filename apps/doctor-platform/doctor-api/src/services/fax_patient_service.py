@@ -169,7 +169,7 @@ def create_or_update_fax_patient(db, fax, structured, background_tasks: Backgrou
 
         if email:
             print("📧 About to send welcome email...")
-            asyncio.run(send_welcome_email(email, temp_password, login_link))
+            asyncio.run(send_welcome_email(email, temp_password, login_link, first_name))
             print("✅ Email send function executed")
 
     else:
