@@ -157,14 +157,14 @@ const SummariesDetailsPage: React.FC = () => {
         </S.MainGrid>
 
         {/* Additional Information Cards */}
-        {(summary.symptom_list || summary.medication_list) && (
+        {(summary.symptom_names || summary.medication_list) && (
           <S.AdditionalInfoGrid>
             {/* Symptoms Card */}
-            {summary.symptom_list && summary.symptom_list.length > 0 && (
+            {summary.symptom_names && summary.symptom_names.length > 0 && (
               <S.Card>
                 <S.InfoCardTitle>Reported Symptoms</S.InfoCardTitle>
                 <S.SymptomsList>
-                  {summary.symptom_list.map((symptom, index) => (
+                  {summary.symptom_names.map((symptom, index) => (
                     <S.SymptomTag key={index}>
                       {symptom}
                     </S.SymptomTag>

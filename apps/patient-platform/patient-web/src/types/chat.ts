@@ -63,7 +63,8 @@ export interface ChatSession {
   conversation_state: string;
   messages: Message[];
   is_new_session: boolean;
-  symptom_list: string[];  // Add symptom list from backend
+  // symptom_list: string[];  // Add symptom list from backend
+  symptom_names?: string[];  // Add symptom names from backend
 }
 
 export type ResponseType = 'text' | 'button_prompt' | 'multi_select' | 'button_response' | 'multi_select_response' | 'feeling-select' | 'feeling_response'; 

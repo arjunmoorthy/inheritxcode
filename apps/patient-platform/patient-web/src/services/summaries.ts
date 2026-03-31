@@ -9,7 +9,8 @@ export interface Summary {
   created_at: string;
   bulleted_summary: string;
   longer_summary: string;
-  symptom_list?: string[];
+  // symptom_list?: string[];
+  symptom_names?: string[];
   severity_list?: any[] | { [key: string]: any };
   medication_list?: any[];
   triage_level?: string;

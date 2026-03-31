@@ -214,9 +214,9 @@ const SymptomChatPage: React.FC = () => {
     summaryText += `Date: ${date}\n\n`;
     
     // Extract symptoms from chat session
-    if (chatSession?.symptom_list && chatSession.symptom_list.length > 0) {
+    if (chatSession?.symptom_names && chatSession.symptom_names.length > 0) {
       summaryText += `SYMPTOMS REPORTED:\n`;
-      chatSession.symptom_list.forEach((symptom: string) => {
+      chatSession.symptom_names.forEach((symptom: string) => {
         summaryText += `  • ${symptom.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}\n`;
       });
       summaryText += `\n`;

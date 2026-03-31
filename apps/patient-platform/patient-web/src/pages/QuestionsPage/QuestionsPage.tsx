@@ -179,7 +179,7 @@ const QuestionsPage: React.FC = () => {
           </h1>
           <p>
             Write down questions you'd like to discuss with your care team.
-            Share them to make them visible to your care team.
+            Share them to make them visible to your care team at your next visit.
           </p>
         </PageHeader>
 
@@ -233,7 +233,7 @@ const QuestionsPage: React.FC = () => {
           <FilterTab $isDark={isDark} $active={filter === 'all'} onClick={() => setFilter('all')}>
             All ({data?.questions.length || 0})
           </FilterTab>
-          <FilterTab $isDark={isDark} $active={filter === 'shared'} onClick={() => setFilter('shared')}>
+          {/* <FilterTab $isDark={isDark} $active={filter === 'shared'} onClick={() => setFilter('shared')}>
             <Eye size={14} style={{ marginRight: 4 }} />
             Shared
           </FilterTab>
@@ -244,7 +244,7 @@ const QuestionsPage: React.FC = () => {
           <FilterTab $isDark={isDark} $active={filter === 'answered'} onClick={() => setFilter('answered')}>
             <CheckCircle size={14} style={{ marginRight: 4 }} />
             Answered
-          </FilterTab>
+          </FilterTab> */}
         </FilterTabs>
 
         {/* Questions List */}

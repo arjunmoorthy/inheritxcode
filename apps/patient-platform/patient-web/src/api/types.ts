@@ -138,7 +138,8 @@ export interface ChatSession {
   conversation_state: string;
   messages: ChatMessage[];
   is_new_session: boolean;
-  symptom_list: string[];
+  // symptom_list: string[];
+  symptom_names?: string[];
   created_at?: string;
   overall_feeling?: OverallFeeling;
 }
@@ -152,7 +153,8 @@ export interface WebSocketMessage {
 export interface ChatStateResponse {
   uuid: string;
   conversation_state: string;
-  symptom_list: string[];
+  // symptom_list: string[];
+  symptom_names?: string[];
   overall_feeling?: OverallFeeling;
   created_at: string;
 }
@@ -212,7 +214,8 @@ export interface ConversationSummary {
   uuid: string;
   created_at: string;
   conversation_state: string;
-  symptom_list: string[];
+  // symptom_list: string[];
+  symptom_names?: string[];
   bulleted_summary?: string;
   overall_feeling?: OverallFeeling;
 }

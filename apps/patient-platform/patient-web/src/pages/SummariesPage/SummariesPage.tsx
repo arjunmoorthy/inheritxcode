@@ -47,8 +47,8 @@ const DATE_FILTER_OPTIONS = [
 const getUniqueSymptoms = (summaries: Summary[]): string[] => {
   const symptoms = new Set<string>();
   summaries.forEach(summary => {
-    if (summary.symptom_list && Array.isArray(summary.symptom_list)) {
-      summary.symptom_list.forEach(s => symptoms.add(s));
+    if (summary.symptom_names && Array.isArray(summary.symptom_names)) {
+      summary.symptom_names.forEach(s => symptoms.add(s));
     }
     // Also extract from bulleted_summary
     const bulletedSummary = summary.bulleted_summary || '';
@@ -67,8 +67,8 @@ const getUniqueSymptoms = (summaries: Summary[]): string[] => {
 
 // Extract symptom names from summary
 const extractSymptoms = (summary: Summary): string[] => {
-  if (summary.symptom_list && Array.isArray(summary.symptom_list) && summary.symptom_list.length > 0) {
-    return summary.symptom_list.slice(0, 4);
+  if (summary.symptom_names && Array.isArray(summary.symptom_names) && summary.symptom_names.length > 0) {
+    return summary.symptom_names.slice(0, 4);
   }
   const bulletedSummary = summary.bulleted_summary || '';
   const lines = bulletedSummary.split(/,\s*-/).map(l => l.replace(/^\s*-?\s*/, '').trim()).filter(Boolean);
