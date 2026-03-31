@@ -63,6 +63,7 @@ class ConversationSummarySchema(BaseModel):
     created_at: datetime
     conversation_state: Optional[str] = None
     symptom_list: Optional[List[str]] = None
+    symptom_names: Optional[List[str]] = None
     severity_list: Optional[Any] = None
     longer_summary: Optional[str] = None
     clinical_narrative_summary: Optional[str] = None
@@ -81,6 +82,7 @@ class ConversationDetailSchema(BaseModel):
     updated_at: Optional[datetime] = None
     conversation_state: Optional[str] = None
     symptom_list: Optional[List[str]] = None
+    symptom_names: Optional[List[str]] = None
     severity_list: Optional[Any] = None
     longer_summary: Optional[str] = None
     clinical_narrative_summary: Optional[str] = None

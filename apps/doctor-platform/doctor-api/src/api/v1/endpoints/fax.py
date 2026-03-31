@@ -150,9 +150,11 @@ async def add_manual_patient(
     db.commit()
     db.refresh(patient)
 
+    user = db.query(User).filter(User.id == patient.user_id).first() if patient.user_id else None
+
     if user and email:
         login_link = settings.patient_set_password_base_url.format(email=email)
-        await send_welcome_email(email, temp_password, login_link)
+        await send_welcome_email(email, temp_password, login_link, user.first_name)
 
     return {
         "status": "success",
