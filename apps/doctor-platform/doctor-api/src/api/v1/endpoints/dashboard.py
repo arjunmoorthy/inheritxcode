@@ -765,6 +765,7 @@ class PatientConversationSummaryResponse(BaseModel):
     updated_at: Optional[str] = None
     conversation_state: Optional[str] = None
     symptom_list: Optional[List[str]] = None
+    symptom_names: Optional[List[str]] = None
     severity_list: Optional[Any] = None
     longer_summary: Optional[str] = None
     clinical_narrative_summary: Optional[str] = None
@@ -892,6 +893,7 @@ def get_patient_summaries(
             updated_at=row["updated_at"].isoformat() if row.get("updated_at") else None,
             conversation_state=row["conversation_state"],
             symptom_list=row["symptom_list"] or [],
+            symptom_names=[_symptom_name(sid) for sid in (row["symptom_list"] or []) if isinstance(sid, str)],
             severity_list=row["severity_list"],
             longer_summary=row["longer_summary"],
             clinical_narrative_summary=_to_provider_voice(

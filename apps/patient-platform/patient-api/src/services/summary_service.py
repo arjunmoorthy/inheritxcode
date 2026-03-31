@@ -21,6 +21,7 @@ from db.repositories import SummaryRepository
 from core.logging import get_logger
 from core.exceptions import NotFoundError, ValidationError
 from utils.timezone_utils import utc_to_user_timezone
+from routers.chat.symptom_checker.symptom_definitions import get_symptom_by_id
 
 logger = get_logger(__name__)
 
@@ -103,6 +104,22 @@ class SummaryService:
             "bulleted_summary": conversation.bulleted_summary,
             "overall_feeling": conversation.overall_feeling,
         }
+
+    def _resolve_symptom_names(self, symptom_list: Any) -> List[str]:
+        """Map symptom IDs to symptom display names."""
+        if not isinstance(symptom_list, list):
+            return []
+
+        names: List[str] = []
+        for symptom_id in symptom_list:
+            if not isinstance(symptom_id, str):
+                continue
+            symptom = get_symptom_by_id(symptom_id)
+            if symptom and symptom.name:
+                names.append(symptom.name)
+            else:
+                names.append(symptom_id)
+        return names
     
     def get_by_month(
         self,
@@ -167,8 +184,10 @@ class SummaryService:
                 resource_type="Conversation",
                 resource_id=str(conversation_uuid),
             )
-        
-        return self._convert_to_dict(conversation, timezone)
+
+        summary = self._convert_to_dict(conversation, timezone)
+        summary["symptom_names"] = self._resolve_symptom_names(conversation.symptom_list)
+        return summary
     
     def get_recent(
         self,
@@ -190,8 +209,13 @@ class SummaryService:
         logger.info(f"Get recent summaries: patient={patient_uuid} limit={limit}")
         
         conversations = self.summary_repo.get_recent(patient_uuid, limit)
-        
-        return [self._convert_to_dict(c, timezone) for c in conversations]
+
+        summaries: List[Dict[str, Any]] = []
+        for conversation in conversations:
+            summary = self._convert_to_dict(conversation, timezone)
+            summary["symptom_names"] = self._resolve_symptom_names(conversation.symptom_list)
+            summaries.append(summary)
+        return summaries
     
     def count_conversations(
         self,

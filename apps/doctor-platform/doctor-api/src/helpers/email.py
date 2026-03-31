@@ -86,6 +86,7 @@ async def send_welcome_email(
     email: str,
     temp_password: str,
     login_link: str,
+    first_name: str,
 ):
     """
     Sends a welcome email with temporary login credentials
@@ -93,14 +94,20 @@ async def send_welcome_email(
     """
 
     html = f"""
-    <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
-        <h2 style="color: #007bff;">Welcome to the Patient Portal</h2>
+    <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: auto;">
 
-        <p>Hi,</p>
+        <h2 style="color: #2c3e50;">Welcome to OncoLife Patient Portal</h2>
 
-        <p>Your patient account has been successfully created.</p>
+        <p>Hi {first_name},</p>
 
-        <p><strong>Your login credentials:</strong></p>
+        <p>
+            Welcome to <strong>OncoLife</strong>! We’re pleased to have you enrolled in our study and
+            look forward to supporting you throughout your care journey.
+        </p>
+
+        <p>Your patient portal account has been successfully created.</p>
+
+        <p><strong>Your login details:</strong></p>
 
         <table cellspacing="0" cellpadding="6" style="margin: 10px 0;">
             <tr>
@@ -114,10 +121,13 @@ async def send_welcome_email(
         </table>
 
         <p style="color:#d9534f;">
-            ⚠️ For security reasons, you will be required to change your password on your first login.
+            For your security, you will be prompted to create a new password when you log in for the first time.
         </p>
 
-        <!-- Left-aligned button -->
+        <p><strong>Access your portal:</strong></p>
+
+        <p>Click the link below to get started:</p>
+
         <table cellspacing="0" cellpadding="0" style="margin: 20px 0;">
             <tr>
                 <td align="left" bgcolor="#007bff" style="border-radius: 5px;">
@@ -125,7 +135,7 @@ async def send_welcome_email(
                        style="display: inline-block; padding: 12px 25px; font-size: 16px;
                               color: #ffffff; text-decoration: none; font-weight: bold;
                               border-radius: 5px;">
-                        Login to Portal
+                        Set Your Password
                     </a>
                 </td>
             </tr>
@@ -137,16 +147,24 @@ async def send_welcome_email(
             <a href="{login_link}" style="color:#007bff;">{login_link}</a>
         </p>
 
-        <p>If you did not expect this email, please ignore it.</p>
+        <p>
+            If you did not expect this email, please feel free to disregard it or contact our support team.
+        </p>
 
         <br>
-        <p>Thanks,<br>
-        <strong>Care Team</strong></p>
+
+        <p>We’re glad to have you as part of the OncoLife study.</p>
+
+        <p>
+            Warm regards,<br>
+            <strong>The OncoLife Team</strong>
+        </p>
+
     </div>
     """
 
     message = MessageSchema(
-        subject="Welcome to the Patient Portal",
+        subject="Welcome to OncoLife Patient Portal",
         recipients=[email],
         body=html,
         subtype="html",
