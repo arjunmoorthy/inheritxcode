@@ -106,6 +106,10 @@ class ConversationState:
     # Cross-symptom ADL/self-care: reuse "able to perform daily self care/activities?"
     # across related GI/constitutional symptom modules in one session.
     session_adl_answer: Optional[bool] = None
+    # Cross-symptom oral intake: reuse equivalent "eat/drink" questions across modules.
+    session_oral_intake_answer: Optional[str] = None
+    # Cross-symptom fever yes/no: derived from temperature when available or reused if asked once.
+    session_fever_answer: Optional[bool] = None
 
     def to_dict(self) -> Dict[str, Any]:
         """Serialize state to dictionary."""
@@ -138,6 +142,8 @@ class ConversationState:
             'session_discomfort_answer': self.session_discomfort_answer,
             'session_abdominal_pain_severity_answer': self.session_abdominal_pain_severity_answer,
             'session_adl_answer': self.session_adl_answer,
+            'session_oral_intake_answer': self.session_oral_intake_answer,
+            'session_fever_answer': self.session_fever_answer,
         }
 
     @classmethod
@@ -172,6 +178,8 @@ class ConversationState:
             session_discomfort_answer=data.get('session_discomfort_answer'),
             session_abdominal_pain_severity_answer=data.get('session_abdominal_pain_severity_answer'),
             session_adl_answer=data.get('session_adl_answer'),
+            session_oral_intake_answer=data.get('session_oral_intake_answer'),
+            session_fever_answer=data.get('session_fever_answer'),
         )
 
 
@@ -758,6 +766,14 @@ class SymptomCheckerEngine:
         """Check if question is the shared ADL/self-care yes/no prompt."""
         return question_id == 'adl'
 
+    def _is_oral_intake_question(self, question_id: str) -> bool:
+        """Check if question is one of the equivalent oral-intake prompts."""
+        return question_id in ('intake', 'fever_intake')
+
+    def _is_fever_yesno_question(self, question_id: str) -> bool:
+        """Check if question asks fever as yes/no."""
+        return question_id in ('fever', 'fever_check')
+
     def _get_next_question(self, symptom: SymptomDef, prefix_message: Optional[str] = None) -> EngineResponse:
         """Get the next applicable question for the current symptom."""
         questions = symptom.follow_up_questions if self.state.is_follow_up else symptom.screening_questions
@@ -872,6 +888,50 @@ class SymptomCheckerEngine:
                     f"{self.state.session_adl_answer}"
                 )
                 self.state.answers[question.id] = self.state.session_adl_answer
+                self.state.current_question_index += 1
+                continue
+
+            # Cross-symptom oral-intake reuse for equivalent prompts.
+            if (
+                self._is_oral_intake_question(question.id)
+                and self.state.session_oral_intake_answer is not None
+                and (question.condition is None or question.condition(self.state.answers))
+            ):
+                logger.info(
+                    f"Reusing oral intake answer for question {question.id}: "
+                    f"{self.state.session_oral_intake_answer}"
+                )
+                self.state.answers[question.id] = self.state.session_oral_intake_answer
+                self.state.current_question_index += 1
+                continue
+
+            # If temperature is already known, derive fever yes/no and skip duplicate fever prompt.
+            if (
+                self._is_fever_yesno_question(question.id)
+                and self.state.session_temperature is not None
+                and (question.condition is None or question.condition(self.state.answers))
+            ):
+                derived_fever = self.state.session_temperature >= TEMP_FEVER_THRESHOLD
+                logger.info(
+                    f"Deriving fever answer from session temperature "
+                    f"{self.state.session_temperature}: {derived_fever}"
+                )
+                self.state.session_fever_answer = derived_fever
+                self.state.answers[question.id] = derived_fever
+                self.state.current_question_index += 1
+                continue
+
+            # Reuse explicitly answered fever yes/no across modules.
+            if (
+                self._is_fever_yesno_question(question.id)
+                and self.state.session_fever_answer is not None
+                and (question.condition is None or question.condition(self.state.answers))
+            ):
+                logger.info(
+                    f"Reusing fever answer for question {question.id}: "
+                    f"{self.state.session_fever_answer}"
+                )
+                self.state.answers[question.id] = self.state.session_fever_answer
                 self.state.current_question_index += 1
                 continue
             
@@ -1074,6 +1134,7 @@ class SymptomCheckerEngine:
                 # Store temperature once per session for cross-symptom reuse
                 if self._is_temperature_question(question.id):
                     self.state.session_temperature = validated_value
+                    self.state.session_fever_answer = validated_value >= TEMP_FEVER_THRESHOLD
                 logger.info(f"Stored validated {question.id}: {validated_value}")
             
             # Validate TEXT inputs
@@ -1106,6 +1167,10 @@ class SymptomCheckerEngine:
                     self.state.session_abdominal_pain_severity_answer = str(user_response)
                 if self._is_adl_question(question.id):
                     self.state.session_adl_answer = bool(user_response)
+                if self._is_oral_intake_question(question.id):
+                    self.state.session_oral_intake_answer = str(user_response)
+                if self._is_fever_yesno_question(question.id):
+                    self.state.session_fever_answer = bool(user_response)
                 logger.info(f"Stored answer for {question.id}: {user_response}")
 
         self.state.current_question_index += 1
@@ -1138,6 +1203,7 @@ class SymptomCheckerEngine:
                 # Store temperature once per session for cross-symptom reuse
                 if self._is_temperature_question(question.id):
                     self.state.session_temperature = validated_value
+                    self.state.session_fever_answer = validated_value >= TEMP_FEVER_THRESHOLD
                 logger.info(f"Stored validated {question.id}: {validated_value}")
             
             # Validate TEXT inputs
@@ -1170,6 +1236,10 @@ class SymptomCheckerEngine:
                     self.state.session_abdominal_pain_severity_answer = str(user_response)
                 if self._is_adl_question(question.id):
                     self.state.session_adl_answer = bool(user_response)
+                if self._is_oral_intake_question(question.id):
+                    self.state.session_oral_intake_answer = str(user_response)
+                if self._is_fever_yesno_question(question.id):
+                    self.state.session_fever_answer = bool(user_response)
                 logger.info(f"Stored follow-up answer for {question.id}: {user_response}")
 
         self.state.current_question_index += 1
@@ -1314,7 +1384,7 @@ class SymptomCheckerEngine:
             return EngineResponse(
                 message="✅ **Emergency Alert**\n\n"
                         "**Please seek immediate medical attention.**\n\n"
-                        "If your condition worsens, please call your care team immediately, or 911 at your discretion",
+                        " Please call your care team immediately, or 911 at your discretion",
                 message_type='text',
                 is_complete=True,
                 triage_level=TriageLevel.CALL_911,
