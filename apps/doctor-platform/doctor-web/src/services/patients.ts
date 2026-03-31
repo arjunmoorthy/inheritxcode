@@ -47,12 +47,17 @@ export interface Patient {
 }
 
 export interface ConversationSummary {
-  id: string | number;
-  patient_uuid: string;
-  summary_text: string;
-  status: 'good' | 'fair' | 'poor' | string;
+  uuid: string;
   created_at: string;
-  tags: string[];
+  updated_at?: string;
+  conversation_state?: string;
+  symptom_list: string[];
+  severity_list?: any[];
+  longer_summary?: string;
+  clinical_narrative_summary: string;
+  medication_list?: any[];
+  bulleted_summary?: string;
+  overall_feeling?: string | null;
 }
 
 export interface PatientsResponse {
@@ -227,11 +232,17 @@ export const usePatientDetails = (patientId: string) => {
   });
 };
 
+export interface SummariesResponse {
+  success: boolean;
+  message: string;
+  data: ConversationSummary[];
+}
+
 export const fetchPatientConversations = async (patientUuid: string): Promise<ConversationSummary[]> => {
-  const response = await apiClient.get<ConversationSummary[]>(
+  const response = await apiClient.get<SummariesResponse>(
     API_CONFIG.ENDPOINTS.PATIENTS.CONVERSATIONS(patientUuid)
   );
-  return response.data;
+  return response.data.data;
 };
 
 export const usePatientConversations = (patientUuid: string) => {
