@@ -68,6 +68,12 @@ class Patient(DoctorBase, TimestampMixin):
     cancer_type = Column(String(255))
     diagnosis = Column(Text, nullable=True)
     oncologist = Column(String(255))
+    oncologist_staff_id = Column(
+        Integer,
+        ForeignKey("staff.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
 
     start_date = Column(Date, nullable=True)
     end_date = Column(Date, nullable=True)
@@ -94,3 +100,4 @@ class Patient(DoctorBase, TimestampMixin):
 
     # Relationship
     faxes = relationship("FaxRecord", back_populates="patient")
+    oncologist_staff = relationship("Staff", foreign_keys=[oncologist_staff_id])

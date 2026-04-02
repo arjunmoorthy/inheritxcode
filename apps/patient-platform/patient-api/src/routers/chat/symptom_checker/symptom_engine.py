@@ -1493,7 +1493,7 @@ class SymptomCheckerEngine:
                 f"**Summary:** {concise_summary}\n\n"
                 "---\n\n"
                 "⚠️ **Please call your care team** - they will assist you further.\n\n"
-                "📔 **Saved to your diary** automatically for your records.\n\n"
+                "📔 **Saved to your summaries** automatically for your records.\n\n"
                 "💬 **Want to add anything?** You can add personal notes.\n\n"
                 "What would you like to do?"
             )
@@ -1510,7 +1510,7 @@ class SymptomCheckerEngine:
                 f"**Summary:** {concise_summary}\n\n"
                 "---\n\n"
                 "✅ **Good news!** No urgent concerns identified.\n\n"
-                "📔 **Saved to your diary** automatically for your records.\n\n"
+                "📔 **Saved to your summaries** automatically for your records.\n\n"
                 "💬 **Want to add anything?** You can add personal notes.\n\n"
                 "What would you like to do?"
             )

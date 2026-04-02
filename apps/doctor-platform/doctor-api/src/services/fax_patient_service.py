@@ -107,6 +107,42 @@ def _assign_default_physician_if_needed(db, patient: Patient):
         )
     )
 
+
+def _resolve_oncologist_staff_id(db, oncologist_value: str):
+    if not oncologist_value:
+        return None
+
+    raw = oncologist_value.strip()
+    if not raw:
+        return None
+
+    if "@" in raw:
+        by_email = (
+            db.query(Staff)
+            .filter(
+                Staff.role == "physician",
+                func.lower(Staff.email) == raw.lower(),
+            )
+            .first()
+        )
+        return by_email.id if by_email else None
+
+    first_name, last_name = split_name(raw)
+    if first_name and last_name:
+        by_full_name = (
+            db.query(Staff)
+            .join(User, User.id == Staff.user_id)
+            .filter(
+                Staff.role == "physician",
+                func.lower(func.coalesce(User.first_name, "")) == first_name.lower(),
+                func.lower(func.coalesce(User.last_name, "")) == last_name.lower(),
+            )
+            .first()
+        )
+        return by_full_name.id if by_full_name else None
+
+    return None
+
 def create_or_update_fax_patient(db, fax, structured, background_tasks: BackgroundTasks):
 
     def v(key):
@@ -120,6 +156,8 @@ def create_or_update_fax_patient(db, fax, structured, background_tasks: Backgrou
     dob = parse_date(v("date_of_birth"))
     start_date = parse_date(v("start_date"))
     end_date = parse_date(v("end_date"))
+    oncologist_name = v("oncologist")
+    oncologist_staff_id = _resolve_oncologist_staff_id(db, oncologist_name)
 
     patient = None
     if email:
@@ -161,6 +199,8 @@ def create_or_update_fax_patient(db, fax, structured, background_tasks: Backgrou
             past_medical_history=v("past_medical_history"),
             past_surgical_history=v("past_surgical_history"),
             regimen_name=v("start_on_pathway_regimen") or v("regimen_name"),
+            oncologist=oncologist_name,
+            oncologist_staff_id=oncologist_staff_id,
             password_hash="",  # auth in users table
         )
 
@@ -186,6 +226,8 @@ def create_or_update_fax_patient(db, fax, structured, background_tasks: Backgrou
         patient.past_medical_history = v("past_medical_history")
         patient.past_surgical_history = v("past_surgical_history")
         patient.regimen_name = v("start_on_pathway_regimen") or v("regimen_name")
+        patient.oncologist = oncologist_name
+        patient.oncologist_staff_id = oncologist_staff_id
 
     db.commit()
     db.refresh(patient)

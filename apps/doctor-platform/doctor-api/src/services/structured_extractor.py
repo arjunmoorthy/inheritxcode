@@ -163,6 +163,17 @@ def extract_structured_fields(extracted_data: list[dict]) -> dict:
     def is_stop_line(line: str) -> bool:
         return any(stop in line.lower() for stop in STOP_WORDS)
     
+    def clean_phone(text):
+        if not text:
+            return text
+
+        # remove words like "number", "phone", etc.
+        text = re.sub(r"(?i)(phone|number|mobile|ph)\s*[:\-]?\s*", "", text)
+
+        # extract only valid phone
+        match = re.search(r"\b\d{3}[-.\s]?\d{3}[-.\s]?\d{4}\b", text)
+        return match.group() if match else text.strip()
+    
     def extract_after_label(label: str, max_lookahead: int = 2):
         """
         Handles:
@@ -229,38 +240,34 @@ def extract_structured_fields(extracted_data: list[dict]) -> dict:
         return None
     
     def extract_plan_name():
-        PLAN_LABELS = [
-            "plan name",
-            "treatment plan",
-            "regimen",
-            "therapy plan"
-        ]
-
         for i, line in enumerate(lower_lines):
-            if any(label in line for label in PLAN_LABELS):
 
-                # 1️⃣ Inline case
+            if "plan name" in line:
+
+                # ❌ Ignore useless values
+                if "no matching plan" in line:
+                    return None
+
+                # Inline valid plan
                 if ":" in lines[i]:
                     val = lines[i].split(":", 1)[1].strip()
-                    if len(val.split()) >= 2:
+
+                    if len(val.split()) >= 2 and "mrn" not in val.lower():
                         return val
 
-                # 2️⃣ Below label (MOST COMMON)
-                collected = []
-                for j in range(1, 4):
+                # Below lines
+                for j in range(1, 3):
                     if i + j >= len(lines):
                         break
 
                     candidate = lines[i + j].strip()
 
-                    if is_stop_line(candidate):
-                        break
-
-                    if len(candidate.split()) <= 12:
-                        collected.append(candidate)
-
-                if collected:
-                    return " ".join(collected)
+                    if (
+                        len(candidate.split()) >= 2
+                        and "mrn" not in candidate.lower()
+                        and "name" not in candidate.lower()
+                    ):
+                        return candidate
 
         return None
     
@@ -282,6 +289,24 @@ def extract_structured_fields(extracted_data: list[dict]) -> dict:
 
         return None
     
+    # def extract_past_medical_history():
+    #     section = slice_section(lines, "past medical history")
+    #     results = []
+
+    #     for line in section:
+    #         lower = line.lower()
+
+    #         if is_footer_line(line):
+    #             continue
+    #         if re.search(r"\d{1,2}/\d{1,2}/\d{2,4}", line):
+    #             continue
+    #         if len(line.split()) > 10:
+    #             continue
+
+    #         results.append(line.strip())
+
+    #     return " ".join(results) if results else None
+
     def extract_past_medical_history():
         section = slice_section(lines, "past medical history")
         results = []
@@ -289,11 +314,18 @@ def extract_structured_fields(extracted_data: list[dict]) -> dict:
         for line in section:
             lower = line.lower()
 
-            if is_footer_line(line):
-                continue
-            if re.search(r"\d{1,2}/\d{1,2}/\d{2,4}", line):
-                continue
-            if len(line.split()) > 10:
+            # STOP early
+            if any(stop in lower for stop in [
+                "social history",
+                "family history",
+                "labs",
+                "imaging",
+                "orders",
+                "allergies"
+            ]):
+                break
+
+            if len(line.split()) > 8:
                 continue
 
             results.append(line.strip())
@@ -321,16 +353,102 @@ def extract_structured_fields(extracted_data: list[dict]) -> dict:
     # -----------------------------------------------------
     # Safe Date Extractor (REAL DOB ONLY)
     # -----------------------------------------------------
+    # def extract_dob():
+    #     for line in lines:
+    #         if any(b in line.lower() for b in DOB_BLACKLIST):
+    #             continue
+
+    #         match = re.search(r"\b\d{1,2}/\d{1,2}/\d{2,4}\b", line)
+    #         if match:
+    #             return match.group()
+
+    #     return None
+
+    # def extract_dob():
+    #     for line in lines:
+
+    #         if any(b in line.lower() for b in DOB_BLACKLIST):
+    #             continue
+
+    #         # Extract ONLY clean date (ignore time)
+    #         match = re.search(r"\b\d{1,2}/\d{1,2}/\d{4}\b", line)
+    #         if match:
+    #             return match.group()
+
+    #     return None
+
     def extract_dob():
-        for line in lines:
-            if any(b in line.lower() for b in DOB_BLACKLIST):
-                continue
+        candidates = []
 
-            match = re.search(r"\b\d{1,2}/\d{1,2}/\d{2,4}\b", line)
-            if match:
-                return match.group()
+        for i, line in enumerate(lines):
+            lower = line.lower()
 
-        return None
+            # -----------------------------------
+            # 1️⃣ STRONG SIGNAL → contains DOB label
+            # -----------------------------------
+            if any(k in lower for k in ["dob", "date of birth", "d.o.b"]):
+                match = re.search(r"\b\d{1,2}/\d{1,2}/\d{2,4}\b", line)
+                if match:
+                    candidates.append((match.group(), 10))
+
+                # also check next line
+                if i + 1 < len(lines):
+                    match = re.search(r"\b\d{1,2}/\d{1,2}/\d{2,4}\b", lines[i + 1])
+                    if match:
+                        candidates.append((match.group(), 9))
+
+            # -----------------------------------
+            # 2️⃣ MEDIUM SIGNAL → near NAME block
+            # -----------------------------------
+            if any(k in lower for k in ["name", "sex", "age"]):
+                for j in range(1, 4):
+                    if i + j < len(lines):
+                        match = re.search(
+                            r"\b\d{1,2}/\d{1,2}/\d{2,4}\b",
+                            lines[i + j]
+                        )
+                        if match:
+                            candidates.append((match.group(), 6))
+
+            # -----------------------------------
+            # 3️⃣ WEAK SIGNAL → generic dates
+            # BUT filter OUT visit/printed dates
+            # -----------------------------------
+            if re.search(r"\b\d{1,2}/\d{1,2}/\d{2,4}\b", line):
+
+                # ❌ HARD FILTERS (CRITICAL)
+                if any(bad in lower for bad in [
+                    "printed",
+                    "office visit",
+                    "encounter date",
+                    "visit date",
+                    "generated",
+                    "signed",
+                    "admission",
+                    "discharge",
+                    "printed at",
+                    "office visit",
+                    "planned",
+                    "date of service"
+                ]):
+                    continue
+
+                # ❌ ignore timestamps
+                if re.search(r"\d{1,2}:\d{2}", line):
+                    continue
+
+                match = re.search(r"\b\d{1,2}/\d{1,2}/\d{2,4}\b", line)
+                if match:
+                    candidates.append((match.group(), 3))
+
+        # -----------------------------------
+        # 4️⃣ PICK BEST
+        # -----------------------------------
+        if not candidates:
+            return None
+
+        candidates.sort(key=lambda x: x[1], reverse=True)
+        return candidates[0][0]
 
     # -----------------------------------------------------
     # SAFE NAME EXTRACTION (WORKS FOR BOTH FORMATS)
@@ -367,6 +485,16 @@ def extract_structured_fields(extracted_data: list[dict]) -> dict:
         # Prefer shortest valid candidate (real names are short)
         candidates.sort(key=lambda x: len(x))
         return candidates[0]
+    
+    def normalize_name(name):
+        if "," in name:
+            parts = [p.strip() for p in name.split(",")]
+            if len(parts) == 2:
+                return f"{parts[1]} {parts[0]}"
+        return name
+    
+    if "name" in structured:
+        structured["name"]["value"] = normalize_name(structured["name"]["value"])
 
     # -----------------------------------------------------
     # SAFE AGE EXTRACTION
@@ -470,7 +598,76 @@ def extract_structured_fields(extracted_data: list[dict]) -> dict:
             if match:
                 return match.group()
         return None
+    
+    def clean_oncologist(text):
+        text = re.sub(r"\(.*?\)", "", text)  # remove (Physician)
+        text = re.sub(r"\b(MD|DO|Dr\.?)\b", "", text, flags=re.I)
+        return text.strip()
+    
+    def is_garbage(text):
+        lower = text.lower()
 
+        return (
+            len(text.split()) > 6   # too long = not name
+            or any(k in lower for k in [
+                "snomed", "diagnosis", "plan", "history",
+                "medications", "allergies", "labs", "imaging"
+            ])
+        )
+    
+    def extract_oncologist():
+        for i, line in enumerate(lines):
+            lower = line.lower().strip()
+
+            # -----------------------------------
+            # ONLY MATCH LABEL (not anywhere)
+            # -----------------------------------
+            if lower.startswith("oncologist"):
+
+                # -----------------------------------
+                # 1️⃣ INLINE VALUE
+                # -----------------------------------
+                val = re.sub(r"(?i)^Oncologist\s*[:\-]?\s*", "", line).strip()
+
+                if val:
+                    print("Found oncologist inline:", val)
+                    return clean_oncologist(val)
+
+                # -----------------------------------
+                # 2️⃣ NEXT LINE (MOST COMMON CASE)
+                # -----------------------------------
+                if i + 1 < len(lines):
+                    next_line = lines[i + 1].strip()
+
+                    if not is_garbage(next_line):
+                        return clean_oncologist(next_line)
+
+                # -----------------------------------
+                # 3️⃣ SECOND NEXT LINE (RARE OCR BREAK)
+                # -----------------------------------
+                if i + 2 < len(lines):
+                    next_line = lines[i + 2].strip()
+
+                    if not is_garbage(next_line):
+                        return clean_oncologist(next_line)
+
+        return None
+    def is_valid_oncologist(text):
+        return (
+            text
+            and len(text.split()) >= 2
+            and len(text.split()) <= 6
+            and not re.search(r"\d", text)
+            and not any(w in text.lower() for w in [
+                "mrn", "dob", "age", "plan", "name"
+            ])
+        )
+
+    oncologist = extract_oncologist()
+    print(oncologist,'fffffffffffffffffffff')
+    if oncologist:
+        print("Extracted oncologist:", oncologist)
+        structured["oncologist"] = {"value": oncologist}
     # =====================================================
     # FIELD EXTRACTION
     # =====================================================
@@ -497,7 +694,7 @@ def extract_structured_fields(extracted_data: list[dict]) -> dict:
 
     phone = extract_phone()
     if phone:
-        structured["phone_number"] = {"value": phone}
+        structured["phone_number"] = {"value": clean_phone(phone)}
 
     bmi = extract_bmi()
     if bmi:
@@ -543,3 +740,272 @@ def flatten_structured_data(structured: dict) -> dict:
             flattened[key] = val
 
     return flattened
+
+
+# import re
+# import json
+
+# # ================================
+# # OPTIONAL: OPENAI SETUP
+# # ================================
+# USE_OPENAI = False  # 🔁 Turn ON when needed
+# OPENAI_API_KEY = ""  # 🔑 Set your OpenAI API key here
+
+# if USE_OPENAI:
+#     from openai import OpenAI
+#     client = OpenAI(api_key=OPENAI_API_KEY)
+
+
+# # ================================
+# # LABEL MAP (NEW)
+# # ================================
+# LABEL_MAP = {
+#     "name": ["name", "NAME", "Name", "patient name", "pt name"],
+#     "date_of_birth": ["dob", "date of birth", "Date of birth", "birth date"],
+#     "age": ["age"],
+#     "gender": ["gender", "sex"],
+#     "email": ["email", "e-mail"],
+#     "phone": ["phone", "mobile", "contact", "phone number"],
+# }
+
+
+# def match_label(line: str, field: str) -> bool:
+#     return any(label in line.lower() for label in LABEL_MAP.get(field, []))
+
+
+# def get_nearby_candidates(lines, index, window=3):
+#     return [
+#         lines[i].strip()
+#         for i in range(index - window, index + window + 1)
+#         if 0 <= i < len(lines)
+#     ]
+
+
+# # ================================
+# # CLEANING (NEW)
+# # ================================
+# def clean_value(text: str) -> str:
+#     text = re.sub(
+#         r"^(email|e-mail|phone|phone number|ph|mob)\s*:?\s*",
+#         "",
+#         text,
+#         flags=re.I
+#     )
+#     return text.strip()
+
+
+# # ================================
+# # VALIDATORS (NEW - CRITICAL)
+# # ================================
+# def is_valid_name(text):
+#     if not text:
+#         return False
+
+#     text = text.strip()
+
+#     # Reject org words
+#     if any(word in text.lower() for word in ["care", "clinic", "hospital", "center"]):
+#         return False
+
+#     if not (2 <= len(text.split()) <= 3):
+#         return False
+
+#     if re.search(r"\d", text):
+#         return False
+
+#     return True
+
+
+# def is_valid_dob(text):
+#     if ":" in text:
+#         return False
+#     return bool(re.search(r"\b\d{1,2}/\d{1,2}/\d{2,4}\b", text))
+
+
+# def is_valid_email(text):
+#     return bool(re.fullmatch(
+#         r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}",
+#         text.strip()
+#     ))
+
+
+# def is_valid_phone(text):
+#     return bool(re.fullmatch(
+#         r"\d{3}[-.\s]?\d{3}[-.\s]?\d{4}",
+#         text.strip()
+#     ))
+
+
+# def is_valid_age(text):
+#     if text.isdigit():
+#         age = int(text)
+#         return 0 < age <= 120
+#     return False
+
+
+# # ================================
+# # HYBRID EXTRACTOR (NEW)
+# # ================================
+# def extract_field(lines, field, validator):
+#     for i, line in enumerate(lines):
+#         if match_label(line, field):
+
+#             candidates = get_nearby_candidates(lines, i)
+
+#             for c in candidates:
+#                 cleaned = clean_value(c)
+
+#                 if validator(cleaned):
+#                     return cleaned, 5
+
+#     return None, 0
+
+
+# # ================================
+# # AI FALLBACK
+# # ================================
+# def ai_extract(text: str):
+#     if not USE_OPENAI:
+#         return {}
+
+#     prompt = f"""
+#     Extract:
+#     Name, Date of Birth, Age, Gender, Phone Number, Email
+
+#     Return JSON only.
+
+#     Text:
+#     {text}
+#     """
+
+#     response = client.chat.completions.create(
+#         model="gpt-5-mini",
+#         messages=[
+#             {"role": "system", "content": "You extract structured medical data."},
+#             {"role": "user", "content": prompt}
+#         ],
+#         temperature=0
+#     )
+
+#     try:
+#         return json.loads(response.choices[0].message.content)
+#     except:
+#         return {}
+
+
+# # ================================
+# # ORIGINAL LOGIC (UNCHANGED)
+# # ================================
+# def extract_email_old(lines):
+#     for line in lines:
+#         match = re.search(
+#             r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}",
+#             line
+#         )
+#         if match:
+#             return match.group()
+#     return None
+
+
+# def extract_phone_old(lines):
+#     for line in lines:
+#         match = re.search(
+#             r"\b\d{3}[-.\s]?\d{3}[-.\s]?\d{4}\b",
+#             line
+#         )
+#         if match:
+#             return match.group()
+#     return None
+
+
+# def extract_dob_old(lines):
+#     for line in lines:
+#         if ":" in line:
+#             continue
+#         match = re.search(r"\b\d{1,2}/\d{1,2}/\d{2,4}\b", line)
+#         if match:
+#             return match.group()
+#     return None
+
+
+# # ================================
+# # MAIN FUNCTION (FINAL)
+# # ================================
+# def extract_structured_fields(extracted_data: list[dict]) -> dict:
+
+#     structured = {}
+#     confidence = {}
+
+#     lines = [
+#         item["text"].strip()
+#         for item in extracted_data
+#         if item.get("text") and item["text"].strip()
+#     ]
+
+#     # ============================
+#     # STEP 1: TRY OLD LOGIC FIRST
+#     # ============================
+#     email_old = extract_email_old(lines)
+#     phone_old = extract_phone_old(lines)
+#     dob_old = extract_dob_old(lines)
+
+#     if email_old:
+#         structured["email"] = {"value": email_old}
+#         confidence["email"] = 3
+
+#     if phone_old:
+#         structured["phone_number"] = {"value": phone_old}
+#         confidence["phone_number"] = 3
+
+#     if dob_old:
+#         structured["date_of_birth"] = {"value": dob_old}
+#         confidence["date_of_birth"] = 3
+
+#     # ============================
+#     # STEP 2: HYBRID IMPROVEMENT
+#     # ============================
+#     name, s = extract_field(lines, "name", is_valid_name)
+#     if name:
+#         structured["name"] = {"value": name}
+#         confidence["name"] = s
+
+#     email, s = extract_field(lines, "email", is_valid_email)
+#     if email:
+#         structured["email"] = {"value": email}
+#         confidence["email"] = s
+
+#     phone, s = extract_field(lines, "phone", is_valid_phone)
+#     if phone:
+#         structured["phone_number"] = {"value": phone}
+#         confidence["phone_number"] = s
+
+#     age, s = extract_field(lines, "age", is_valid_age)
+#     if age:
+#         structured["age"] = {"value": age}
+#         confidence["age"] = s
+
+#     # ============================
+#     # STEP 3: AI FALLBACK
+#     # ============================
+#     avg_conf = sum(confidence.values()) / len(confidence) if confidence else 0
+
+#     if avg_conf < 3:
+#         print("⚠️ AI fallback triggered")
+
+#         ai_data = ai_extract("\n".join(lines))
+
+#         for k, v in ai_data.items():
+#             if k not in structured and v:
+#                 structured[k] = {"value": v}
+
+#     return structured
+
+
+# # ================================
+# # FLATTEN FUNCTION
+# # ================================
+# def flatten_structured_data(structured: dict) -> dict:
+#     return {
+#         k: v["value"] if isinstance(v, dict) and "value" in v else v
+#         for k, v in structured.items()
+#     }
