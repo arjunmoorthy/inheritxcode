@@ -180,6 +180,10 @@ class Settings(BaseSettings):
         default=30,
         description="Access token expiration time in minutes"
     )
+    jwt_access_token_expiry_hours: int = Field(
+        default=24,
+        description="Access token expiry in hours (alternative to minutes)"
+    )
     jwt_refresh_token_expire_days: int = Field(
         default=7,
         description="Refresh token expiration time in days"
