@@ -170,7 +170,7 @@ def _get_jwt_secret() -> str:
 
 def create_access_token(data: dict) -> str:
     to_encode = data.copy()
-    expire = datetime.now(timezone.utc) + timedelta(hours=settings.jwt_access_token_expiry_hours)
+    expire = datetime.now(timezone.utc) + timedelta(hours=settings.jwt_access_token_expire_minutes)
     to_encode.update({"exp": expire, "type": "access"})
     return jwt.encode(to_encode, _get_jwt_secret(), algorithm=settings.jwt_algorithm)
 
