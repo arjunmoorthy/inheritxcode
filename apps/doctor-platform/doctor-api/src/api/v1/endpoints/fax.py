@@ -18,6 +18,7 @@ from pydantic import model_validator
 from helpers.email import send_welcome_email
 from api.deps import require_roles
 from core.config import settings
+from services.main import extract_structured_fields_dynamic
 
 router = APIRouter()
 
@@ -40,6 +41,8 @@ class AddManualPatientRequest(BaseModel):
     location: Optional[str] = None
     cancer_type: Optional[str] = None
     diagnosis: Optional[str] = None
+    oncologist: Optional[str] = None
+    oncologist_staff_id: Optional[int] = None
     chemotherapy_day: Optional[str] = None
     next_chemotherapy_date: Optional[str] = None
     physician_ids: Optional[List[int]] = None
@@ -94,6 +97,20 @@ async def add_manual_patient(
         db.add(user)
         db.flush()
 
+    oncologist_staff_id = request.oncologist_staff_id
+    if oncologist_staff_id is not None:
+        oncologist_staff = db.query(Staff).filter(Staff.id == oncologist_staff_id).first()
+        if not oncologist_staff:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Staff with id {oncologist_staff_id} not found",
+            )
+        if oncologist_staff.role != "physician":
+            raise HTTPException(
+                status_code=400,
+                detail=f"Staff id {oncologist_staff_id} is not a physician",
+            )
+
     patient = Patient(
         user_id=user.id if user else None,
         mrn=request.mrn,
@@ -105,11 +122,13 @@ async def add_manual_patient(
         email=email,
         age=request.age,
         bmi=request.bmi,
-    location=request.location,
-    cancer_type=request.cancer_type,
-    diagnosis=request.diagnosis,
-    chemotherapy_day=request.chemotherapy_day,
-    next_chemotherapy_at=parse_date(request.next_chemotherapy_date),
+        location=request.location,
+        cancer_type=request.cancer_type,
+        diagnosis=request.diagnosis,
+        oncologist=request.oncologist,
+        oncologist_staff_id=oncologist_staff_id,
+        chemotherapy_day=request.chemotherapy_day,
+        next_chemotherapy_at=parse_date(request.next_chemotherapy_date),
         start_date=parse_date(request.start_date),
         end_date=parse_date(request.end_date),
         plan_name=request.plan_name,
@@ -391,7 +410,7 @@ def run_fax_ocr_task(fax_record_id: int):
         # 🔹 PASS HERE
         text = run_textract_from_s3(bucket, key)
 
-        structured_data = extract_structured_fields(text["lines"])
+        structured_data = extract_structured_fields_dynamic(text["lines"])
         structured_data = flatten_structured_data(structured_data)
         fax.structured_ocr_data = structured_data
 

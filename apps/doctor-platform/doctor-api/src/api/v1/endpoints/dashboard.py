@@ -558,6 +558,10 @@ def patient_listing_dashboard(
                 if physician_name and physician_name not in assigned_oncologist_names:
                     assigned_oncologist_names.append(physician_name)
 
+            linked_oncologist_name = None
+            if getattr(p, "oncologist_staff", None):
+                linked_oncologist_name = (getattr(p.oncologist_staff, "full_name", "") or "").strip() or None
+
             response.append(
                 {
                     "patient_id": p.id,
@@ -579,7 +583,11 @@ def patient_listing_dashboard(
                     # Requested fields
                     "diagnosis": p.diagnosis,
                     "location": p.location,
-                    "assigned_oncologist": ", ".join(assigned_oncologist_names) if assigned_oncologist_names else p.oncologist,
+                    "assigned_oncologist": (
+                        ", ".join(assigned_oncologist_names)
+                        if assigned_oncologist_names
+                        else (linked_oncologist_name or p.oncologist)
+                    ),
                     "day_of_chemotherapy_treatment": p.chemotherapy_day,
                     "next_chemotherapy_treatment": p.next_chemotherapy_at,
                     "past_medical_history": p.past_medical_history,
@@ -615,7 +623,7 @@ def _symptom_name(symptom_id: str) -> str:
     symptom_map = {
         "URG-101": "Trouble Breathing",
         "URG-102": "Chest Pain",
-        "URG-103": "Bleeding / Bruising",
+        "URG-103": "Bleeding that won’t stop with pressure",
         "URG-107": "Fainting / Syncope",
         "URG-108": "Altered Mental Status",
         "URG-114": "Port/IV Site Pain",

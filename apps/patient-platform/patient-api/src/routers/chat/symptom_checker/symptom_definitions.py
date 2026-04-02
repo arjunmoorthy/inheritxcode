@@ -165,7 +165,7 @@ SYMPTOMS['URG-102'] = SymptomDef(
 )
 
 
-# URG-103: Bleeding / Bruising
+# URG-103: Bleeding that won’t stop with pressure  
 def _eval_bleeding(answers: Dict[str, Any]) -> LogicResult:
     # CRITICAL: Non-stop bleeding with pressure → CALL 911 (highest priority)
     if answers.get('pressure') is True:
@@ -190,7 +190,7 @@ def _eval_bleeding(answers: Dict[str, Any]) -> LogicResult:
 
 SYMPTOMS['URG-103'] = SymptomDef(
     id='URG-103',
-    name='Bleeding / Bruising',
+    name='Bleeding that won’t stop with pressure',
     category=SymptomCategory.EMERGENCY,
     screening_questions=[
         Question(

@@ -60,7 +60,7 @@ class ConversationPhase(str, Enum):
 EMERGENCY_SYMPTOMS = [
     {"id": "URG-101", "name": "Trouble Breathing", "icon": "🫁"},
     {"id": "URG-102", "name": "Chest Pain", "icon": "💔"},
-    {"id": "URG-103", "name": "Bleeding / Bruising", "icon": "🩸"},
+    {"id": "URG-103", "name": "Bleeding that won’t stop with pressure", "icon": "🩸"},
     {"id": "URG-107", "name": "Fainting / Syncope", "icon": "😵"},
     {"id": "URG-108", "name": "Confusion / Altered Mental Status", "icon": "🧠"},
 ]
