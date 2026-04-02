@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { API_CONFIG } from '../config/api';
+import { tokenManager } from '../api/client';
 
 // Optional dev-only fallback from env (e.g. VITE_WS_AUTH_TOKEN). Production uses only authToken from login.
 const getWsToken = () =>
@@ -15,6 +16,7 @@ export const useWebSocket = (
   const retryTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const retryCountRef = useRef(0);
   const cancelledRef = useRef(false);
+  const wasOpenRef = useRef(false);
   const maxRetries = 3;
 
   const onMessageRef = useRef(onMessage);
@@ -30,8 +32,11 @@ export const useWebSocket = (
     }
 
     const token = getWsToken();
-    if (!token) {
-      setConnectionError("Authentication token not found.");
+    const isValid = tokenManager.isTokenValid();
+    if (!token || !isValid) {
+      setConnectionError("Authentication token is missing or invalid.");
+      tokenManager.clearAllStorage();
+      window.dispatchEvent(new CustomEvent('session:expired'));
       return;
     }
 
@@ -67,10 +72,12 @@ export const useWebSocket = (
 
     console.log('Connecting to WebSocket:', wsUrl);
     wsRef.current = new WebSocket(wsUrl);
+    wasOpenRef.current = false; // Reset for new attempt
 
     wsRef.current.onopen = () => {
       console.log('WebSocket connection established.');
       setIsConnected(true);
+      wasOpenRef.current = true;
       setConnectionError(null);
       retryCountRef.current = 0;
     };
@@ -85,26 +92,44 @@ export const useWebSocket = (
     };
 
     wsRef.current.onerror = () => {
-      setConnectionError('WebSocket error occurred.');
+      console.error('WebSocket encountered an error.');
     };
 
     wsRef.current.onclose = (event: CloseEvent) => {
+      const wasOpen = wasOpenRef.current;
       setIsConnected(false);
-      console.warn('WebSocket closed:', event.code, event.reason);
-      if (event.code === 1008 || event.code === 4401) {
+      wasOpenRef.current = false;
+      console.warn('WebSocket closed:', event.code, event.reason, 'wasOpen:', wasOpen);
+
+      // Auth error if server says so (1008/4401) OR if it failed during handshake (1006 and never opened)
+      const isAuthError = event.code === 1008 || event.code === 4401 || (event.code === 1006 && !wasOpen);
+
+      if (isAuthError) {
         setConnectionError('Session expired or unauthorized. Please sign in again.');
-      } else if (event.code !== 1000 && event.reason) {
-        setConnectionError(event.reason);
+        tokenManager.clearAllStorage();
+        window.location.replace('/login');
+        return;
       }
+
+      if (event.code !== 1000 && event.reason) {
+        setConnectionError(event.reason);
+      } else if (event.code !== 1000) {
+        setConnectionError('WebSocket connection closed unexpectedly.');
+      }
+
+      // Only retry for non-auth errors
       if (retryCountRef.current < maxRetries) {
         retryCountRef.current += 1;
         retryTimeoutRef.current = setTimeout(connectWebSocket, 1000 * retryCountRef.current);
-      } else {
+      } else if (event.code !== 1000) {
         setConnectionError((prev) =>
           prev || (isNgrok
             ? 'Failed to connect. If using ngrok, open your API URL in a new tab, click "Visit Site", then retry.'
             : 'Failed to connect to chat. Check your connection and try again.')
         );
+        // If we fail persistently, trigger the session modal as it's likely an auth issue.
+        tokenManager.clearAllStorage();
+        window.dispatchEvent(new CustomEvent('session:expired'));
       }
     };
   }, [chatUuid]);

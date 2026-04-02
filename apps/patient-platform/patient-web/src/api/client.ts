@@ -88,8 +88,38 @@ export const tokenManager = {
     localStorage.removeItem(REFRESH_TOKEN_KEY);
   },
 
+  clearAllStorage: (): void => {
+    localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(REFRESH_TOKEN_KEY);
+    localStorage.removeItem('userProfile');
+    localStorage.removeItem('idToken');
+  },
+
   isAuthenticated: (): boolean => {
     return !!localStorage.getItem(TOKEN_KEY);
+  },
+
+  isTokenValid: (): boolean => {
+    const token = localStorage.getItem(TOKEN_KEY);
+    if (!token) return false;
+    
+    // Basic JWT format check (3 parts separated by dots)
+    const parts = token.split('.');
+    if (parts.length !== 3) return false;
+
+    try {
+      // Decode the payload (second part)
+      const payload = JSON.parse(atob(parts[1]));
+      if (payload.exp) {
+        // payload.exp is in seconds
+        const isExpired = Date.now() >= payload.exp * 1000;
+        return !isExpired;
+      }
+    } catch {
+      return false; // Malformed base64 or JSON
+    }
+    
+    return true; // Token has valid format and no expiration or is not yet expired
   },
 };
 
@@ -188,10 +218,14 @@ async function request<T>(
 
       // Handle error responses
       if (!response.ok) {
-        // Handle authentication errors
-        if (response.status === 401) {
-          tokenManager.clearTokens();
-          throw new AuthenticationError();
+        // Handle authentication errors (401 Unauthorized or 403 Forbidden)
+        if (response.status === 401 || response.status === 403) {
+          tokenManager.clearAllStorage();
+          
+          // Direct redirect to login for 401/403
+          window.location.replace('/login');
+          
+          throw new AuthenticationError(response.status === 403 ? 'Access forbidden. Please sign in again.' : 'Session expired. Please sign in again.');
         }
 
         throw ApiClientError.fromResponse(response, body as ApiError);
