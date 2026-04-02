@@ -153,6 +153,7 @@ def create_or_update_fax_patient(db, fax, structured, background_tasks: Backgrou
     phone = v("phone_number")
     email = v("email")
     mrn = v("mrn")
+    diagnosis = v("diagnosis")
 
     dob = parse_date(v("date_of_birth"))
     start_date = parse_date(v("start_date"))
@@ -189,6 +190,7 @@ def create_or_update_fax_patient(db, fax, structured, background_tasks: Backgrou
             first_name=first_name,
             last_name=last_name,
             mrn=mrn,
+            diagnosis=diagnosis,
             gender=v("gender"),
             date_of_birth=dob,
             age=int(v("age")) if v("age") else None,
