@@ -36,6 +36,29 @@ export const tokenManager = {
     localStorage.removeItem('userProfile');
   },
   isAuthenticated: (): boolean => !!localStorage.getItem(TOKEN_KEY),
+  
+  isTokenValid: (): boolean => {
+    const token = localStorage.getItem(TOKEN_KEY);
+    if (!token) return false;
+    
+    // Basic JWT format check
+    const parts = token.split('.');
+    if (parts.length !== 3) return false;
+
+    try {
+      // Decode the payload (second part)
+      const payload = JSON.parse(atob(parts[1]));
+      if (payload.exp) {
+        // payload.exp is in seconds
+        const isExpired = Date.now() >= payload.exp * 1000;
+        return !isExpired;
+      }
+    } catch {
+      return false; // Malformed base64 or JSON
+    }
+    
+    return true; // Token has valid format and no expiration or is not yet expired
+  },
 };
 
 // =============================================================================
@@ -93,8 +116,8 @@ apiClient.interceptors.response.use(
     if (error.response?.status === 401 || error.response?.status === 403) {
       tokenManager.clearAllStorage();
       
-      // Trigger the global SessionTimeoutModal via event dispatch
-      window.dispatchEvent(new CustomEvent('session:expired'));
+      // Direct redirect to login for 401/403
+      window.location.replace('/login');
     }
     return Promise.reject(error);
   }

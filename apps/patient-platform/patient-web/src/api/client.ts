@@ -98,6 +98,29 @@ export const tokenManager = {
   isAuthenticated: (): boolean => {
     return !!localStorage.getItem(TOKEN_KEY);
   },
+
+  isTokenValid: (): boolean => {
+    const token = localStorage.getItem(TOKEN_KEY);
+    if (!token) return false;
+    
+    // Basic JWT format check (3 parts separated by dots)
+    const parts = token.split('.');
+    if (parts.length !== 3) return false;
+
+    try {
+      // Decode the payload (second part)
+      const payload = JSON.parse(atob(parts[1]));
+      if (payload.exp) {
+        // payload.exp is in seconds
+        const isExpired = Date.now() >= payload.exp * 1000;
+        return !isExpired;
+      }
+    } catch {
+      return false; // Malformed base64 or JSON
+    }
+    
+    return true; // Token has valid format and no expiration or is not yet expired
+  },
 };
 
 // =============================================================================
@@ -199,8 +222,8 @@ async function request<T>(
         if (response.status === 401 || response.status === 403) {
           tokenManager.clearAllStorage();
           
-          // Trigger the global SessionTimeoutModal via event dispatch
-          window.dispatchEvent(new CustomEvent('session:expired'));
+          // Direct redirect to login for 401/403
+          window.location.replace('/login');
           
           throw new AuthenticationError(response.status === 403 ? 'Access forbidden. Please sign in again.' : 'Session expired. Please sign in again.');
         }
