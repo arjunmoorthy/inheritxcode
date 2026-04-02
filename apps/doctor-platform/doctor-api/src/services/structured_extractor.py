@@ -272,20 +272,60 @@ def extract_structured_fields(extracted_data: list[dict]) -> dict:
         return None
     
     def extract_pathway():
+        LABELS = [
+            "start on pathway regimen",
+            "pathway regimen",
+            # "primary diagnosis",
+            # "diagnosis"
+        ]
+
         for i, line in enumerate(lower_lines):
-            if "start on pathway regimen" in line:
-                parts = []
 
-                # Same line
-                if "-" in lines[i]:
-                    parts.append(lines[i].split("-", 1)[1].strip())
+            if any(label in line for label in LABELS):
 
-                # Next line
+                candidates = []
+
+                # -------------------------------
+                # 1️⃣ Extract from SAME LINE
+                # -------------------------------
+                same_line = lines[i]
+
+                # Remove label part
+                cleaned = re.sub(
+                    r"(?i)(start on pathway regimen|pathway regimen|primary diagnosis|diagnosis)\s*[:\-]?\s*",
+                    "",
+                    same_line
+                ).strip()
+
+                if cleaned:
+                    candidates.append(cleaned)
+
+                # -------------------------------
+                # 2️⃣ Extract from NEXT LINE
+                # -------------------------------
                 if i + 1 < len(lines):
-                    parts.append(lines[i + 1].strip())
+                    next_line = lines[i + 1].strip()
+                    if next_line:
+                        candidates.append(next_line)
 
-                result = " ".join(parts).strip()
-                return result if len(result) > 5 else None
+                # -------------------------------
+                # 3️⃣ CLEAN + PICK TYPE
+                # -------------------------------
+                for text in candidates:
+
+                    # Split words
+                    words = text.split()
+
+                    for word in words:
+                        word_clean = re.sub(r"[^A-Za-z]", "", word)
+
+                        # Only meaningful word (no codes like BOS307)
+                        if (
+                            word_clean
+                            and len(word_clean) > 2
+                            and not word_clean.isupper()  # avoids BOS
+                        ):
+                            return word_clean
 
         return None
     
@@ -473,7 +513,7 @@ def extract_structured_fields(extracted_data: list[dict]) -> dict:
                     if looks_like_name(below):
                         candidates.append(below)
 
-            # Inline case: "Name: Julie Smith"
+            # Inline case:
             if line.startswith("name"):
                 inline = re.sub(r"(?i)^name\s*:?", "", lines[i]).strip()
                 if looks_like_name(inline):
@@ -698,6 +738,69 @@ def extract_structured_fields(extracted_data: list[dict]) -> dict:
     if mrn:
         structured["mrn"] = {"value": mrn}
 
+    def extract_library_code():
+        candidates = []
+
+        for i, line in enumerate(lines):
+
+            words = line.split()
+
+            for word in words:
+
+                # -----------------------------
+                # CLEAN OCR NOISE
+                # -----------------------------
+                clean = word.strip()
+                clean = re.sub(r"[^\w]", "", clean)
+
+                # -----------------------------
+                # MATCH GENERIC CODE PATTERN
+                # -----------------------------
+                if re.match(r"^[A-Za-z]{2,5}\d{2,6}$", clean):
+
+                    # Normalize
+                    clean = clean.upper()
+
+                    score = 0
+
+                    # -----------------------------
+                    # SCORING SYSTEM (IMPORTANT)
+                    # -----------------------------
+
+                    # ✅ Strong pattern (letters + numbers)
+                    score += 5
+
+                    # ✅ Short = better (real codes are compact)
+                    if len(clean) <= 7:
+                        score += 2
+
+                    # ❌ Avoid known bad contexts
+                    if any(x in line.lower() for x in [
+                        "mrn", "dob", "phone", "fax", "zip", "date"
+                    ]):
+                        score -= 5
+
+                    # ❌ Avoid pure numeric neighbors
+                    if re.search(r"\d{8,}", line):
+                        score -= 2
+
+                    candidates.append((clean, score))
+
+        if not candidates:
+            return None
+
+        # -----------------------------
+        # PICK BEST BY SCORE
+        # -----------------------------
+        candidates.sort(key=lambda x: x[1], reverse=True)
+
+        return candidates[0][0]
+        
+    library_code = extract_library_code()
+    print(library_code,'llllllllllllllllllll')
+    if library_code:
+        structured["library_code"] = {"value": library_code}
+
     oncologist = extract_oncologist()
     print(oncologist,'fffffffffffffffffffff')
     if oncologist:
@@ -746,6 +849,10 @@ def extract_structured_fields(extracted_data: list[dict]) -> dict:
     plan_name = extract_plan_name()
     if plan_name:
         structured["plan_name"] = {"value": plan_name}
+    
+    diagnosis = extract_pathway()
+    if diagnosis:
+        structured["diagnosis"] = {"value": diagnosis}
 
     pathway = extract_pathway() 
     if pathway:
