@@ -1,5 +1,6 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { SessionTimeoutManager } from '@oncolife/ui-components';
 import { AuthProvider } from './contexts/AuthContext';
 import { UserProvider } from './contexts/UserContext';
 import LoginPage from './pages/LoginPage/LoginPage';
@@ -43,6 +44,7 @@ const App: React.FC = () => {
     return (
         <AuthProvider>
             <UserProvider>
+                <SessionTimeoutManager />
                 <BrowserRouter basename={(import.meta.env.BASE_URL ?? '/').replace(/\/$/, '') || '/'}>
                     <Routes>
                         {/* Public Routes */}

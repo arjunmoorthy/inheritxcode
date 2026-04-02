@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { API_CONFIG } from '../config/api';
+import { tokenManager } from '../api/client';
 
 // Optional dev-only fallback from env (e.g. VITE_WS_AUTH_TOKEN). Production uses only authToken from login.
 const getWsToken = () =>
@@ -85,17 +86,32 @@ export const useWebSocket = (
     };
 
     wsRef.current.onerror = () => {
-      setConnectionError('WebSocket error occurred.');
+      // Browsers don't provide details to onerror for security.
+      // We rely on onclose code (like 1008) for specific auth errors.
+      console.error('WebSocket encountered an error.');
     };
 
     wsRef.current.onclose = (event: CloseEvent) => {
       setIsConnected(false);
       console.warn('WebSocket closed:', event.code, event.reason);
-      if (event.code === 1008 || event.code === 4401) {
+
+      const isAuthError = event.code === 1008 || event.code === 4401 || (event.code === 1006 && !isConnected);
+
+      if (isAuthError) {
         setConnectionError('Session expired or unauthorized. Please sign in again.');
-      } else if (event.code !== 1000 && event.reason) {
-        setConnectionError(event.reason);
+        // Trigger the global SessionTimeoutModal via event dispatch
+        tokenManager.clearAllStorage();
+        window.dispatchEvent(new CustomEvent('session:expired'));
+        return; // STOP RETRYING on auth error
       }
+
+      if (event.code !== 1000 && event.reason) {
+        setConnectionError(event.reason);
+      } else if (event.code !== 1000) {
+        setConnectionError('WebSocket connection closed unexpectedly.');
+      }
+
+      // Only retry for non-auth errors
       if (retryCountRef.current < maxRetries) {
         retryCountRef.current += 1;
         retryTimeoutRef.current = setTimeout(connectWebSocket, 1000 * retryCountRef.current);

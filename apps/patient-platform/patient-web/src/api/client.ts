@@ -88,6 +88,13 @@ export const tokenManager = {
     localStorage.removeItem(REFRESH_TOKEN_KEY);
   },
 
+  clearAllStorage: (): void => {
+    localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(REFRESH_TOKEN_KEY);
+    localStorage.removeItem('userProfile');
+    localStorage.removeItem('idToken');
+  },
+
   isAuthenticated: (): boolean => {
     return !!localStorage.getItem(TOKEN_KEY);
   },
@@ -188,10 +195,14 @@ async function request<T>(
 
       // Handle error responses
       if (!response.ok) {
-        // Handle authentication errors
-        if (response.status === 401) {
-          tokenManager.clearTokens();
-          throw new AuthenticationError();
+        // Handle authentication errors (401 Unauthorized or 403 Forbidden)
+        if (response.status === 401 || response.status === 403) {
+          tokenManager.clearAllStorage();
+          
+          // Trigger the global SessionTimeoutModal via event dispatch
+          window.dispatchEvent(new CustomEvent('session:expired'));
+          
+          throw new AuthenticationError(response.status === 403 ? 'Access forbidden. Please sign in again.' : 'Session expired. Please sign in again.');
         }
 
         throw ApiClientError.fromResponse(response, body as ApiError);

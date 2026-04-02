@@ -29,6 +29,12 @@ export const tokenManager = {
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(REFRESH_TOKEN_KEY);
   },
+  clearAllStorage: (): void => {
+    localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(REFRESH_TOKEN_KEY);
+    localStorage.removeItem('idToken');
+    localStorage.removeItem('userProfile');
+  },
   isAuthenticated: (): boolean => !!localStorage.getItem(TOKEN_KEY),
 };
 
@@ -83,13 +89,12 @@ apiClient.interceptors.request.use(
 apiClient.interceptors.response.use(
   (response) => response,
   (error: AxiosError) => {
-    // Handle 401 Unauthorized
-    if (error.response?.status === 401) {
-      tokenManager.clearTokens();
-      // Redirect to login if not already there
-      if (window.location.pathname !== '/login') {
-        window.location.href = '/login';
-      }
+    // Handle 401 Unauthorized or 403 Forbidden
+    if (error.response?.status === 401 || error.response?.status === 403) {
+      tokenManager.clearAllStorage();
+      
+      // Trigger the global SessionTimeoutModal via event dispatch
+      window.dispatchEvent(new CustomEvent('session:expired'));
     }
     return Promise.reject(error);
   }

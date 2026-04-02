@@ -27,7 +27,17 @@ const SessionTimeoutManager: React.FC = () => {
     const timer = setTimeout(() => {
       setSessionTimedOut(true);
     }, remaining);
-    return () => clearTimeout(timer);
+
+    const handleSessionExpired = () => {
+      setSessionTimedOut(true);
+    };
+
+    window.addEventListener('session:expired', handleSessionExpired);
+
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('session:expired', handleSessionExpired);
+    };
   }, []);
 
   const handleLoginAgain = () => {
