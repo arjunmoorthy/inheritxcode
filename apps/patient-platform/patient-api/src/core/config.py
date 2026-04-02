@@ -177,7 +177,7 @@ class Settings(BaseSettings):
         description="Algorithm for JWT token signing"
     )
     jwt_access_token_expire_minutes: int = Field(
-        default=30,
+        default=15,
         description="Access token expiration time in minutes"
     )
     jwt_access_token_expiry_hours: int = Field(

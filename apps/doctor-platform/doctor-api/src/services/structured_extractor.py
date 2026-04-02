@@ -662,6 +662,41 @@ def extract_structured_fields(extracted_data: list[dict]) -> dict:
                 "mrn", "dob", "age", "plan", "name"
             ])
         )
+    
+    def extract_mrn():
+        for i, line in enumerate(lines):
+
+            # normalize for matching
+            normalized = re.sub(r"[.\s]", "", line.lower())
+
+            # -----------------------------------
+            # MATCH MRN LABEL (ANY FORMAT)
+            # MRN / mrn / M.R.N / M R N
+            # -----------------------------------
+            if "mrn" in normalized:
+
+                # -----------------------------------
+                # 1️⃣ INLINE CASE
+                # -----------------------------------
+                match = re.search(r"\b\d{6,8}\b", line)
+                if match:
+                    return match.group()
+
+                # -----------------------------------
+                # 2️⃣ NEXT LINE
+                # -----------------------------------
+                if i + 1 < len(lines):
+                    next_line = lines[i + 1]
+
+                    match = re.search(r"\b\d{6,8}\b", next_line)
+                    if match:
+                        return match.group()
+
+        return None
+    
+    mrn = extract_mrn()
+    if mrn:
+        structured["mrn"] = {"value": mrn}
 
     oncologist = extract_oncologist()
     print(oncologist,'fffffffffffffffffffff')
