@@ -163,8 +163,8 @@ const QuestionsPage: React.FC = () => {
       <button
         onClick={toggleTheme}
         className={`fixed top-4 right-4 z-50 p-3 rounded-full transition-all duration-200 ${isDark
-            ? 'bg-[#2A2725] text-white hover:bg-[#3A3835] border border-slate-700 shadow-lg'
-            : 'bg-white text-slate-700 hover:bg-slate-50 border border-slate-200 shadow-lg'
+          ? 'bg-[#2A2725] text-white hover:bg-[#3A3835] border border-slate-700 shadow-lg'
+          : 'bg-white text-slate-700 hover:bg-slate-50 border border-slate-200 shadow-lg'
           }`}
         aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
       >
@@ -179,7 +179,7 @@ const QuestionsPage: React.FC = () => {
           </h1>
           <p>
             Write down questions you'd like to discuss with your care team.
-            Share them to make them visible to your care team at your next visit.
+            Have them ready for your next visit with your care team.
           </p>
         </PageHeader>
 

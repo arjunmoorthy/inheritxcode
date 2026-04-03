@@ -459,6 +459,15 @@ const generateWeeklyReport = async (weekStart?: string): Promise<{ report_id: st
   return response.data;
 };
 
+// Send Patient Fax
+const sendPatientFax = async (patientUuid: string): Promise<unknown> => {
+  const response = await apiClient.post(
+    API_CONFIG.ENDPOINTS.DASHBOARD.PATIENT_FAX_SEND(patientUuid),
+    {}
+  );
+  return response.data;
+};
+
 // =============================================================================
 // React Query Hooks
 // =============================================================================
@@ -524,6 +533,15 @@ export const useGenerateReport = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['reportsList'] });
       queryClient.invalidateQueries({ queryKey: ['weeklyReport'] });
+    },
+  });
+};
+
+export const useSendPatientFax = () => {
+  return useMutation({
+    mutationFn: sendPatientFax,
+    onSuccess: () => {
+      // Logic for success if needed
     },
   });
 };

@@ -61,11 +61,11 @@ const PatientDataTable: React.FC<PatientDataTableProps> = ({
                     Severity
                   </th>
                   <th className={`text-left py-2 px-2 sm:px-3 text-xs sm:text-sm font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'} whitespace-nowrap`}>
-                    Medication Name
+                    Medication Name and Frequency
                   </th>
-                  <th className={`text-left py-2 px-2 sm:px-3 text-xs sm:text-sm font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'} whitespace-nowrap`}>
+                  {/* <th className={`text-left py-2 px-2 sm:px-3 text-xs sm:text-sm font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'} whitespace-nowrap`}>
                     Medication Frequency
-                  </th>
+                  </th> */}
                   <th className={`text-left py-2 px-2 sm:px-3 text-xs sm:text-sm font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'} whitespace-nowrap`}>
                     Temperature
                   </th>
@@ -123,9 +123,9 @@ const PatientDataTable: React.FC<PatientDataTableProps> = ({
                     <td className={`py-2 px-2 sm:px-3 text-xs sm:text-sm ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
                       {row.medicationName}
                     </td>
-                    <td className={`py-2 px-2 sm:px-3 text-xs sm:text-sm ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                    {/* <td className={`py-2 px-2 sm:px-3 text-xs sm:text-sm ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
                       {row.medicationFrequency}
-                    </td>
+                    </td> */}
                     <td className={`py-2 px-2 sm:px-3 text-xs sm:text-sm ${isDark ? 'text-slate-300' : 'text-slate-700'} whitespace-nowrap`}>
                       {row.temperature}
                     </td>

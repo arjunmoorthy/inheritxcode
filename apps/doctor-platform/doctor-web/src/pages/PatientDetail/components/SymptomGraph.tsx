@@ -40,6 +40,7 @@ interface SymptomGraphProps {
   fullscreen?: boolean;
   formatDateShort: (date: string) => string;
   lastChemoDate?: string | null;
+  isFaxMode?: boolean;
 }
 
 const SymptomGraph: React.FC<SymptomGraphProps> = ({
@@ -50,6 +51,7 @@ const SymptomGraph: React.FC<SymptomGraphProps> = ({
   fullscreen = false,
   formatDateShort,
   lastChemoDate,
+  isFaxMode = false,
 }) => {
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const [hoverCursor, setHoverCursor] = useState<{ x: number; y: number } | null>(null);
@@ -61,7 +63,7 @@ const SymptomGraph: React.FC<SymptomGraphProps> = ({
   const isMobileViewport = typeof window !== 'undefined' && window.innerWidth < 768;
   const chartHeight = fullscreen ? window.innerHeight - 200 : isMobileViewport ? 300 : 380;
   const chartPadding = { top: 15, right: 44, bottom: 50, left: 70 };
-  
+
   useEffect(() => {
     if (!containerRef.current || typeof window === 'undefined') return;
 
@@ -72,7 +74,7 @@ const SymptomGraph: React.FC<SymptomGraphProps> = ({
         // Use contentRect for robust layout size irrespective of transform scaling
         width = entries[0].contentRect.width;
       }
-      
+
       // If width is 0 (hidden or unmounted), skip updating to avoid locking in bad sizes
       if (width > 0) {
         setContainerWidth(Math.floor(width));
@@ -80,13 +82,13 @@ const SymptomGraph: React.FC<SymptomGraphProps> = ({
     };
 
     updateWidth();
-    
+
     const observer = new ResizeObserver((entries) => updateWidth(entries));
     observer.observe(node);
-    
+
     const handleResize = () => updateWidth();
     window.addEventListener('resize', handleResize);
-    
+
     return () => {
       observer.disconnect();
       window.removeEventListener('resize', handleResize);
@@ -144,6 +146,16 @@ const SymptomGraph: React.FC<SymptomGraphProps> = ({
 
     return path;
   };
+
+  const FAX_DASH_PATTERNS = [
+    '', // solid
+    '8,4', // dashed
+    '2,2', // dotted
+    '10,4,2,4', // dash-dot
+    '5,5', // medium dash
+    '15,5', // long dash
+    '8,3,2,3,2,3', // dash-dot-dot
+  ];
 
   const seriesPoints = useMemo(() => {
     return symptoms.map((symptom) => {
@@ -239,7 +251,7 @@ const SymptomGraph: React.FC<SymptomGraphProps> = ({
 
   return (
     <div ref={containerRef} className="relative overflow-x-hidden w-full">
-      <div 
+      <div
         className={`relative ${isDark ? 'bg-slate-900/50' : 'bg-slate-50'} rounded-lg`}
         style={{ height: chartHeight }}
       >
@@ -259,7 +271,7 @@ const SymptomGraph: React.FC<SymptomGraphProps> = ({
         {/* Y-axis labels - Severity (left) */}
         <div className="absolute left-0" style={{ width: chartPadding.left, top: chartPadding.top, bottom: chartPadding.bottom }}>
           {severityLevels.map((level, i) => (
-            <span 
+            <span
               key={level}
               className={`absolute left-1.5 text-[10px] sm:text-xs ${isDark ? 'text-slate-400' : 'text-slate-600'}`}
               style={{ top: `${(i / (severityLevels.length - 1)) * 100}%`, transform: 'translateY(-50%)' }}
@@ -272,7 +284,7 @@ const SymptomGraph: React.FC<SymptomGraphProps> = ({
         {/* Y-axis labels - Temperature (right) */}
         <div className="absolute right-0" style={{ width: chartPadding.right, top: chartPadding.top, bottom: chartPadding.bottom }}>
           {tempScale.levels.map((temp, i) => (
-            <span 
+            <span
               key={temp}
               className={`absolute right-2 text-[10px] sm:text-xs text-right ${isDark ? 'text-slate-400' : 'text-slate-600'}`}
               style={{ top: `${(i / (tempScale.levels.length - 1)) * 100}%`, transform: 'translateY(-50%)' }}
@@ -370,10 +382,8 @@ const SymptomGraph: React.FC<SymptomGraphProps> = ({
                 y1={0}
                 x2={chemoLineX}
                 y2={plotHeight}
-                stroke={isDark ? '#22D3EE' : '#0891B2'}
-                strokeWidth="1.5"
+                className={`${isDark ? 'stroke-cyan-400' : 'stroke-cyan-600'} opacity-90 stroke-[1.5]`}
                 strokeDasharray="5 5"
-                opacity="0.9"
               />
             </g>
           )}
@@ -383,12 +393,11 @@ const SymptomGraph: React.FC<SymptomGraphProps> = ({
               y1={0}
               x2={hoverDetails.x}
               y2={plotHeight}
-              stroke={isDark ? '#64748b' : '#94a3b8'}
-              strokeWidth="1.5"
+              className={`${isDark ? 'stroke-slate-500' : 'stroke-slate-400'} stroke-[1.5]`}
               strokeDasharray="4 4"
             />
           )}
-          {seriesPoints.map(({ symptom, isTemperature, points }) => {
+          {seriesPoints.map(({ symptom, isTemperature, points }, seriesIdx) => {
             if (points.length < 1) return null;
             const pathData = buildSmoothPathData(points);
 
@@ -398,11 +407,11 @@ const SymptomGraph: React.FC<SymptomGraphProps> = ({
                   <path
                     d={pathData}
                     fill="none"
-                    stroke={symptom.color}
-                    strokeWidth="2"
-                    strokeDasharray={isTemperature ? '5 4' : undefined}
+                    stroke={isFaxMode ? (isDark ? '#cbd5e1' : '#334155') : symptom.color}
+                    className={`${isFaxMode ? "stroke-[2.5]" : "stroke-2"} transition-opacity duration-300 drop-shadow-sm`}
                     strokeLinecap="round"
                     strokeLinejoin="round"
+                    style={{ strokeDasharray: isFaxMode ? FAX_DASH_PATTERNS[seriesIdx % FAX_DASH_PATTERNS.length] : (isTemperature ? '5 4' : undefined) }}
                     opacity={
                       activeSeriesName
                         ? (symptom.name === activeSeriesName ? 0.95 : 0.18)
@@ -429,10 +438,9 @@ const SymptomGraph: React.FC<SymptomGraphProps> = ({
                           ? (isMobileViewport ? 5 : 6)
                           : (isMobileViewport ? 3.2 : 4)
                       }
-                      fill={symptom.color}
-                      stroke="white"
+                      fill={isFaxMode ? (isDark ? '#cbd5e1' : '#334155') : symptom.color}
+                      className={`transition-all duration-300 ${isFaxMode ? (isDark ? 'stroke-slate-900' : 'stroke-white') : 'stroke-white'}`}
                       strokeWidth={hoveredIndex !== null && point.dp.dateIndex === hoveredIndex && (!activeSeriesName || symptom.name === activeSeriesName) ? '2.5' : '2'}
-                      className="transition-all"
                       opacity={
                         activeSeriesName
                           ? (symptom.name === activeSeriesName ? 1 : 0.2)
@@ -456,9 +464,8 @@ const SymptomGraph: React.FC<SymptomGraphProps> = ({
         </svg>
         {hoverDetails && tooltipPosition && (
           <div
-            className={`absolute z-10 rounded-xl px-3 py-2 shadow-lg border ${
-              isDark ? 'bg-[#252320] border-slate-700 text-slate-100' : 'bg-white border-slate-200 text-slate-900'
-            }`}
+            className={`absolute z-10 rounded-xl px-3 py-2 shadow-lg border ${isDark ? 'bg-[#252320] border-slate-700 text-slate-100' : 'bg-white border-slate-200 text-slate-900'
+              }`}
             style={{
               left: tooltipPosition.left,
               top: tooltipPosition.top,
@@ -476,7 +483,7 @@ const SymptomGraph: React.FC<SymptomGraphProps> = ({
         )}
 
         {/* X-axis labels */}
-        <div 
+        <div
           className="absolute left-0 right-0 flex justify-between px-2"
           style={{ bottom: chartPadding.bottom - 35, left: chartPadding.left, right: chartPadding.right }}
         >
@@ -485,10 +492,10 @@ const SymptomGraph: React.FC<SymptomGraphProps> = ({
             const isFirst = idx === 0;
             const isLast = idx === dates.length - 1;
             return (
-              <span 
+              <span
                 key={idx}
                 className={`text-[10px] sm:text-xs ${isDark ? 'text-slate-400' : 'text-slate-600'} whitespace-nowrap`}
-                style={{ 
+                style={{
                   transform: isFirst ? 'translateX(0)' : isLast ? 'translateX(-100%)' : 'translateX(-50%)',
                   position: 'absolute',
                   left: `${(idx / (dates.length - 1 || 1)) * 100}%`,

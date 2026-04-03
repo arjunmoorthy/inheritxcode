@@ -84,6 +84,7 @@ export const API_CONFIG = {
       REPORTS_LIST: '/dashboard/reports',
       REPORTS_WEEKLY: '/dashboard/reports/weekly',
       REPORTS_GENERATE: '/dashboard/reports/generate',
+      PATIENT_FAX_SEND: (uuid: string) => `/dashboard/patient/${uuid}/fax`,
     },
 
     // Health Check
