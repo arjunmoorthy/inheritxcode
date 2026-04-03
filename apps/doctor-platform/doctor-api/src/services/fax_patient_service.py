@@ -154,6 +154,9 @@ def create_or_update_fax_patient(db, fax, structured, background_tasks: Backgrou
     email = v("email")
     mrn = v("mrn")
     diagnosis = v("diagnosis")
+    library_code = v("library_code")
+    drug_description = v("drug_description")
+    print(drug_description, 'sssssssssssssssssssssssssssssssssssssssssssssss')
 
     dob = parse_date(v("date_of_birth"))
     start_date = parse_date(v("start_date"))
@@ -190,7 +193,9 @@ def create_or_update_fax_patient(db, fax, structured, background_tasks: Backgrou
             first_name=first_name,
             last_name=last_name,
             mrn=mrn,
+            library_code=library_code,
             diagnosis=diagnosis,
+            drug_description=drug_description,
             gender=v("gender"),
             date_of_birth=dob,
             age=int(v("age")) if v("age") else None,
@@ -220,6 +225,10 @@ def create_or_update_fax_patient(db, fax, structured, background_tasks: Backgrou
         patient.first_name = first_name
         patient.last_name = last_name
         patient.gender = v("gender")
+        patient.library_code = library_code
+        patient.diagnosis = diagnosis
+        patient.drug_description = drug_description
+        patient.mrn = mrn
         patient.date_of_birth = dob
         patient.age = int(v("age")) if v("age") else None
         patient.phone_number = phone
@@ -232,6 +241,16 @@ def create_or_update_fax_patient(db, fax, structured, background_tasks: Backgrou
         patient.regimen_name = v("start_on_pathway_regimen") or v("regimen_name")
         patient.oncologist = oncologist_name
         patient.oncologist_staff_id = oncologist_staff_id
+
+        # ================================
+        # FIX: UPDATE USER TABLE ALSO
+        # ================================
+        if patient.user_id:
+            user = db.query(User).filter(User.id == patient.user_id).first()
+            if user:
+                user.first_name = first_name
+                user.last_name = last_name
+                db.add(user)
 
     db.commit()
     db.refresh(patient)

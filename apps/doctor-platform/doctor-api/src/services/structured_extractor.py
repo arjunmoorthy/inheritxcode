@@ -328,7 +328,7 @@ def extract_structured_fields(extracted_data: list[dict]) -> dict:
                             return word_clean
 
         return None
-    
+
     # def extract_past_medical_history():
     #     section = slice_section(lines, "past medical history")
     #     results = []
@@ -336,11 +336,18 @@ def extract_structured_fields(extracted_data: list[dict]) -> dict:
     #     for line in section:
     #         lower = line.lower()
 
-    #         if is_footer_line(line):
-    #             continue
-    #         if re.search(r"\d{1,2}/\d{1,2}/\d{2,4}", line):
-    #             continue
-    #         if len(line.split()) > 10:
+    #         # STOP early
+    #         if any(stop in lower for stop in [
+    #             "social history",
+    #             "family history",
+    #             "labs",
+    #             "imaging",
+    #             "orders",
+    #             "allergies"
+    #         ]):
+    #             break
+
+    #         if len(line.split()) > 8:
     #             continue
 
     #         results.append(line.strip())
@@ -348,45 +355,146 @@ def extract_structured_fields(extracted_data: list[dict]) -> dict:
     #     return " ".join(results) if results else None
 
     def extract_past_medical_history():
-        section = slice_section(lines, "past medical history")
         results = []
+        capture = False
 
-        for line in section:
-            lower = line.lower()
+        for line in lines:
+            original = line.strip()
+            lower = original.lower()
 
-            # STOP early
+            # -----------------------------
+            # 🎯 START
+            # -----------------------------
+            if "Past Medical History" in original:
+                capture = True
+                continue
+
+            if not capture:
+                continue
+
+            # -----------------------------
+            # 🛑 STOP
+            # -----------------------------
             if any(stop in lower for stop in [
+                "past surgical history",
                 "social history",
                 "family history",
+                "allergies",
+                "medications",
                 "labs",
                 "imaging",
-                "orders",
-                "allergies"
+                "orders"
             ]):
                 break
 
-            if len(line.split()) > 8:
+            # -----------------------------
+            # ❌ SKIP NOISE
+            # -----------------------------
+            if (
+                not original
+                or re.search(r"\d{1,2}/\d{1,2}/\d{2,4}", original)
+            ):
                 continue
 
-            results.append(line.strip())
+            # -----------------------------
+            # ✅ HANDLE BULLETS (IMPORTANT)
+            # -----------------------------
+            clean = re.sub(r"^[•\-\*]\s*", "", original)
 
-        return " ".join(results) if results else None
+            # remove small OCR junk
+            if len(clean.split()) <= 1:
+                continue
+
+            results.append(clean)
+
+        # ✅ KEEP FORMAT (NOT SINGLE STRING)
+        return results if results else None
+
+
+    # def extract_past_medical_history():
+    #     results = []
+    #     capture = False
+
+    #     for line in lines:
+    #         original = line.strip()
+    #         lower = original.lower()
+
+    #         # START
+    #         if "past medical history" in lower:
+    #             capture = True
+    #             continue
+
+    #         if not capture:
+    #             continue
+
+    #         # STOP
+    #         if "past surgical" in lower:
+    #             break
+
+    #         # ❌ SKIP HEADERS
+    #         if any(x in lower for x in ["diagnosis", "date"]):
+    #             continue
+
+    #         # ❌ SKIP EMPTY / DATE
+    #         if not original or re.search(r"\d{1,2}/\d{1,2}/\d{2,4}", original):
+    #             continue
+
+    #         # ✅ HANDLE BULLETS
+    #         if original.startswith("•"):
+    #             clean = re.sub(r"^[•]\s*", "", original)
+    #             results.append(clean)
+
+    #     return results if results else None
     
     def extract_past_surgical_history():
-        section = slice_section(lines, "past surgical history")
         results = []
+        capture = False
 
-        for line in section:
-            lower = line.lower()
+        for line in lines:
+            lower = line.lower().strip()
 
-            if is_footer_line(line):
-                continue
-            if "performed by" in lower:
-                continue
-            if len(line.split()) > 12:
+            # -----------------------------
+            # 🎯 START
+            # -----------------------------
+            if "past surgical history" in lower:
+                capture = True
                 continue
 
-            results.append(line.strip())
+            if not capture:
+                continue
+
+            # -----------------------------
+            # 🛑 HARD STOP
+            # -----------------------------
+            if any(stop in lower for stop in [
+                "social history",
+                "family history",
+                "allergies",
+                "medications",
+                "labs",
+                "imaging",
+                "orders"
+            ]):
+                break
+
+            # -----------------------------
+            # ❌ SKIP NOISE
+            # -----------------------------
+            if (
+                not line.strip()
+                or "performed by" in lower
+                or re.search(r"\d{1,2}/\d{1,2}/\d{2,4}", line)
+                or len(line.split()) > 10
+            ):
+                continue
+
+            # -----------------------------
+            # ✅ CLEAN PROCEDURE
+            # -----------------------------
+            clean = re.sub(r"\b(N/A|Date|Procedure|Laterality)\b", "", line, flags=re.I)
+            clean = re.sub(r"\s+", " ", clean).strip()
+
+            results.append(clean)
 
         return " ".join(results) if results else None
 
@@ -718,7 +826,8 @@ def extract_structured_fields(extracted_data: list[dict]) -> dict:
                 # -----------------------------------
                 # 1️⃣ INLINE CASE
                 # -----------------------------------
-                match = re.search(r"\b\d{6,8}\b", line)
+                match = re.search(r"\b\d{6,10}\b", line)
+                print(match,'mrnmmmmmmmmmmmmmmmmmmmmmmm')
                 if match:
                     return match.group()
 
@@ -728,7 +837,7 @@ def extract_structured_fields(extracted_data: list[dict]) -> dict:
                 if i + 1 < len(lines):
                     next_line = lines[i + 1]
 
-                    match = re.search(r"\b\d{6,8}\b", next_line)
+                    match = re.search(r"\b\d{6,10}\b", next_line)
                     if match:
                         return match.group()
 
@@ -753,49 +862,181 @@ def extract_structured_fields(extracted_data: list[dict]) -> dict:
                 clean = word.strip()
                 clean = re.sub(r"[^\w]", "", clean)
 
+                if not clean:
+                    continue
+
+                clean = clean.upper()
+
+                score = 0
+
                 # -----------------------------
-                # MATCH GENERIC CODE PATTERN
+                # 🎯 1. STRICT MATCH (BEST CASE)
+                # e.g. BOS307
                 # -----------------------------
-                if re.match(r"^[A-Za-z]{2,5}\d{2,6}$", clean):
+                if re.match(r"^[A-Z]{3}\d{3}$", clean):
+                    score += 10  # highest priority
 
-                    # Normalize
-                    clean = clean.upper()
-
-                    score = 0
-
-                    # -----------------------------
-                    # SCORING SYSTEM (IMPORTANT)
-                    # -----------------------------
-
-                    # ✅ Strong pattern (letters + numbers)
+                # -----------------------------
+                # 2. FLEXIBLE MATCH (fallback)
+                # -----------------------------
+                elif re.match(r"^[A-Z]{2,4}\d{2,4}$", clean):
                     score += 5
 
-                    # ✅ Short = better (real codes are compact)
-                    if len(clean) <= 7:
-                        score += 2
+                else:
+                    continue
 
-                    # ❌ Avoid known bad contexts
-                    if any(x in line.lower() for x in [
-                        "mrn", "dob", "phone", "fax", "zip", "date"
-                    ]):
-                        score -= 5
+                # -----------------------------
+                # ❌ HARD FILTERS (VERY IMPORTANT)
+                # -----------------------------
+                if clean.startswith(("ICD", "CPT", "HCPCS")):
+                    continue
 
-                    # ❌ Avoid pure numeric neighbors
-                    if re.search(r"\d{8,}", line):
-                        score -= 2
+                if any(x in line.lower() for x in [
+                    "mrn", "dob", "phone", "fax", "zip", "date"
+                ]):
+                    score -= 5
 
-                    candidates.append((clean, score))
+                # avoid long numeric noise nearby
+                if re.search(r"\d{7,}", line):
+                    score -= 2
+
+                candidates.append((clean, score))
 
         if not candidates:
             return None
 
         # -----------------------------
-        # PICK BEST BY SCORE
+        # PICK BEST
         # -----------------------------
         candidates.sort(key=lambda x: x[1], reverse=True)
 
         return candidates[0][0]
-        
+    
+    def extract_medications_after_code(library_code):
+        medications = []
+        seen = set()
+
+        if not library_code:
+            return []
+
+        start_idx = None
+
+        # -----------------------------
+        # 1️⃣ FIND LIBRARY CODE LINE
+        # -----------------------------
+        for i, line in enumerate(lines):
+            if library_code in line:
+                start_idx = i
+                break
+
+        if start_idx is None:
+            return []
+
+        # -----------------------------
+        # 2️⃣ SCAN BELOW
+        # -----------------------------
+        for line in lines[start_idx + 1:]:
+
+            clean = line.strip()
+
+            if not clean:
+                break  # stop at empty
+
+            lower = clean.lower()
+
+            # -----------------------------
+            # 🛑 STOP CONDITIONS
+            # -----------------------------
+            if any(x in lower for x in [
+                "confirm dose",
+                "pharmacy",
+                "note",
+                "warning",
+                "plan",
+                "diagnosis"
+            ]):
+                break
+
+            # -----------------------------
+            # ✅ VALID MEDICATION FILTER
+            # -----------------------------
+            # Rule: mostly words, may contain (), -, etc.
+            if (
+                len(clean.split()) <= 4
+                and not re.search(r"\d{3,}", clean)  # avoid numbers
+                and not any(x in lower for x in [
+                    "bos", "cycle", "day"
+                ])
+            ):
+                normalized = clean.strip()
+
+                # remove duplicates
+                if normalized not in seen:
+                    seen.add(normalized)
+                    medications.append(normalized)
+
+            else:
+                # If line looks too noisy → stop
+                if len(clean.split()) > 6:
+                    break
+
+        return medications
+    
+    def extract_location():
+        for i, line in enumerate(lower_lines):
+
+            # -----------------------------------
+            # 🎯 STEP 1: FIND "INITIAL CONSULT"
+            # -----------------------------------
+            if "initial consult" in line:
+
+                # -----------------------------------
+                # 🎯 STEP 2: LOOK BELOW (next 3–5 lines)
+                # -----------------------------------
+                for j in range(1, 6):
+                    if i + j >= len(lines):
+                        break
+
+                    candidate = lines[i + j].strip()
+                    lower_c = candidate.lower()
+
+                    # -----------------------------------
+                    # ❌ SKIP BAD LINES
+                    # -----------------------------------
+                    if (
+                        not candidate
+                        or re.search(r"\d{1,2}/\d{1,2}/\d{2,4}", candidate)  # dates
+                        or any(x in lower_c for x in [
+                            "dx", "diagnosis", "reason", "referred",
+                            "physician", "provider"
+                        ])
+                    ):
+                        continue
+
+                    # -----------------------------------
+                    # ✅ STRONG LOCATION SIGNAL
+                    # -----------------------------------
+                    if any(x in lower_c for x in [
+                        "cancer care",
+                        "medical oncology",
+                        "clinic",
+                        "hospital",
+                        "center"
+                    ]):
+                        return candidate
+
+        return None
+    
+    location = extract_location()
+    print(location,'locaaaaaaaaaaaaaaaaaa')
+    if location:
+        structured["location"] = {"value": location}
+    
+    drug_description = extract_medications_after_code(extract_library_code())
+    print(drug_description, 'druggggggggggggggggggg')
+    if drug_description:
+        structured["drug_description"] = {"value": drug_description}
+
     library_code = extract_library_code()
     print(library_code,'llllllllllllllllllll')
     if library_code:
