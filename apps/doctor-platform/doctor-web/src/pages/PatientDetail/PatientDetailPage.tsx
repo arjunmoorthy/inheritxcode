@@ -13,13 +13,14 @@
 
 import React, { useEffect, useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useMediaQuery } from '@mui/material';
-import { ChevronLeft, ChevronRight, Filter } from 'lucide-react';
+import { useMediaQuery, Snackbar } from '@mui/material';
+import { ChevronLeft, ChevronRight, Filter, X } from 'lucide-react';
 import { useThemeMode } from '@oncolife/ui-components';
 import {
   usePatientTimeline,
   usePatientDetails,
   usePatientQuestions,
+  useSendPatientFax,
 } from '../../services/dashboard';
 
 export type PatientProfile = {
@@ -414,13 +415,16 @@ const PatientDetailPage: React.FC = () => {
   const navigate = useNavigate();
   const { isDark } = useThemeMode();
   const isMobile = useMediaQuery('(max-width:768px)');
-  
+
   // Sidebar collapse state
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  
+
   // Fullscreen chart state
   const [isChartFullscreen, setIsChartFullscreen] = useState(false);
-  
+
+  // Fax mode state
+  const [isFaxMode, setIsFaxMode] = useState(false);
+
   // Filter states
   const defaultStartDate = useMemo(() => {
     const date = new Date();
@@ -432,14 +436,34 @@ const PatientDetailPage: React.FC = () => {
   const [endDate, setEndDate] = useState(defaultEndDate);
   const [selectedSymptoms, setSelectedSymptoms] = useState<string[]>(['all']);
   const [severityRange, setSeverityRange] = useState<number[]>([0, 4]);
-  
+
+  // Notification state
+  const [toast, setToast] = useState<{
+    open: boolean;
+    message: string;
+    type: 'success' | 'error';
+  }>({
+    open: false,
+    message: '',
+    type: 'success',
+  });
+
+  const showToast = (message: string, type: 'success' | 'error') => {
+    setToast({ open: true, message, type });
+  };
+
+  const handleCloseToast = (_event?: React.SyntheticEvent | Event, reason?: string) => {
+    if (reason === 'clickaway') return;
+    setToast(prev => ({ ...prev, open: false }));
+  };
+
   // Table pagination states
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(5);
-  
+
   // Patient Profile Modal state
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
-  
+
   // Patient Profile static data
   const [patientProfile, setPatientProfile] = useState<PatientProfile>({
     mrn: '001',
@@ -481,6 +505,8 @@ const PatientDetailPage: React.FC = () => {
     isFetching: questionsFetching,
     refetch: refetchQuestions,
   } = usePatientQuestions(uuid || '', 50);
+
+  const { mutateAsync: sendPatientFax, isPending: isSendingFax } = useSendPatientFax();
 
   // Static payload is kept only for temporary debugging.
   const timelineData = USE_STATIC_TIMELINE ? STATIC_TIMELINE_DATA : timeline;
@@ -531,11 +557,31 @@ const PatientDetailPage: React.FC = () => {
     navigate('/dashboard');
   };
   const handleRefreshDashboard = async () => {
-    await Promise.all([
-      refetchTimeline(), 
-      refetchPatientDetails(),
-      refetchQuestions()
-    ]);
+    try {
+      await Promise.all([
+        refetchTimeline(),
+        refetchPatientDetails(),
+        refetchQuestions()
+      ]);
+      showToast('Dashboard updated successfully!', 'success');
+    } catch (err) {
+      showToast('Failed to update dashboard.', 'error');
+    }
+  };
+
+  const handleFaxClick = async () => {
+    if (!isFaxMode) {
+      setIsFaxMode(true);
+    } else {
+      try {
+        await sendPatientFax(uuid || '');
+        showToast('Fax sent successfully!', 'success');
+        setIsFaxMode(false);
+      } catch (err) {
+        console.error('Fax error:', err);
+        showToast('Failed to send fax. Please try again.', 'error');
+      }
+    }
   };
 
   const formatDate = (dateStr: string) => {
@@ -711,11 +757,10 @@ const PatientDetailPage: React.FC = () => {
           <strong>Medication Entries:</strong> ${escapeHtml(timelineData?.medications?.length ?? 0)}</p>
           
           <h2>Symptom & Temperature Graph</h2>
-          ${
-            graphSvgWithTempAxis
-              ? `<div style="border:1px solid #cbd5e1; border-radius:8px; padding:10px; background:#f8fafc;">${graphSvgWithTempAxis}</div>`
-              : '<p class="small">Graph preview unavailable at export time.</p>'
-          }
+          ${graphSvgWithTempAxis
+        ? `<div style="border:1px solid #cbd5e1; border-radius:8px; padding:10px; background:#f8fafc;">${graphSvgWithTempAxis}</div>`
+        : '<p class="small">Graph preview unavailable at export time.</p>'
+      }
 
           <h2>Medications Table</h2>
           <table>
@@ -815,13 +860,13 @@ const PatientDetailPage: React.FC = () => {
 
     const withTemperature = temperatureDataPoints.length
       ? [
-          ...filteredSymptoms,
-          {
-            name: 'Temperature',
-            color: symptomColors.temperature,
-            dataPoints: temperatureDataPoints,
-          },
-        ]
+        ...filteredSymptoms,
+        {
+          name: 'Temperature',
+          color: symptomColors.temperature,
+          dataPoints: temperatureDataPoints,
+        },
+      ]
       : filteredSymptoms;
 
     return { dates: sortedDates, symptoms: withTemperature };
@@ -868,20 +913,23 @@ const PatientDetailPage: React.FC = () => {
           onProfileClick={() => setIsProfileModalOpen(true)}
           onRefreshClick={handleRefreshDashboard}
           onDownloadClick={handleDownloadReport}
-          isRefreshing={timelineFetching || patientDetailsFetching || questionsFetching}
+          onFaxClick={handleFaxClick}
+          isFaxMode={isFaxMode}
+          isRefreshing={timelineFetching || patientDetailsFetching || questionsFetching || isSendingFax}
         />
+
+
       </div>
       {/* Main Content Area - scroll happens only here, header stays on top */}
       <div className="flex-1 min-h-0 overflow-hidden flex flex-col md:flex-row relative">
         {/* Sidebar Toggle Button - Desktop */}
         <button
           onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-          className={`hidden md:flex absolute left-0 top-4 z-30 ${isSidebarOpen ? 'left-[320px]' : 'left-0'} transition-all duration-300 ${
-            isDark 
-              ? 'bg-[#252320] border-slate-700 text-slate-300 hover:bg-[#2A2725]' 
-              : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
-          } border rounded-r-lg p-2 shadow-md hover:shadow-lg items-center justify-center`}
-          style={{ 
+          className={`hidden md:flex absolute left-0 top-4 z-30 ${isSidebarOpen ? 'left-[320px]' : 'left-0'} transition-all duration-300 ${isDark
+            ? 'bg-[#252320] border-slate-700 text-slate-300 hover:bg-[#2A2725]'
+            : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+            } border rounded-r-lg p-2 shadow-md hover:shadow-lg items-center justify-center`}
+          style={{
             borderLeft: 'none',
           }}
           aria-label={isSidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}
@@ -897,11 +945,10 @@ const PatientDetailPage: React.FC = () => {
         {!isSidebarOpen && (
           <button
             onClick={() => setIsSidebarOpen(true)}
-            className={`md:hidden fixed bottom-6 right-6 z-40 ${
-              isDark 
-                ? 'bg-[#1e3a5f] text-white hover:bg-[#2563EB]' 
-                : 'bg-[#1e3a5f] text-white hover:bg-[#2563EB]'
-            } rounded-full p-4 shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center`}
+            className={`md:hidden fixed bottom-6 right-6 z-40 ${isDark
+              ? 'bg-[#1e3a5f] text-white hover:bg-[#2563EB]'
+              : 'bg-[#1e3a5f] text-white hover:bg-[#2563EB]'
+              } rounded-full p-4 shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center`}
             aria-label="Open filters"
           >
             <Filter size={24} />
@@ -938,10 +985,9 @@ const PatientDetailPage: React.FC = () => {
         )}
 
         {/* Main Content - Graph and Table (scrollable) */}
-        <div 
-          className={`flex-1 min-h-0 overflow-y-auto overflow-x-hidden transition-all duration-300 min-w-0 ${
-            isDark ? '[&::-webkit-scrollbar-thumb]:bg-slate-600 [&::-webkit-scrollbar-track]:bg-slate-800' : '[&::-webkit-scrollbar-thumb]:bg-slate-300 [&::-webkit-scrollbar-track]:bg-slate-100'
-          }`}
+        <div
+          className={`flex-1 min-h-0 overflow-y-auto overflow-x-hidden transition-all duration-300 min-w-0 ${isDark ? '[&::-webkit-scrollbar-thumb]:bg-slate-600 [&::-webkit-scrollbar-track]:bg-slate-800' : '[&::-webkit-scrollbar-thumb]:bg-slate-300 [&::-webkit-scrollbar-track]:bg-slate-100'
+            }`}
           style={{
             scrollbarWidth: 'thin',
             scrollbarColor: isDark ? '#475569 #1A1917' : '#cbd5e1 #f1f5f9',
@@ -960,6 +1006,7 @@ const PatientDetailPage: React.FC = () => {
               patientName={patientDetails?.patientName}
               formatDateShort={formatDateShort}
               lastChemoDate={timelineData?.last_chemo_date ?? null}
+              isFaxMode={isFaxMode}
             />
 
             {/* Table Section */}
@@ -994,6 +1041,43 @@ const PatientDetailPage: React.FC = () => {
         mode="edit"
         patient={patientForModal}
       />
+
+      {/* Stylish Toast Notification */}
+      <Snackbar 
+        open={toast.open} 
+        autoHideDuration={4000} 
+        onClose={handleCloseToast}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+      >
+        <div className={`rounded-lg p-3 min-w-[300px] flex items-center justify-between gap-3 transition-all duration-300 border shadow-lg z-50 ${
+          toast.type === 'success'
+            ? (isDark 
+                ? 'bg-green-500/20 border-green-500/50 text-green-400' 
+                : 'bg-gradient-to-r from-green-50 to-green-100 border-green-300 text-green-700')
+            : (isDark
+                ? 'bg-red-500 border-red-500/50 text-white'
+                : 'bg-gradient-to-r from-red-50 to-red-100 border-red-300 text-red-700')
+        }`}>
+          <div className="flex items-center gap-2">
+            <span className="text-lg">
+              {/* {toast.type === 'success' ? '✅' : '❌'} */}
+            </span>
+            <span className="text-sm font-medium">
+              {toast.message}
+            </span>
+          </div>
+          <button 
+            onClick={handleCloseToast}
+            className={`p-1 rounded-md transition-colors ${
+              toast.type === 'success'
+                ? (isDark ? 'hover:bg-green-500/20' : 'hover:bg-green-200/50')
+                : (isDark ? 'hover:bg-red-500/20' : 'hover:bg-red-200/50')
+            }`}
+          >
+            <X size={16} />
+          </button>
+        </div>
+      </Snackbar>
     </div>
   );
 };

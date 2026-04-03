@@ -15,6 +15,8 @@ interface PatientDetailHeaderProps {
   onProfileClick: () => void;
   onRefreshClick: () => void;
   onDownloadClick: () => void;
+  onFaxClick: () => void;
+  isFaxMode?: boolean;
   isRefreshing?: boolean;
 }
 
@@ -25,6 +27,8 @@ const PatientDetailHeader: React.FC<PatientDetailHeaderProps> = ({
   onProfileClick,
   onRefreshClick,
   onDownloadClick,
+  onFaxClick,
+  isFaxMode = false,
   isRefreshing = false,
 }) => {
   return (
@@ -99,32 +103,34 @@ const PatientDetailHeader: React.FC<PatientDetailHeaderProps> = ({
               <span className="sm:hidden">Update</span>
             </Button>
             <Button
-              variant="outlined"
+              variant={isFaxMode ? "contained" : "outlined"}
               size="small"
               startIcon={<Send size={14} />}
+              onClick={onFaxClick}
               className={isDark ? 'border-slate-700 text-slate-300 hover:border-slate-600' : ''}
               sx={{
                 borderColor: isDark ? '#334155' : '#e2e8f0',
-                color: isDark ? '#cbd5e1' : '#475569',
+                color: isFaxMode ? '#ffffff' : (isDark ? '#cbd5e1' : '#475569'),
+                backgroundColor: isFaxMode ? '#10b981' : 'transparent',
                 fontSize: '0.75rem',
                 padding: '6px 12px',
                 minWidth: 'auto',
                 whiteSpace: 'nowrap',
                 '&:hover': {
-                  borderColor: isDark ? '#475569' : '#cbd5e1',
-                  backgroundColor: isDark ? '#1e293b' : '#f1f5f9',
+                  borderColor: isFaxMode ? '#059669' : (isDark ? '#475569' : '#cbd5e1'),
+                  backgroundColor: isFaxMode ? '#059669' : (isDark ? '#1e293b' : '#f1f5f9'),
                 },
               }}
             >
-              <span className="hidden sm:inline">Send Fax</span>
-              <span className="sm:hidden">Fax</span>
+              <span className="hidden sm:inline">{isFaxMode ? 'Send Fax' : 'Fax Preview'}</span>
+              <span className="sm:hidden">{isFaxMode ? 'Send' : 'Fax'}</span>
             </Button>
             <Button
               variant="outlined"
               size="small"
               startIcon={<Download size={14} />}
               onClick={onDownloadClick}
-              className={isDark ? 'border-slate-700 text-slate-300 hover:border-slate-600' : ''}
+              className={`${isDark ? 'border-slate-700 text-slate-300 hover:border-slate-600' : ''} ${isFaxMode ? 'hidden' : ''}`}
               sx={{
                 borderColor: isDark ? '#334155' : '#e2e8f0',
                 color: isDark ? '#cbd5e1' : '#475569',

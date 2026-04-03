@@ -89,8 +89,29 @@ const ProfilePage: React.FC = () => {
         day_of_chemo_treatment: formData.chemotherapy_day,
       });
       
-      setProfile(updatedProfile as ProfileData);
-      setFormData(updatedProfile as ProfileFormData);
+      // Merge updated results with existing state to avoid blanking out static fields (name, email)
+      setProfile(prev => {
+        if (!prev) return updatedProfile as ProfileData;
+        return {
+          ...prev,
+          chemo_start_date: updatedProfile.treatment_start_date || prev.chemo_start_date,
+          chemo_end_date: updatedProfile.treatment_end_date || prev.chemo_end_date,
+          next_physician_visit: updatedProfile.next_chemotherapy_treatment || prev.next_physician_visit,
+          chemotherapy_day: updatedProfile.day_of_chemo_treatment || prev.chemotherapy_day,
+        };
+      });
+      
+      setFormData(prev => {
+        if (!prev) return updatedProfile as ProfileFormData;
+        return {
+          ...prev,
+          chemo_start_date: updatedProfile.treatment_start_date || prev.chemo_start_date,
+          chemo_end_date: updatedProfile.treatment_end_date || prev.chemo_end_date,
+          next_physician_visit: updatedProfile.next_chemotherapy_treatment || prev.next_physician_visit,
+          chemotherapy_day: updatedProfile.day_of_chemo_treatment || prev.chemotherapy_day,
+        };
+      });
+      
       setIsEditing(false);
       setSaveSuccess(true);
       
@@ -249,4 +270,4 @@ const ProfilePage: React.FC = () => {
   );
 };
 
-export default ProfilePage; 
+export default ProfilePage;

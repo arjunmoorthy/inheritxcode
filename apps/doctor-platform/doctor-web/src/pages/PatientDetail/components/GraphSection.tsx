@@ -35,6 +35,7 @@ interface GraphSectionProps {
   patientName?: string;
   formatDateShort: (date: string) => string;
   lastChemoDate?: string | null;
+  isFaxMode?: boolean;
 }
 
 const GraphSection: React.FC<GraphSectionProps> = ({
@@ -48,7 +49,18 @@ const GraphSection: React.FC<GraphSectionProps> = ({
   patientName,
   formatDateShort,
   lastChemoDate,
+  isFaxMode = false,
 }) => {
+  const FAX_DASH_PATTERNS = [
+    '', // solid
+    '8,4', // dashed
+    '2,2', // dotted
+    '10,4,2,4', // dash-dot
+    '5,5', // medium dash
+    '15,5', // long dash
+    '8,3,2,3,2,3', // dash-dot-dot
+  ];
+
   return (
     <>
       {/* Graph Section */}
@@ -74,22 +86,34 @@ const GraphSection: React.FC<GraphSectionProps> = ({
               </IconButton>
             </Tooltip>
           </div>
-          
+
           {/* Legend */}
           <div className="flex flex-wrap gap-1.5 sm:gap-2">
-            {graphData.symptoms.map((symptom) => (
+            {graphData.symptoms.map((symptom, idx) => (
               <div key={symptom.name} className="flex items-center gap-1.5">
-                <div className="flex items-center gap-0.5">
-                  <div
-                    className="w-2.5 h-0.5"
-                    style={{ backgroundColor: symptom.color }}
-                  />
-                  <div
-                    className="w-1.5 h-1.5 rounded-full"
-                    style={{ backgroundColor: symptom.color }}
-                  />
+                <div className="flex items-center">
+                  {isFaxMode ? (
+                    <svg width="24" height="12" className="mr-1">
+                      <line
+                        x1="0" y1="6" x2="24" y2="6"
+                        className={isDark ? 'stroke-slate-300 stroke-[2.5]' : 'stroke-slate-700 stroke-[2.5]'}
+                        style={{ strokeDasharray: FAX_DASH_PATTERNS[idx % FAX_DASH_PATTERNS.length] }}
+                      />
+                    </svg>
+                  ) : (
+                    <div className="flex items-center gap-0.5">
+                      <div
+                        className="w-2.5 h-0.5"
+                        style={{ backgroundColor: symptom.color }}
+                      />
+                      <div
+                        className="w-1.5 h-1.5 rounded-full"
+                        style={{ backgroundColor: symptom.color }}
+                      />
+                    </div>
+                  )}
                 </div>
-                <span className={`text-xs sm:text-sm ${isDark ? 'text-slate-300' : 'text-slate-700'} whitespace-nowrap`}>
+                <span className={`text-[11px] sm:text-xs md:text-sm ${isDark ? 'text-slate-300' : 'text-slate-700'} whitespace-nowrap`}>
                   {symptom.name.charAt(0).toUpperCase() + symptom.name.slice(1)}
                 </span>
               </div>
@@ -105,6 +129,7 @@ const GraphSection: React.FC<GraphSectionProps> = ({
           fullscreen={false}
           formatDateShort={formatDateShort}
           lastChemoDate={lastChemoDate}
+          isFaxMode={isFaxMode}
         />
       </div>
 
@@ -154,20 +179,32 @@ const GraphSection: React.FC<GraphSectionProps> = ({
           <div className="flex items-center gap-2">
             {/* Legend in fullscreen */}
             <div className="hidden md:flex flex-wrap gap-4 mr-4">
-              {graphData.symptoms.map((symptom) => (
+              {graphData.symptoms.map((symptom, idx) => (
                 <div key={symptom.name} className="flex items-center gap-2">
-                  <div className="flex items-center gap-1">
-                    <div
-                      className="w-3 h-0.5"
-                      style={{ backgroundColor: symptom.color }}
-                    />
-                    <div
-                      className="w-2 h-2 rounded-full"
-                      style={{ backgroundColor: symptom.color }}
-                    />
+                  <div className="flex items-center">
+                    {isFaxMode ? (
+                      <svg width="30" height="12" className="mr-2">
+                        <line
+                          x1="0" y1="6" x2="30" y2="6"
+                          className={isDark ? 'stroke-slate-300 stroke-[3]' : 'stroke-slate-700 stroke-[3]'}
+                          style={{ strokeDasharray: FAX_DASH_PATTERNS[idx % FAX_DASH_PATTERNS.length] }}
+                        />
+                      </svg>
+                    ) : (
+                      <div className="flex items-center gap-1">
+                        <div
+                          className="w-3 h-0.5"
+                          style={{ backgroundColor: symptom.color }}
+                        />
+                        <div
+                          className="w-2 h-2 rounded-full"
+                          style={{ backgroundColor: symptom.color }}
+                        />
+                      </div>
+                    )}
                   </div>
                   <span className={`text-sm ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
-                    → {symptom.name.charAt(0).toUpperCase() + symptom.name.slice(1)}
+                    {symptom.name.charAt(0).toUpperCase() + symptom.name.slice(1)}
                   </span>
                 </div>
               ))}
@@ -217,7 +254,7 @@ const GraphSection: React.FC<GraphSectionProps> = ({
               </div>
             ))}
           </div>
-          
+
           {/* Fullscreen Graph */}
           <div className="flex-1 min-h-0">
             <SymptomGraph
@@ -228,6 +265,7 @@ const GraphSection: React.FC<GraphSectionProps> = ({
               fullscreen={true}
               formatDateShort={formatDateShort}
               lastChemoDate={lastChemoDate}
+              isFaxMode={isFaxMode}
             />
           </div>
         </DialogContent>
