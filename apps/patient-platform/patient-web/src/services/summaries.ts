@@ -17,6 +17,7 @@ export interface Summary {
   personal_notes?: string;
   conversation_state?: string;
   clinical_narrative_summary?: string;
+  patient_narrative_summary?: string;
   // Add other fields as needed
 }
 
