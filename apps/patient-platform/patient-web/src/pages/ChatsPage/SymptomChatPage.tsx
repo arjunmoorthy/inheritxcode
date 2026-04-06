@@ -321,17 +321,14 @@ const SymptomChatPage: React.FC = () => {
           </div>
         </div>
         <div className="header-right">
-          <button className="new-chat-btn" onClick={handleStartNewConversation}>
-            <PlusIcon />
-            <span>New Check-in</span>
-          </button>
-          <button 
+
+          {/* <button 
             className="exit-chat-btn" 
             onClick={() => window.location.href = '/'}
             title="Exit Chat"
           >
             ✕
-          </button>
+          </button> */}
         </div>
       </div>
 
@@ -410,6 +407,16 @@ const SymptomChatPage: React.FC = () => {
           </form>
         </div>
       )}
+
+      {/* Floating Action Button for New Check-in */}
+      <button 
+        className={`new-chat-fab ${shouldShowTextInput() ? 'with-input' : ''}`}
+        onClick={handleStartNewConversation}
+        title="Start New Check-in"
+      >
+        <PlusIcon />
+        <span className="new-chat-text">New Check-in</span>
+      </button>
     </div>
   );
 };

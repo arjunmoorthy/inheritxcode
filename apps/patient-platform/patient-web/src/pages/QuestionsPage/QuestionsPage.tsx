@@ -157,8 +157,17 @@ const QuestionsPage: React.FC = () => {
   };
 
   return (
-    <div className={`min-h-screen transition-colors duration-300 ${isDark ? 'bg-[#1A1917]' : 'bg-[#F5F7FA]'
-      }`}>
+    <div
+      className={`min-h-screen overflow-y-auto transition-colors duration-300 ${
+        isDark
+          ? 'bg-[#1A1917] [&::-webkit-scrollbar]:w-2.5 [&::-webkit-scrollbar-track]:bg-[#1A1917] [&::-webkit-scrollbar-thumb]:bg-slate-500 hover:[&::-webkit-scrollbar-thumb]:bg-slate-400 [&::-webkit-scrollbar-thumb]:border-2 [&::-webkit-scrollbar-thumb]:border-solid [&::-webkit-scrollbar-thumb]:border-[#1A1917] [&::-webkit-scrollbar-thumb]:rounded-full'
+          : 'bg-[#F5F7FA] [&::-webkit-scrollbar]:w-2.5 [&::-webkit-scrollbar-track]:bg-[#F5F7FA] [&::-webkit-scrollbar-thumb]:bg-slate-400 hover:[&::-webkit-scrollbar-thumb]:bg-slate-500 [&::-webkit-scrollbar-thumb]:border-2 [&::-webkit-scrollbar-thumb]:border-solid [&::-webkit-scrollbar-thumb]:border-[#F5F7FA] [&::-webkit-scrollbar-thumb]:rounded-full'
+      }`}
+      style={{
+        scrollbarWidth: 'auto',
+        scrollbarColor: isDark ? '#64748b #1A1917' : '#94a3b8 #F5F7FA',
+      }}
+    >
       {/* Dark Mode Toggle */}
       <button
         onClick={toggleTheme}

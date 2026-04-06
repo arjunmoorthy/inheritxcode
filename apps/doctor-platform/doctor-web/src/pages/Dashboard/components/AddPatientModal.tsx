@@ -45,6 +45,8 @@ const patientSchema = z.object({
   diagnosis: z.string().min(1, 'Diagnosis is required'),
   patientStatus: z.enum(['active', 'inactive', 'pending']),
   regimenName: z.string().optional(),
+  regimenCode: z.string().optional(),
+  regimenStage: z.string().optional(),
   dayOfChemo: z.string().optional(),
   treatmentStartDate: z.string().optional(),
   nextChemoDate: z.string().optional(),
@@ -135,6 +137,8 @@ export const AddPatientModal: React.FC<AddPatientModalProps> = ({
       diagnosis: '',
       patientStatus: 'active',
       regimenName: '',
+      regimenCode: '',
+      regimenStage: '',
       dayOfChemo: '',
       treatmentStartDate: '',
       nextChemoDate: '',
@@ -512,6 +516,36 @@ export const AddPatientModal: React.FC<AddPatientModalProps> = ({
                     label="Regimen Name"
                     placeholder="e.g., Carboplatin + Pemetrexed"
                     icon={<Pill size={18} />}
+                    fullWidth
+                  />
+                )}
+              />
+
+              {/* Regimen Code */}
+              <Controller
+                name="regimenCode"
+                control={control}
+                render={({ field }) => (
+                  <Input
+                    {...field}
+                    label="Regimen Code"
+                    placeholder="e.g., PEMBRO-CARBO-PEM"
+                    icon={<Pill size={18} />}
+                    fullWidth
+                  />
+                )}
+              />
+
+              {/* Regimen Stage */}
+              <Controller
+                name="regimenStage"
+                control={control}
+                render={({ field }) => (
+                  <Input
+                    {...field}
+                    label="Regimen Stage"
+                    placeholder="e.g., Stage IV"
+                    icon={<Stethoscope size={18} />}
                     fullWidth
                   />
                 )}
