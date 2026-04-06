@@ -1,6 +1,7 @@
 import asyncio
 import re
 from datetime import datetime
+from typing import Optional, Tuple
 
 from fastapi import BackgroundTasks
 from sqlalchemy import func
@@ -33,6 +34,125 @@ _DATE_FORMATS = [
 ]
 
 DEFAULT_FAX_PHYSICIAN_EMAIL = "defaultdoctor@yopmail.com"
+
+# Optional leading honorific — only removed when present; plain "Jane Smith" is unchanged.
+_ONCOLOGIST_TITLE_PREFIX = re.compile(
+    r"^\s*(dr\.?|doctor)\s+",
+    re.IGNORECASE,
+)
+# Optional trailing credentials — e.g. "Jane Smith, MD" (no leading Dr.)
+_ONCOLOGIST_TRAILING_CREDENTIALS = re.compile(
+    r"\s*,?\s*(md|m\.d\.|phd|ph\.d\.|d\.o\.|do|mbbs|frcp)\s*$",
+    re.IGNORECASE,
+)
+# OCR noise before the real name (e.g. ". Abhishek Patel" in fax_patients)
+_ONCOLOGIST_LEADING_JUNK = re.compile(r"^[\s.,;:\-_•·]+")
+_ONCO_PLACEHOLDER_TOKENS = frozenset(
+    {
+        "string",
+        "text",
+        "null",
+        "none",
+        "n/a",
+        "na",
+        "test",
+        "sample",
+        "placeholder",
+        "unknown",
+        "oncologist",
+        "name",
+    }
+)
+
+
+def _coerce_oncologist_str(value) -> Optional[str]:
+    """Structured OCR may still be dict {\"value\": \"...\"} in some paths; fax_patients stores a string."""
+    if value is None:
+        return None
+    if isinstance(value, dict):
+        value = value.get("value")
+    if not isinstance(value, str):
+        return None
+    s = value.strip()
+    return s or None
+
+
+def _normalize_name_part(s: str) -> str:
+    return re.sub(r"\s+", " ", (s or "").strip())
+
+
+def _is_oncologist_placeholder(text: str) -> bool:
+    t = text.lower().strip()
+    if not t or len(t) < 2:
+        return True
+    if t in _ONCO_PLACEHOLDER_TOKENS:
+        return True
+    # obvious dummy / lorem fragments from bad OCR
+    if any(p in t for p in ("lorem", "ipsum", "dolore", "asperna")):
+        return True
+    return False
+
+
+def _strip_oncologist_ocr_junk(text: str) -> str:
+    """Remove leading punctuation/spaces so '. Abhishek Patel' parses as First Last."""
+    t = _normalize_name_part(text)
+    while True:
+        nxt = _ONCOLOGIST_LEADING_JUNK.sub("", t)
+        nxt = _normalize_name_part(nxt)
+        if nxt == t:
+            break
+        t = nxt
+    return t
+
+
+def _parse_oncologist_first_last(raw: str) -> Tuple[Optional[str], Optional[str]]:
+    """
+    Parse fax oncologist line into (first_name, last_name) to match users table.
+    Does not require \"Dr.\"; strips it only when present. Same for trailing MD/DO/etc.
+    Supports \"Last, First [Middle]\" and \"First ... Last\".
+    """
+    text = _coerce_oncologist_str(raw)
+    if not text or _is_oncologist_placeholder(text):
+        return None, None
+    text = _strip_oncologist_ocr_junk(text)
+    if not text or _is_oncologist_placeholder(text):
+        return None, None
+    text = _normalize_name_part(_ONCOLOGIST_TITLE_PREFIX.sub("", text))
+    text = _normalize_name_part(_ONCOLOGIST_TRAILING_CREDENTIALS.sub("", text))
+    if not text:
+        return None, None
+    if "," in text:
+        last, _, rest = text.partition(",")
+        last = _normalize_name_part(last)
+        rest = _normalize_name_part(rest)
+        if not last or not rest:
+            return None, None
+        first_token = rest.split()[0]
+        return first_token, last
+    parts = text.split()
+    if len(parts) < 2:
+        return None, None
+    return parts[0], " ".join(parts[1:])
+
+
+def _staff_id_for_single_first_name_if_unique_physician(db, first_name: str) -> Optional[int]:
+    """When OCR only has one given name (e.g. 'Brenda'), match if exactly one active physician has that first_name."""
+    fn = first_name.lower().strip()
+    if not fn or not all(ch.isalpha() or ch in "-'" for ch in fn):
+        return None
+    q = (
+        db.query(Staff.id)
+        .join(User, User.id == Staff.user_id)
+        .filter(
+            Staff.role == "physician",
+            Staff.is_active == True,
+            func.lower(func.trim(User.first_name)) == fn,
+        )
+    )
+    ids = [r[0] for r in q.limit(3).all()]
+    if len(ids) != 1:
+        return None
+    return ids[0]
 
 
 def parse_date(value: str):
@@ -81,7 +201,49 @@ def _find_default_fax_physician(db):
     )
 
 
-def _assign_default_physician_if_needed(db, patient: Patient):
+def _staff_id_for_oncologist_name(db, oncologist_field) -> Optional[int]:
+    """
+    Match fax_patients.oncologist (messy OCR) to users.first_name + users.last_name,
+    then staff.id for role=physician. Leading junk like '. Name' and placeholders are handled.
+    """
+    raw = _coerce_oncologist_str(oncologist_field)
+    if not raw or _is_oncologist_placeholder(raw):
+        return None
+
+    first_name, last_name = _parse_oncologist_first_last(raw)
+    if first_name and last_name:
+        fn = first_name.lower()
+        ln = last_name.lower()
+        row = (
+            db.query(Staff)
+            .join(User, User.id == Staff.user_id)
+            .filter(
+                Staff.role == "physician",
+                Staff.is_active == True,
+                func.lower(func.trim(User.first_name)) == fn,
+                func.lower(func.trim(User.last_name)) == ln,
+            )
+            .first()
+        )
+        return row.id if row else None
+
+    # Single token after cleanup, e.g. "Brenda" only from OCR
+    cleaned = _strip_oncologist_ocr_junk(raw)
+    cleaned = _normalize_name_part(_ONCOLOGIST_TITLE_PREFIX.sub("", cleaned))
+    cleaned = _normalize_name_part(_ONCOLOGIST_TRAILING_CREDENTIALS.sub("", cleaned))
+    if cleaned and not _is_oncologist_placeholder(cleaned):
+        parts = cleaned.split()
+        if len(parts) == 1:
+            return _staff_id_for_single_first_name_if_unique_physician(db, parts[0])
+
+    return None
+
+
+def _assign_fax_patient_physician_if_needed(db, patient: Patient):
+    """
+    Read oncologist from fax_patients, match to user names, use that staff id (physician only)
+    for physician_patients; otherwise default fax physician.
+    """
     if not patient or not patient.id:
         return
 
@@ -96,52 +258,24 @@ def _assign_default_physician_if_needed(db, patient: Patient):
     if existing_assignment:
         return
 
-    default_physician = _find_default_fax_physician(db)
-    if not default_physician:
-        return
+    matched_staff_id = _staff_id_for_oncologist_name(db, patient.oncologist)
+    if matched_staff_id is not None:
+        patient.oncologist_staff_id = matched_staff_id
+        db.add(patient)
+
+    physician_id = matched_staff_id
+    if physician_id is None:
+        default_physician = _find_default_fax_physician(db)
+        if not default_physician:
+            return
+        physician_id = default_physician.id
 
     db.add(
         PhysicianPatient(
-            physician_id=default_physician.id,
+            physician_id=physician_id,
             patient_id=patient.id,
         )
     )
-
-
-def _resolve_oncologist_staff_id(db, oncologist_value: str):
-    if not oncologist_value:
-        return None
-
-    raw = oncologist_value.strip()
-    if not raw:
-        return None
-
-    if "@" in raw:
-        by_email = (
-            db.query(Staff)
-            .filter(
-                Staff.role == "physician",
-                func.lower(Staff.email) == raw.lower(),
-            )
-            .first()
-        )
-        return by_email.id if by_email else None
-
-    first_name, last_name = split_name(raw)
-    if first_name and last_name:
-        by_full_name = (
-            db.query(Staff)
-            .join(User, User.id == Staff.user_id)
-            .filter(
-                Staff.role == "physician",
-                func.lower(func.coalesce(User.first_name, "")) == first_name.lower(),
-                func.lower(func.coalesce(User.last_name, "")) == last_name.lower(),
-            )
-            .first()
-        )
-        return by_full_name.id if by_full_name else None
-
-    return None
 
 def create_or_update_fax_patient(db, fax, structured, background_tasks: BackgroundTasks):
 
@@ -154,12 +288,15 @@ def create_or_update_fax_patient(db, fax, structured, background_tasks: Backgrou
     email = v("email")
     mrn = v("mrn")
     diagnosis = v("diagnosis")
+    library_code = v("library_code")
+    drug_description = v("drug_description")
+    print(drug_description, 'sssssssssssssssssssssssssssssssssssssssssssssss')
 
     dob = parse_date(v("date_of_birth"))
     start_date = parse_date(v("start_date"))
     end_date = parse_date(v("end_date"))
-    oncologist_name = v("oncologist")
-    oncologist_staff_id = _resolve_oncologist_staff_id(db, oncologist_name)
+    oncologist_name = _coerce_oncologist_str(v("oncologist"))
+    oncologist_staff_id = _staff_id_for_oncologist_name(db, oncologist_name)
 
     patient = None
     if email:
@@ -190,7 +327,9 @@ def create_or_update_fax_patient(db, fax, structured, background_tasks: Backgrou
             first_name=first_name,
             last_name=last_name,
             mrn=mrn,
+            library_code=library_code,
             diagnosis=diagnosis,
+            drug_description=drug_description,
             gender=v("gender"),
             date_of_birth=dob,
             age=int(v("age")) if v("age") else None,
@@ -220,6 +359,10 @@ def create_or_update_fax_patient(db, fax, structured, background_tasks: Backgrou
         patient.first_name = first_name
         patient.last_name = last_name
         patient.gender = v("gender")
+        patient.library_code = library_code
+        patient.diagnosis = diagnosis
+        patient.drug_description = drug_description
+        patient.mrn = mrn
         patient.date_of_birth = dob
         patient.age = int(v("age")) if v("age") else None
         patient.phone_number = phone
@@ -233,12 +376,21 @@ def create_or_update_fax_patient(db, fax, structured, background_tasks: Backgrou
         patient.oncologist = oncologist_name
         patient.oncologist_staff_id = oncologist_staff_id
 
+        # ================================
+        # FIX: UPDATE USER TABLE ALSO
+        # ================================
+        if patient.user_id:
+            user = db.query(User).filter(User.id == patient.user_id).first()
+            if user:
+                user.first_name = first_name
+                user.last_name = last_name
+                db.add(user)
+
     db.commit()
     db.refresh(patient)
 
-    # OCR-created fax patients currently have no manual doctor selection, so
-    # attach them to the dedicated fallback physician when available.
-    _assign_default_physician_if_needed(db, patient)
+    # Match patient.oncologist to users + staff (physician), then physician_patients; else default.
+    _assign_fax_patient_physician_if_needed(db, patient)
 
     fax.patient_id = patient.id
     db.commit()
