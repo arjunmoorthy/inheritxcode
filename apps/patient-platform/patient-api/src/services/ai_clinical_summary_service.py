@@ -82,7 +82,15 @@ class AIClinicalSummaryService:
 
         transcript = self._format_transcript(messages)
         if not transcript:
+            logger.warning(
+                "Skipping Gemini clinical summary due to empty transcript"
+            )
             return None
+
+        logger.info(
+            "Attempting Gemini clinical summary generation: "
+            f"messages={len(messages)}, transcript_chars={len(transcript)}"
+        )
 
         return await self._generate_with_prompt(
             prompt_text=DOCTOR_SUMMARY_PROMPT,
@@ -107,7 +115,15 @@ class AIClinicalSummaryService:
 
         transcript = self._format_transcript(messages)
         if not transcript:
+            logger.warning(
+                "Skipping Gemini patient summary due to empty transcript"
+            )
             return None
+
+        logger.info(
+            "Attempting Gemini patient summary generation: "
+            f"messages={len(messages)}, transcript_chars={len(transcript)}"
+        )
 
         return await self._generate_with_prompt(
             prompt_text=PATIENT_SUMMARY_PROMPT,
@@ -140,6 +156,10 @@ class AIClinicalSummaryService:
             return None
 
         cleaned = self._normalize_output(raw_text)
+        if not cleaned:
+            logger.warning(
+                "Gemini returned empty/invalid summary output after normalization"
+            )
         return cleaned or None
 
     def _generate_sync(self, prompt: str) -> str:
