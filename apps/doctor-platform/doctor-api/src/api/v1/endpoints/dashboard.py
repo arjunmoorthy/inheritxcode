@@ -562,6 +562,21 @@ def patient_listing_dashboard(
             if getattr(p, "oncologist_staff", None):
                 linked_oncologist_name = (getattr(p.oncologist_staff, "full_name", "") or "").strip() or None
 
+            cleaned_drug_description = p.drug_description
+            if isinstance(cleaned_drug_description, str):
+                cleaned_drug_description = cleaned_drug_description.strip()
+                if (
+                    cleaned_drug_description.startswith("{")
+                    and cleaned_drug_description.endswith("}")
+                ):
+                    cleaned_drug_description = cleaned_drug_description[1:-1].strip()
+                cleaned_drug_description = (
+                    cleaned_drug_description.replace("\\", "").replace("/", "")
+                )
+                cleaned_drug_description = (
+                    cleaned_drug_description.replace('"', "").replace("'", "")
+                )
+
             response.append(
                 {
                     "patient_id": p.id,
@@ -592,6 +607,9 @@ def patient_listing_dashboard(
                     "next_chemotherapy_treatment": p.next_chemotherapy_at,
                     "past_medical_history": p.past_medical_history,
                     "past_surgical_history": p.past_surgical_history,
+                    "regimen_code": p.library_code,
+                    "drug_description": cleaned_drug_description,
+                    "stage": p.stage,
                 }
             )
 
