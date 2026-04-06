@@ -100,6 +100,9 @@ class SummaryService:
             "clinical_narrative_summary": _normalize_clinical_narrative(
                 conversation.clinical_narrative_summary
             ),
+            "patient_narrative_summary": (
+                conversation.patient_narrative_summary or conversation.longer_summary
+            ),
             "medication_list": conversation.medication_list,
             "bulleted_summary": conversation.bulleted_summary,
             "overall_feeling": conversation.overall_feeling,

@@ -10,6 +10,7 @@ class ConversationSummarySchema(BaseModel):
     severity_list: Optional[dict] = None
     longer_summary: Optional[str] = None
     clinical_narrative_summary: Optional[str] = None
+    patient_narrative_summary: Optional[str] = None
     medication_list: Optional[List] = None
     bulleted_summary: Optional[str] = None
     overall_feeling: Optional[str] = None
@@ -25,6 +26,7 @@ class ConversationDetailSchema(BaseModel):
     severity_list: Optional[dict] = None
     longer_summary: Optional[str] = None
     clinical_narrative_summary: Optional[str] = None
+    patient_narrative_summary: Optional[str] = None
     medication_list: Optional[List] = None
     bulleted_summary: Optional[str] = None
     overall_feeling: Optional[str] = None

@@ -55,6 +55,7 @@ class Conversations(Base):
     severity_list = Column(JSONB, nullable=True)
     longer_summary = Column(Text, nullable=True)
     clinical_narrative_summary = Column(Text, nullable=True)
+    patient_narrative_summary = Column(Text, nullable=True)
     medication_list = Column(JSONB, nullable=True)
     bulleted_summary = Column(Text, nullable=True)
     overall_feeling = Column(String, nullable=True)

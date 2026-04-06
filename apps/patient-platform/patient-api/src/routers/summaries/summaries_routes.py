@@ -40,6 +40,10 @@ def convert_conversation_to_user_timezone(conversation, user_timezone: str = "Am
         "clinical_narrative_summary": getattr(
             conversation, "clinical_narrative_summary", None
         ),
+        "patient_narrative_summary": (
+            getattr(conversation, "patient_narrative_summary", None)
+            or conversation.longer_summary
+        ),
         "medication_list": conversation.medication_list,
         "bulleted_summary": conversation.bulleted_summary,
         "overall_feeling": conversation.overall_feeling,

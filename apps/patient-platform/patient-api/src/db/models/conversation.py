@@ -127,6 +127,11 @@ class Conversation(Base, TimestampMixin):
         nullable=True,
         doc="Detailed narrative summary"
     )
+    patient_narrative_summary = Column(
+        Text,
+        nullable=True,
+        doc="Patient-facing narrative summary"
+    )
 
     # Medication tracking
     medication_list = Column(
