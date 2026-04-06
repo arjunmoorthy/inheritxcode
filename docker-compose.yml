@@ -46,7 +46,7 @@ services:
       dockerfile: Dockerfile
     container_name: oncolife-patient-api
     env_file:
-      - ./apps/doctor-platform/doctor-api/.env
+      - ./apps/patient-platform/patient-api/.env
     environment:
       # Application
       - ENVIRONMENT=development
@@ -89,6 +89,10 @@ services:
       # S3 Buckets
       - S3_REFERRAL_BUCKET=${S3_REFERRAL_BUCKET:-oncolife-referrals-296062592436}
       - S3_EDUCATION_BUCKET=${S3_EDUCATION_BUCKET:-oncolife-education-east-296062592436}
+      # AI_CLINICAL_SUMMARY
+      - AI_CLINICAL_SUMMARY_ENABLED=true
+      - GEMINI_MODEL=gemini-2.5-flash
+      - GEMINI_TIMEOUT_SECONDS=120
       # CORS
       - CORS_ORIGINS=http://localhost:3000,http://localhost:5173,http://127.0.0.1:5173,http://127.0.0.1:3000,https://oncolife-patient.inheritxdev.in,https://oncolife-patient-api.inheritxdev.in
     ports:
