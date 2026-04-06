@@ -44,6 +44,9 @@ export interface Patient {
   assigned_oncologist?: string;
   day_of_chemotherapy_treatment?: string;
   next_chemotherapy_treatment?: string;
+  regimen_code?: string;
+  stage?: string;
+  drug_description?: string;
 }
 
 export interface ConversationSummary {
@@ -93,6 +96,9 @@ interface BackendPatientDetail {
   day_of_chemotherapy_treatment?: string;
   next_chemotherapy_date?: string;
   next_chemotherapy_treatment?: string;
+  regimen_code?: string;
+  stage?: string;
+  drug_description?: string;
 }
 
 interface PatientListingApiResponse {
@@ -117,13 +123,16 @@ const transformListingToPatient = (item: PatientListingApiItem): Patient => ({
   treatmentType: item.plan_name || '',
   start_date: item.start_date || undefined,
   end_date: item.end_date || undefined,
-  plan_name: item.plan_name || undefined,
   location: item.location || undefined,
   assigned_oncologist: item.assigned_oncologist || undefined,
   day_of_chemotherapy_treatment: item.day_of_chemotherapy_treatment || undefined,
   next_chemotherapy_treatment: item.next_chemotherapy_treatment || undefined,
   past_medical_history: item.past_medical_history || undefined,
   past_surgical_history: item.past_surgical_history || undefined,
+  regimen_code: item.regimen_code || undefined,
+  stage: item.stage || undefined,
+  drug_description: item.drug_description || undefined,
+  plan_name: item.drug_description || item.plan_name || undefined,
 });
 
 const transformPatientDetail = (backend: BackendPatientDetail): Patient => ({
@@ -146,13 +155,16 @@ const transformPatientDetail = (backend: BackendPatientDetail): Patient => ({
   physician_ids: backend.physician_ids,
   start_date: backend.start_date,
   end_date: backend.end_date,
-  plan_name: backend.plan_name,
   past_medical_history: backend.past_medical_history,
   past_surgical_history: backend.past_surgical_history,
   chemotherapy_day: backend.chemotherapy_day,
   day_of_chemotherapy_treatment: backend.day_of_chemotherapy_treatment,
   next_chemotherapy_date: backend.next_chemotherapy_date,
   next_chemotherapy_treatment: backend.next_chemotherapy_treatment,
+  regimen_code: backend.regimen_code,
+  stage: backend.stage,
+  drug_description: backend.drug_description,
+  plan_name: backend.drug_description || backend.plan_name,
 });
 
 // =============================================================================
@@ -281,6 +293,9 @@ export interface AddManualPatientPayload {
   next_chemotherapy_date?: string;
   next_chemotherapy_treatment?: string;
   physician_ids?: number[];
+  regimen_code?: string;
+  stage?: string;
+  drug_description?: string;
 }
 
 export interface PatientProfileUpdatePayload {
@@ -305,6 +320,9 @@ export interface PatientProfileUpdatePayload {
   day_of_chemotherapy_treatment?: string;
   next_chemotherapy_date?: string;
   next_chemotherapy_treatment?: string;
+  regimen_code?: string;
+  stage?: string;
+  drug_description?: string;
 }
 
 const addManualPatient = async (

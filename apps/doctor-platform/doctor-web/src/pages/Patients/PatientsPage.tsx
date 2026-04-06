@@ -304,8 +304,12 @@ const PatientsPage: React.FC = () => {
                   <span className={isDark ? 'text-slate-100' : 'text-slate-900'}>{formatDateUS(patient.dateOfBirth)}</span>
                 </div>
                 <div className="flex justify-between items-center text-sm">
-                  <span className={`font-medium ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>Sex</span>
-                  <span className={isDark ? 'text-slate-100' : 'text-slate-900'}>{patient.sex}</span>
+                  <span className={`font-medium ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>Regimen Code</span>
+                  <span className={isDark ? 'text-slate-100' : 'text-slate-900'}>{patient.regimen_code || '—'}</span>
+                </div>
+                <div className="flex justify-between items-center text-sm">
+                  <span className={`font-medium ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>Regimen Stage</span>
+                  <span className={isDark ? 'text-slate-100' : 'text-slate-900'}>{patient.stage || '—'}</span>
                 </div>
               </div>
               <div className={`flex justify-end px-4 py-3 ${isDark ? 'border-slate-700/50' : 'border-slate-200'} border-t`}>
@@ -362,6 +366,8 @@ const PatientsPage: React.FC = () => {
                   <TableCell sx={{ fontWeight: 600, color: isDark ? '#cbd5e1' : colors.primary }}>MRN</TableCell>
                   <TableCell sx={{ fontWeight: 600, color: isDark ? '#cbd5e1' : colors.primary }}>DOB</TableCell>
                   <TableCell sx={{ fontWeight: 600, color: isDark ? '#cbd5e1' : colors.primary }}>Sex</TableCell>
+                  <TableCell sx={{ fontWeight: 600, color: isDark ? '#cbd5e1' : colors.primary }}>Regimen Code</TableCell>
+                  <TableCell sx={{ fontWeight: 600, color: isDark ? '#cbd5e1' : colors.primary }}>Regimen Stage</TableCell>
                   <TableCell sx={{ fontWeight: 600, color: isDark ? '#cbd5e1' : colors.primary }} align="center">Actions</TableCell>
                 </TableRow>
               </TableHead>
@@ -416,6 +422,19 @@ const PatientsPage: React.FC = () => {
                       </Box>
                     </TableCell>
                     <TableCell sx={{ color: isDark ? '#f1f5f9' : '#0f172a' }}>{patient.sex}</TableCell>
+                    <TableCell sx={{ color: isDark ? '#f1f5f9' : '#0f172a' }}>
+                      <Chip 
+                        label={patient.regimen_code || '—'} 
+                        size="small" 
+                        variant="outlined"
+                        sx={{ 
+                          borderColor: isDark ? 'rgba(96, 165, 250, 0.3)' : 'rgba(30, 58, 95, 0.2)',
+                          color: isDark ? '#60a5fa' : colors.primary,
+                          fontWeight: 500,
+                        }}
+                      />
+                    </TableCell>
+                    <TableCell sx={{ color: isDark ? '#f1f5f9' : '#0f172a' }}>{patient.stage || '—'}</TableCell>
                     <TableCell align="center">
                       <Tooltip title="Edit Patient">
                         <IconButton

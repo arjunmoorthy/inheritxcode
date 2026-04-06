@@ -49,6 +49,8 @@ const patientSchema = z.object({
   diagnosis: z.string().min(1, 'Diagnosis is required'),
   patientStatus: z.enum(['active', 'inactive', 'pending']),
   regimenName: z.string().optional(),
+  regimenCode: z.string().optional(),
+  regimenStage: z.string().optional(),
   dayOfChemo: z.string().optional(),
   treatmentStartDate: z.string().optional(),
   nextChemoDate: z.string().optional(),
@@ -73,6 +75,8 @@ const defaultFormValues: PatientFormValues = {
   diagnosis: '',
   patientStatus: 'active',
   regimenName: '',
+  regimenCode: '',
+  regimenStage: '',
   dayOfChemo: '',
   treatmentStartDate: '',
   nextChemoDate: '',
@@ -97,6 +101,8 @@ function patientToFormValues(patient: Patient): PatientFormValues {
     diagnosis: patient.diagnosis || patient.cancer_type || patient.diseaseType || '',
     patientStatus: 'active',
     regimenName: patient.plan_name || patient.treatmentType || '',
+    regimenCode: patient.regimen_code || (patient as any).regimenCode || '',
+    regimenStage: patient.stage || (patient as any).regimen_stage || (patient as any).regimenStage || '',
     dayOfChemo: (patient.chemotherapy_day || (patient as any).day_of_chemotherapy_treatment) || '',
     treatmentStartDate: patient.start_date?.split('T')[0] || '',
     nextChemoDate: (patient.next_chemotherapy_treatment || patient.next_chemotherapy_date || (patient as any).next_chemotherapy_treatment)?.split('T')[0] || '',
@@ -135,12 +141,15 @@ function toPatientProfileUpdatePayload(form: PatientFormValues): PatientProfileU
     end_date: form.endDate || '',
     plan_name: form.regimenName || '',
     regimen_name: form.regimenName || '',
+    drug_description: form.regimenName || '',
     past_medical_history: form.pastMedicalHistory || '',
     past_surgical_history: form.pastSurgicalHistory || '',
     chemotherapy_day: form.dayOfChemo || '',
     day_of_chemotherapy_treatment: form.dayOfChemo || '',
     next_chemotherapy_date: form.nextChemoDate || '',
     next_chemotherapy_treatment: form.nextChemoDate || '',
+    regimen_code: form.regimenCode || '',
+    stage: form.regimenStage || '',
   };
 }
 
@@ -166,8 +175,11 @@ function toAddManualPatientPayload(form: PatientFormValues): AddManualPatientPay
     end_date: form.endDate || '',
     plan_name: form.regimenName || '',
     regimen_name: form.regimenName || '',
+    drug_description: form.regimenName || '',
     past_medical_history: form.pastMedicalHistory || '',
     past_surgical_history: form.pastSurgicalHistory || '',
+    regimen_code: form.regimenCode || '',
+    stage: form.regimenStage || '',
   };
 
   console.log('Final Add Patient Payload:', payload);
@@ -517,6 +529,12 @@ export const PatientFormModal: React.FC<PatientFormModalProps> = ({
               }} />
               <Controller name="regimenName" control={control} render={({ field }) => (
                 <Input {...field} label="Regimen Name" placeholder="e.g., Carboplatin + Pemetrexed" icon={<Pill size={18} />} fullWidth />
+              )} />
+              <Controller name="regimenCode" control={control} render={({ field }) => (
+                <Input {...field} label="Regimen Code" placeholder="e.g., PEMBRO-CARBO-PEM" icon={<Pill size={18} />} fullWidth />
+              )} />
+              <Controller name="regimenStage" control={control} render={({ field }) => (
+                <Input {...field} label="Regimen Stage" placeholder="e.g., Stage IV" icon={<Stethoscope size={18} />} fullWidth />
               )} />
               <Controller name="dayOfChemo" control={control} render={({ field }) => {
                 const selectedOption = dayOfChemoOptions.find(opt => opt.value === field.value);

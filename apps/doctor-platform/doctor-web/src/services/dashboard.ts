@@ -60,6 +60,9 @@ export interface PatientListingApiItem {
   next_chemotherapy_treatment?: string | null;
   past_medical_history?: string | null;
   past_surgical_history?: string | null;
+  regimen_code?: string | null;
+  stage?: string | null;
+  drug_description?: string | null;
 }
 
 export interface PatientListingApiResponse {
@@ -99,6 +102,9 @@ export interface PatientSummary {
   pastMedicalHistory?: string | null;
   pastSurgicalHistory?: string | null;
   plan_name?: string;
+  regimenCode?: string | null;
+  stage?: string | null;
+  drug_description?: string | null;
 }
 
 export interface PatientRanking {
@@ -307,7 +313,10 @@ const transformListingToSummary = (item: PatientListingApiItem): PatientSummary 
   nextChemotherapyTreatment: item.next_chemotherapy_treatment || undefined,
   pastMedicalHistory: item.past_medical_history || undefined,
   pastSurgicalHistory: item.past_surgical_history || undefined,
-  plan_name: item.plan_name || undefined,
+  plan_name: item.drug_description || item.plan_name || undefined,
+  regimenCode: item.regimen_code || undefined,
+  stage: item.stage || undefined,
+  drug_description: item.drug_description || undefined,
 });
 
 // Fetch dashboard landing (ranked patient list)

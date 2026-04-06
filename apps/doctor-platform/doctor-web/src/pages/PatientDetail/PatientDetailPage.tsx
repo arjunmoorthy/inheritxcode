@@ -538,7 +538,9 @@ const PatientDetailPage: React.FC = () => {
       past_medical_history: (patientDetails as any).pastMedicalHistory || '',
       past_surgical_history: (patientDetails as any).pastSurgicalHistory || '',
       diagnosis: (patientDetails as any).diagnosis || '',
-      physician_ids: (patientDetails as any).physician_ids
+      physician_ids: (patientDetails as any).physician_ids,
+      regimen_code: (patientDetails as any).regimenCode || '',
+      stage: (patientDetails as any).stage || ''
     };
   }, [patientProfile, patientDetails, uuid]);
 
