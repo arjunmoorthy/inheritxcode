@@ -74,6 +74,10 @@ class AIClinicalSummaryService:
         Returns None on failure so caller can safely fallback.
         """
         if not self.is_available:
+            logger.info(
+                "Skipping Gemini clinical summary: "
+                f"enabled={self._enabled}, has_api_key={bool(self._api_key)}"
+            )
             return None
 
         transcript = self._format_transcript(messages)
@@ -95,6 +99,10 @@ class AIClinicalSummaryService:
         Returns None on failure so caller can safely fallback.
         """
         if not self.is_available:
+            logger.info(
+                "Skipping Gemini patient summary: "
+                f"enabled={self._enabled}, has_api_key={bool(self._api_key)}"
+            )
             return None
 
         transcript = self._format_transcript(messages)
