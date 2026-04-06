@@ -2384,7 +2384,7 @@ SYMPTOMS['URI-211'] = SymptomDef(
     screening_questions=[
         Question(
             id='amount',
-            text='Has the amount of urine you produce drastically reduced or increased?',
+            text='Has the amount of urine you produce drastically decreased?',
             input_type=InputType.YES_NO
         ),
         Question(
@@ -3081,7 +3081,6 @@ def _eval_joint_muscle_followup(answers: Dict[str, Any]) -> LogicResult:
             'Please let your care team know about your symptoms at your next appointment. '
             'This chatbot is not a substitute for medical care and is not continuously monitored. '
             'If you feel unsafe or believe this may be an emergency, please call 911 right away.\n\n'
-            '💡 **Would you like to add this to your diary as a question for your care team?**'
         )
     )
 
