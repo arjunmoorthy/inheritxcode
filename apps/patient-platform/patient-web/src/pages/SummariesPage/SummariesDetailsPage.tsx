@@ -37,8 +37,8 @@ const SummariesDetailsPage: React.FC = () => {
           <div className="text-red-500 text-5xl mb-4">⚠️</div>
           <h2 className="text-xl font-semibold text-gray-800 mb-4">Unable to Load Summary</h2>
           <p className="text-gray-600 mb-6">There was an error loading the summary details. Please try again.</p>
-          <button 
-            onClick={() => navigate('/summaries')} 
+          <button
+            onClick={() => navigate('/summaries')}
             className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
           >
             <ArrowLeft size={16} className="mr-2" />
@@ -56,8 +56,8 @@ const SummariesDetailsPage: React.FC = () => {
           <div className="text-gray-400 text-5xl mb-4">📄</div>
           <h2 className="text-xl font-semibold text-gray-800 mb-4">Summary Not Found</h2>
           <p className="text-gray-600 mb-6">The requested summary could not be found.</p>
-          <button 
-            onClick={() => navigate('/summaries')} 
+          <button
+            onClick={() => navigate('/summaries')}
             className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
           >
             <ArrowLeft size={16} className="mr-2" />
@@ -109,8 +109,8 @@ const SummariesDetailsPage: React.FC = () => {
             </S.DateContainer>
             {summary.overall_feeling && (
               <S.FeelingContainer style={{ backgroundColor: getFeelingData(summary.overall_feeling).color.split(';')[0].split(':')[1], color: getFeelingData(summary.overall_feeling).color.split(';')[1].split(':')[1] }}>
-                <S.FeelingImage 
-                  src={getFeelingData(summary.overall_feeling).image} 
+                <S.FeelingImage
+                  src={getFeelingData(summary.overall_feeling).image}
                   alt={summary.overall_feeling}
                 />
                 <S.FeelingText>Overall Feeling: {summary.overall_feeling}</S.FeelingText>
@@ -132,7 +132,7 @@ const SummariesDetailsPage: React.FC = () => {
               </S.CardHeader>
               <S.DetailedSummaryText>
                 <p>
-                  {summary?.clinical_narrative_summary || 'No detailed summary available.'}
+                  {summary?.patient_narrative_summary || 'No detailed summary available.'}
                 </p>
               </S.DetailedSummaryText>
             </S.Card>
@@ -148,7 +148,7 @@ const SummariesDetailsPage: React.FC = () => {
                   </S.CardIcon>
                   <S.CardTitle>Quick Summary</S.CardTitle>
                 </S.CardHeader>
-                <S.QuickSummaryContent 
+                <S.QuickSummaryContent
                   dangerouslySetInnerHTML={{ __html: summary.bulleted_summary }}
                 />
               </S.Card>
