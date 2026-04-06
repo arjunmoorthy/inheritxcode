@@ -81,6 +81,7 @@
   height: 100%;
   min-height: 0; /* Allow flex child to shrink */
   width: 100%;
+  position: relative;
   background: var(--symptom-chat-container-bg);
   /* Light: WhatsApp-style beige + pattern. Dark: overridden below. */
   background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23d4cfc4' fill-opacity='0.4'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
@@ -768,6 +769,73 @@
 .send-btn svg {
   width: 20px;
   height: 20px;
+}
+
+.new-chat-fab {
+  position: absolute;
+  bottom: calc(24px + env(safe-area-inset-bottom));
+  right: 24px;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 48px;
+  padding: 0 12px;
+  background: linear-gradient(135deg, var(--ruby-primary) 0%, #00695C 100%);
+  color: white;
+  border: none;
+  border-radius: 24px;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+  box-shadow: 0 4px 12px rgba(0, 137, 123, 0.4);
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.new-chat-fab.with-input {
+  bottom: calc(108px + env(safe-area-inset-bottom));
+}
+
+.new-chat-fab:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0, 137, 123, 0.5);
+  padding: 0 20px 0 16px;
+}
+
+.new-chat-fab svg {
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+}
+
+.new-chat-text {
+  max-width: 0;
+  opacity: 0;
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+  font-weight: 600;
+  font-size: 15px;
+}
+
+.new-chat-fab:hover .new-chat-text {
+  max-width: 150px;
+  opacity: 1;
+  margin-left: 8px;
+}
+
+@media (max-width: 480px) {
+  .new-chat-fab {
+    bottom: calc(16px + env(safe-area-inset-bottom));
+    right: 16px;
+    height: 44px;
+    padding: 0 10px;
+  }
+  .new-chat-fab.with-input {
+    bottom: calc(88px + env(safe-area-inset-bottom));
+  }
+  .new-chat-fab svg {
+    width: 24px;
+    height: 24px;
+  }
 }
 
 /* =============================================================================
