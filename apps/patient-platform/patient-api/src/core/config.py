@@ -344,6 +344,22 @@ class Settings(BaseSettings):
         default=None,
         description="OpenAI API key for LLM features"
     )
+    ai_clinical_summary_enabled: bool = Field(
+        default=True,
+        description="Enable Gemini-generated clinical_narrative_summary generation"
+    )
+    gemini_api_key: Optional[str] = Field(
+        default=None,
+        description="Gemini API key for AI-generated summaries"
+    )
+    gemini_model: str = Field(
+        default="gemini-2.5-flash",
+        description="Gemini model name for clinical summary generation"
+    )
+    gemini_timeout_seconds: int = Field(
+        default=120,
+        description="Timeout (seconds) for Gemini summary generation requests"
+    )
     
     # Pinecone Settings (for vector search if needed)
     pinecone_api_key: Optional[str] = Field(

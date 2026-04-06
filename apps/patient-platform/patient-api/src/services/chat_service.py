@@ -40,6 +40,7 @@ import pytz
 from services.symptom_analytics_service import save_symptom_analytics
 from services.chemo_service import ChemoService
 from services.clinical_narrative_summary import build_clinical_narrative_summary
+from services.ai_clinical_summary_service import AIClinicalSummaryService
 
 # Symptom checker engine
 from routers.chat.symptom_checker import SymptomCheckerEngine, TriageLevel
@@ -461,9 +462,17 @@ class ChatService:
                 )
                 chat.bulleted_summary = summaries['bulleted']
                 chat.longer_summary = summaries['longer']
-                chat.clinical_narrative_summary = build_clinical_narrative_summary(
-                    engine_response.state.to_dict(),
-                    self._get_symptom_name,
+                conversation_messages = self.db.query(MessageModel).filter(
+                    MessageModel.chat_uuid == chat_uuid
+                ).order_by(MessageModel.created_at, MessageModel.id).all()
+                (
+                    chat.clinical_narrative_summary,
+                    chat.patient_narrative_summary,
+                ) = await self._build_narrative_summaries(
+                    engine_state=engine_response.state.to_dict(),
+                    messages=conversation_messages,
+                    chat_uuid=chat_uuid,
+                    patient_fallback=summaries["longer"],
                 )
                 
                 # AUTO-SAVE to conversation summaries when conversation completes
@@ -670,6 +679,45 @@ class ChatService:
             'bulleted': bulleted_summary,
             'longer': longer_summary
         }
+
+    async def _build_narrative_summaries(
+        self,
+        engine_state: Dict[str, Any],
+        messages: List[MessageModel],
+        chat_uuid: UUID,
+        patient_fallback: str,
+    ) -> Tuple[str, str]:
+        """
+        Build clinical + patient narrative summaries with optional AI generation.
+
+        Uses Gemini when enabled/configured, otherwise deterministic fallback.
+        """
+        clinical_fallback = build_clinical_narrative_summary(
+            engine_state,
+            self._get_symptom_name,
+        )
+        ai_service = AIClinicalSummaryService()
+        ai_clinical_summary = await ai_service.generate_clinical_summary(messages=messages)
+        ai_patient_summary = await ai_service.generate_patient_summary(messages=messages)
+
+        if ai_clinical_summary:
+            logger.info(f"Generated AI clinical summary for chat={chat_uuid}")
+        else:
+            logger.info(
+                f"Using deterministic clinical summary fallback for chat={chat_uuid}"
+            )
+
+        if ai_patient_summary:
+            logger.info(f"Generated AI patient summary for chat={chat_uuid}")
+        else:
+            logger.info(
+                f"Using patient summary fallback from longer_summary for chat={chat_uuid}"
+            )
+
+        return (
+            ai_clinical_summary or clinical_fallback,
+            ai_patient_summary or patient_fallback,
+        )
     
     # =========================================================================
     # Diary Integration
