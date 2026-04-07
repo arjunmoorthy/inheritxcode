@@ -64,6 +64,7 @@ class ClinicResponse(BaseModel):
     name: str
     address: Optional[str]
     phone: Optional[str]
+    fax: Optional[str]
     department: Optional[str]
 
 class AllStaffResponse(BaseModel):
@@ -177,6 +178,21 @@ class AddStaffResponse(BaseModel):
     staff_uuid: str
     email: str
     role: str
+
+
+class SelfProfileResponse(BaseModel):
+    id: int
+    uuid: UUID
+    user_id: int
+    email: str
+    first_name: Optional[str]
+    last_name: Optional[str]
+    full_name: Optional[str]
+    role: str
+    phone: Optional[str]
+    is_profile_completed: bool
+    is_active: bool
+    clinic: Optional[ClinicResponse]
 
 
 # =============================================================================
@@ -552,6 +568,67 @@ def add_staff_simple(
 
 
 @router.get(
+    "/profile",
+    response_model=APIResponse[SelfProfileResponse],
+    summary="Get my profile",
+)
+def get_my_profile(
+    db: Session = Depends(get_doctor_db_session),
+    current_user=Depends(require_roles("admin", "physician", "nurse")),
+):
+    staff = (
+        db.query(Staff)
+        .filter(
+            Staff.user_id == current_user.id,
+            Staff.is_active == True,
+        )
+        .first()
+    )
+
+    if not staff:
+        raise HTTPException(status_code=404, detail="Staff profile not found")
+
+    primary_clinic_assoc = next(
+        (
+            assoc for assoc in staff.clinic_associations
+            if assoc.is_primary and assoc.is_active
+        ),
+        None,
+    )
+    clinic = primary_clinic_assoc.clinic if primary_clinic_assoc else None
+
+    return APIResponse(
+        success=True,
+        message="Profile fetched successfully",
+        data=SelfProfileResponse(
+            id=staff.id,
+            uuid=staff.uuid,
+            user_id=staff.user_id,
+            email=staff.email,
+            first_name=staff.first_name,
+            last_name=staff.last_name,
+            full_name=staff.full_name,
+            role=staff.role,
+            phone=staff.phone,
+            is_profile_completed=staff.is_profile_completed,
+            is_active=staff.is_active,
+            clinic=(
+                ClinicResponse(
+                    id=clinic.id,
+                    uuid=clinic.uuid,
+                    name=clinic.name,
+                    address=clinic.address,
+                    phone=clinic.phone,
+                    fax=clinic.fax,
+                    department=clinic.department,
+                )
+                if clinic else None
+            ),
+        ),
+    )
+
+
+@router.get(
     "/list/doctors",
     response_model=APIResponse[list[DoctorListResponse]],
     summary="List all active doctors",
@@ -739,6 +816,7 @@ def get_all_staff(
                         name=clinic.name,
                         address=clinic.address,
                         phone=clinic.phone,
+                        fax=clinic.fax,
                         department=clinic.department,
                     )
                     if clinic else None
