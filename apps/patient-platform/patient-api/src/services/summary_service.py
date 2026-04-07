@@ -94,6 +94,7 @@ class SummaryService:
             "created_at": utc_to_user_timezone(conversation.created_at, timezone) if conversation.created_at else None,
             "updated_at": utc_to_user_timezone(conversation.updated_at, timezone) if conversation.updated_at else None,
             "conversation_state": conversation.conversation_state,
+            "triage_level": conversation.triage_level,
             "symptom_list": conversation.symptom_list,
             "severity_list": conversation.severity_list,
             "longer_summary": conversation.longer_summary,

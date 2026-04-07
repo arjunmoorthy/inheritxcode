@@ -62,6 +62,7 @@ class ConversationSummarySchema(BaseModel):
     uuid: str
     created_at: datetime
     conversation_state: Optional[str] = None
+    triage_level: Optional[str] = None
     symptom_list: Optional[List[str]] = None
     symptom_names: Optional[List[str]] = None
     severity_list: Optional[Any] = None
@@ -82,6 +83,7 @@ class ConversationDetailSchema(BaseModel):
     created_at: datetime
     updated_at: Optional[datetime] = None
     conversation_state: Optional[str] = None
+    triage_level: Optional[str] = None
     symptom_list: Optional[List[str]] = None
     symptom_names: Optional[List[str]] = None
     severity_list: Optional[Any] = None
