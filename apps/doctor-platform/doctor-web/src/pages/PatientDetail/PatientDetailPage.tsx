@@ -1161,7 +1161,7 @@ const PatientDetailPage: React.FC = () => {
               disabled={isSendingFax}
               sx={{ backgroundColor: '#10b981', '&:hover': { backgroundColor: '#059669' } }}
             >
-              {isSendingFax ? 'Sending...' : 'Send Fax'}
+              {isSendingFax ? 'Sending...' : 'Send'}
             </Button>
           </div>
         </DialogTitle>

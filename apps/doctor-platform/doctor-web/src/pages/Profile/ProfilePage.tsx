@@ -31,6 +31,7 @@ const ProfilePage: React.FC = () => {
     const [isEditing, setIsEditing] = useState(false);
     const [profileSaveSuccess, setProfileSaveSuccess] = useState(false);
     const lastLoggedProfileRef = useRef<string>('');
+    const lastSyncedProfileRef = useRef<string>('');
 
     const profileFormDefaults: ProfileFormValues = {
         first_name: profile?.first_name || '',
@@ -74,9 +75,9 @@ const ProfilePage: React.FC = () => {
     useEffect(() => {
         if (!apiProfile) return;
         const snapshot = JSON.stringify(apiProfile);
-        if (lastLoggedProfileRef.current !== snapshot) {
-            lastLoggedProfileRef.current = snapshot;
-        }
+        if (lastSyncedProfileRef.current === snapshot) return;
+        lastSyncedProfileRef.current = snapshot;
+        if (lastLoggedProfileRef.current !== snapshot) lastLoggedProfileRef.current = snapshot;
         updateProfile({
             staff_id: apiProfile.staff_id,
             first_name: apiProfile.first_name,
