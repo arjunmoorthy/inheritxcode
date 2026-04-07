@@ -1,13 +1,13 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { Mail, Phone, Building, MapPin, Printer, User, Edit, UserPlus, UserCog, CheckCircle } from 'lucide-react';
+import { Mail, Phone, Building, MapPin, Printer, User, Edit, UserCog, CheckCircle } from 'lucide-react';
 import { Button, Input, Select, Modal, ModalFooter } from '@/components/ui';
 import type { SelectOption } from '@/components/ui';
 import { useUser } from '../contexts/UserContext';
 import { useThemeMode } from '@oncolife/ui-components';
-import { useAddStaffV1, useStaffListDoctors, useUpdateStaffProfile, useAllStaff } from '../services/staff';
+import { useAddStaffV1, useStaffListDoctors, useUpdateStaffProfile, useAllStaff, useCurrentStaffProfile } from '../services/staff';
 import { useStaffManagement } from '../contexts/StaffManagementContext';
 
 // Staff member type (from all-staff API + for update API)
@@ -31,6 +31,10 @@ const staffSchema = z.object({
     email: z.string().email('Please enter a valid email address'),
     phone: z.string().min(1, 'Phone number is required'),
     doctorIds: z.array(z.number()).optional(),
+    clinicName: z.string().optional(),
+    clinicDepartment: z.string().optional(),
+    clinicAddress: z.string().optional(),
+    clinicFax: z.string().optional(),
 });
 
 type StaffFormValues = z.infer<typeof staffSchema>;
@@ -38,7 +42,8 @@ type StaffFormValues = z.infer<typeof staffSchema>;
 const StaffManagementModals: React.FC = () => {
     const { profile } = useUser();
     const { isDark } = useThemeMode();
-    const { showAddStaffModal, showUpdateStaffModal, closeModals, openAddStaffModal } = useStaffManagement();
+    const { showAddStaffModal, showUpdateStaffModal, closeModals } = useStaffManagement();
+    const { data: currentStaffProfile } = useCurrentStaffProfile(true);
 
     // States
     const [editingStaff, setEditingStaff] = useState<StaffMember | null>(null);
@@ -92,9 +97,18 @@ const StaffManagementModals: React.FC = () => {
             email: '',
             phone: '',
             autofillClinicInfo: false,
+            clinicName: '',
+            clinicDepartment: '',
+            clinicAddress: '',
+            clinicFax: '',
             doctorIds: [],
         },
     });
+
+    useEffect(() => {
+        if (!showAddStaffModal) return;
+        setValueStaff('autofillClinicInfo', false);
+    }, [showAddStaffModal, setValueStaff]);
 
     const handleAddStaff = async (values: StaffFormValues & { autofillClinicInfo?: boolean; doctorIds?: number[] }) => {
         if (values.role && values.role !== 'Doctor' && (values.doctorIds?.length ?? 0) < 1) {
@@ -103,15 +117,19 @@ const StaffManagementModals: React.FC = () => {
         }
         try {
             const autofill = !!values.autofillClinicInfo;
+            const clinicName = currentStaffProfile?.clinic_name || profile?.clinic_name || '';
+            const clinicDepartment = currentStaffProfile?.clinic_department || profile?.clinic_department || '';
+            const clinicAddress = currentStaffProfile?.clinic_address || profile?.clinic_address || '';
+            const clinicFax = currentStaffProfile?.clinic_fax || profile?.clinic_fax || '';
             const payload = {
                 role: (values.role || 'doctor').toLowerCase().replace(/\s+/g, '_'),
                 full_name: values.fullName,
                 email: values.email,
                 phone: values.phone || '',
-                clinic_name: autofill ? (profile?.clinic_name || '') : '',
-                clinic_department: autofill ? (profile?.clinic_department || '') : '',
-                clinic_address: autofill ? (profile?.clinic_address || '') : '',
-                fax_number: autofill ? (profile?.clinic_fax || '') : '',
+                clinic_name: autofill ? clinicName : (values.clinicName || ''),
+                clinic_department: autofill ? clinicDepartment : (values.clinicDepartment || ''),
+                clinic_address: autofill ? clinicAddress : (values.clinicAddress || ''),
+                fax_number: autofill ? clinicFax : (values.clinicFax || ''),
                 doctor_ids: values.doctorIds ?? [],
             };
             const result = await addStaffMutation.mutateAsync(payload) as { message?: string; staff_uuid?: string; email?: string; role?: string };
@@ -288,7 +306,21 @@ const StaffManagementModals: React.FC = () => {
                                 type="checkbox"
                                 id="autofill-clinic-global"
                                 checked={watchStaff('autofillClinicInfo') || false}
-                                onChange={(e) => setValueStaff('autofillClinicInfo', e.target.checked)}
+                                onChange={(e) => {
+                                    const checked = e.target.checked;
+                                    setValueStaff('autofillClinicInfo', checked);
+                                    if (checked) {
+                                        setValueStaff('clinicName', currentStaffProfile?.clinic_name || profile?.clinic_name || '');
+                                        setValueStaff('clinicDepartment', currentStaffProfile?.clinic_department || profile?.clinic_department || '');
+                                        setValueStaff('clinicAddress', currentStaffProfile?.clinic_address || profile?.clinic_address || '');
+                                        setValueStaff('clinicFax', currentStaffProfile?.clinic_fax || profile?.clinic_fax || '');
+                                    } else {
+                                        setValueStaff('clinicName', '');
+                                        setValueStaff('clinicDepartment', '');
+                                        setValueStaff('clinicAddress', '');
+                                        setValueStaff('clinicFax', '');
+                                    }
+                                }}
                                 className="w-4 h-4 text-primary border-slate-300 rounded focus:ring-primary"
                             />
                             <label
@@ -298,14 +330,36 @@ const StaffManagementModals: React.FC = () => {
                                 Autofill clinic info from my profile
                             </label>
                         </div>
-                        {watchStaff('autofillClinicInfo') && (
-                            <div className="space-y-4 pt-4 border-t border-slate-200 dark:border-slate-700">
-                                <Input label="Clinic" value={profile?.clinic_name || ''} icon={<Building size={18} />} disabled />
-                                <Input label="Department" value={profile?.clinic_department || ''} icon={<Building size={18} />} disabled />
-                                <Input label="Address" value={profile?.clinic_address || ''} icon={<MapPin size={18} />} disabled />
-                                <Input label="Fax" value={profile?.clinic_fax || ''} icon={<Printer size={18} />} disabled />
-                            </div>
-                        )}
+                        <div className="space-y-4 pt-4 border-t border-slate-200 dark:border-slate-700">
+                            <Input
+                                label="Clinic"
+                                placeholder="Enter clinic name"
+                                icon={<Building size={18} />}
+                                disabled={!!watchStaff('autofillClinicInfo')}
+                                {...registerStaff('clinicName')}
+                            />
+                            <Input
+                                label="Department"
+                                placeholder="Enter department"
+                                icon={<Building size={18} />}
+                                disabled={!!watchStaff('autofillClinicInfo')}
+                                {...registerStaff('clinicDepartment')}
+                            />
+                            <Input
+                                label="Address"
+                                placeholder="Enter clinic address"
+                                icon={<MapPin size={18} />}
+                                disabled={!!watchStaff('autofillClinicInfo')}
+                                {...registerStaff('clinicAddress')}
+                            />
+                            <Input
+                                label="Fax"
+                                placeholder="Enter fax number"
+                                icon={<Printer size={18} />}
+                                disabled={!!watchStaff('autofillClinicInfo')}
+                                {...registerStaff('clinicFax')}
+                            />
+                        </div>
                         <ModalFooter>
                             <Button type="button" variant="outline" onClick={handleCloseAddStaff}>Cancel</Button>
                             <Button type="submit" variant="primary" loading={isSubmittingStaff || addStaffMutation.isPending}>Add Staff</Button>

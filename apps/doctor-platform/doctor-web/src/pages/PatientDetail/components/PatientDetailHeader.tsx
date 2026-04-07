@@ -122,7 +122,7 @@ const PatientDetailHeader: React.FC<PatientDetailHeaderProps> = ({
                 },
               }}
             >
-              <span className="hidden sm:inline">{isFaxMode ? 'Send Fax' : 'Fax Preview'}</span>
+              <span className="hidden sm:inline">{isFaxMode ? 'Send Fax' : 'Send Fax'}</span>
               <span className="sm:hidden">{isFaxMode ? 'Send' : 'Fax'}</span>
             </Button>
             <Button
