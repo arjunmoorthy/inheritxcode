@@ -105,6 +105,19 @@ export interface AllStaffResponse {
   data: AllStaffItem[];
 }
 
+export interface CurrentStaffProfile {
+  staff_id?: number;
+  first_name: string;
+  last_name: string;
+  role: string;
+  email: string;
+  phone: string;
+  clinic_name: string;
+  clinic_department: string;
+  clinic_address: string;
+  clinic_fax: string;
+}
+
 // Backend response types (from doctor-api)
 interface BackendStaffResponse {
   staff_uuid: string;
@@ -224,10 +237,7 @@ const addStaffMember = async (
   }
 };
 
-const updateStaffMember = async ({
-  id,
-  data
-}: {
+const updateStaffMember = async (_params: {
   id: string;
   data: UpdateStaffRequest
 }): Promise<{ message: string }> => {
@@ -333,6 +343,29 @@ const getAllStaff = async (): Promise<AllStaffItem[]> => {
   return [];
 };
 
+/** GET /api/v1/staff/profile - current logged-in staff profile */
+const getCurrentStaffProfile = async (): Promise<CurrentStaffProfile | null> => {
+  const response = await apiClient.get<any>(API_CONFIG.ENDPOINTS.STAFF.PROFILE);
+  const payload = response.data?.data ?? response.data ?? {};
+  const clinic = payload?.clinic ?? {};
+
+  const firstName = payload?.first_name ?? payload?.user?.first_name ?? '';
+  const lastName = payload?.last_name ?? payload?.user?.last_name ?? '';
+
+  return {
+    staff_id: payload?.staff_id ?? payload?.id ?? payload?.staff?.id,
+    first_name: firstName,
+    last_name: lastName,
+    role: payload?.role ?? payload?.staff?.role ?? '',
+    email: payload?.email ?? payload?.user?.email ?? '',
+    phone: payload?.phone ?? payload?.staff?.phone ?? '',
+    clinic_name: payload?.clinic_name ?? clinic?.name ?? '',
+    clinic_department: payload?.clinic_department ?? payload?.department ?? clinic?.department ?? '',
+    clinic_address: payload?.clinic_address ?? clinic?.address ?? '',
+    clinic_fax: payload?.clinic_fax ?? payload?.fax_number ?? clinic?.fax ?? clinic?.phone ?? '',
+  };
+};
+
 /** Fetch doctors list for staff assignment (e.g. nurse → doctor_ids) */
 export const useStaffListDoctors = (enabled = true) => {
   return useQuery({
@@ -347,6 +380,14 @@ export const useAllStaff = (enabled = true) => {
   return useQuery({
     queryKey: ['staff', 'all'],
     queryFn: getAllStaff,
+    enabled,
+  });
+};
+
+export const useCurrentStaffProfile = (enabled = true) => {
+  return useQuery({
+    queryKey: ['staff', 'profile'],
+    queryFn: getCurrentStaffProfile,
     enabled,
   });
 };

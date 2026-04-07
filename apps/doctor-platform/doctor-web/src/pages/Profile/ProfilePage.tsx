@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -6,7 +6,7 @@ import { Mail, Phone, Building, MapPin, Printer, User, Edit, Save, X, CheckCircl
 import { Button, Input } from '@/components/ui';
 import { useUser } from '../../contexts/UserContext';
 import { useThemeMode } from '@oncolife/ui-components';
-import { useUpdateStaffProfile } from '../../services/staff';
+import { useCurrentStaffProfile, useUpdateStaffProfile } from '../../services/staff';
 
 // Validation Schema
 const profileSchema = z.object({
@@ -27,8 +27,10 @@ const ProfilePage: React.FC = () => {
     const { profile, updateProfile } = useUser();
     const { isDark } = useThemeMode();
     const updateStaffProfileMutation = useUpdateStaffProfile();
+    const { data: apiProfile } = useCurrentStaffProfile(true);
     const [isEditing, setIsEditing] = useState(false);
     const [profileSaveSuccess, setProfileSaveSuccess] = useState(false);
+    const lastLoggedProfileRef = useRef<string>('');
 
     const profileFormDefaults: ProfileFormValues = {
         first_name: profile?.first_name || '',
@@ -67,6 +69,38 @@ const ProfilePage: React.FC = () => {
             clinic_fax: profile.clinic_fax ?? '',
         });
     }, [profile, reset]);
+
+    // Prefill and persist profile from GET /api/v1/staff/profile
+    useEffect(() => {
+        if (!apiProfile) return;
+        const snapshot = JSON.stringify(apiProfile);
+        if (lastLoggedProfileRef.current !== snapshot) {
+            lastLoggedProfileRef.current = snapshot;
+        }
+        updateProfile({
+            staff_id: apiProfile.staff_id,
+            first_name: apiProfile.first_name,
+            last_name: apiProfile.last_name,
+            role: apiProfile.role,
+            email: apiProfile.email,
+            phone: apiProfile.phone,
+            clinic_name: apiProfile.clinic_name,
+            clinic_department: apiProfile.clinic_department,
+            clinic_address: apiProfile.clinic_address,
+            clinic_fax: apiProfile.clinic_fax,
+        });
+        reset({
+            first_name: apiProfile.first_name,
+            last_name: apiProfile.last_name,
+            role: apiProfile.role || 'Oncology Patient Navigator',
+            email: apiProfile.email,
+            phone: apiProfile.phone,
+            clinic_name: apiProfile.clinic_name,
+            clinic_department: apiProfile.clinic_department,
+            clinic_address: apiProfile.clinic_address,
+            clinic_fax: apiProfile.clinic_fax,
+        });
+    }, [apiProfile, reset, updateProfile]);
 
     const onSubmit = async (values: ProfileFormValues) => {
         try {

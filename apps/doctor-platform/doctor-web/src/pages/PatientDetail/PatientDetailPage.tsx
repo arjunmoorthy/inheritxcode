@@ -13,7 +13,7 @@
 
 import React, { useEffect, useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useMediaQuery, Snackbar } from '@mui/material';
+import { useMediaQuery, Snackbar, Dialog, DialogTitle, DialogContent, Button } from '@mui/material';
 import { ChevronLeft, ChevronRight, Filter, X } from 'lucide-react';
 import { useThemeMode } from '@oncolife/ui-components';
 import {
@@ -22,6 +22,7 @@ import {
   usePatientQuestions,
   useSendPatientFax,
 } from '../../services/dashboard';
+import { useCurrentStaffProfile } from '../../services/staff';
 
 export type PatientProfile = {
   mrn: string;
@@ -424,6 +425,7 @@ const PatientDetailPage: React.FC = () => {
 
   // Fax mode state
   const [isFaxMode, setIsFaxMode] = useState(false);
+  const [isFaxPreviewOpen, setIsFaxPreviewOpen] = useState(false);
 
   // Filter states
   const defaultStartDate = useMemo(() => {
@@ -507,6 +509,12 @@ const PatientDetailPage: React.FC = () => {
   } = usePatientQuestions(uuid || '', 50);
 
   const { mutateAsync: sendPatientFax, isPending: isSendingFax } = useSendPatientFax();
+  const { data: currentStaffProfile } = useCurrentStaffProfile(true);
+
+  useEffect(() => {
+    if (!currentStaffProfile) return;
+    console.log('Fax popup staff profile data:', currentStaffProfile);
+  }, [currentStaffProfile]);
 
   // Static payload is kept only for temporary debugging.
   const timelineData = USE_STATIC_TIMELINE ? STATIC_TIMELINE_DATA : timeline;
@@ -574,17 +582,50 @@ const PatientDetailPage: React.FC = () => {
   const handleFaxClick = async () => {
     if (!isFaxMode) {
       setIsFaxMode(true);
+      setIsFaxPreviewOpen(true);
     } else {
       try {
         await sendPatientFax(uuid || '');
         showToast('Fax sent successfully!', 'success');
         setIsFaxMode(false);
+        setIsFaxPreviewOpen(false);
       } catch (err) {
         console.error('Fax error:', err);
         showToast('Failed to send fax. Please try again.', 'error');
       }
     }
   };
+
+  const handleCloseFaxPreview = () => {
+    setIsFaxPreviewOpen(false);
+    setIsFaxMode(false);
+  };
+
+  const clinicInfo = useMemo(() => {
+    if (currentStaffProfile) {
+      return {
+        clinicName: currentStaffProfile.clinic_name || '--',
+        clinicPhone: currentStaffProfile.clinic_fax || '--',
+      };
+    }
+    try {
+      const stored = localStorage.getItem('userProfile');
+      const parsed = stored ? JSON.parse(stored) : {};
+
+      console.log('parsed', parsed);
+      return {
+        clinicName: parsed?.clinic_name || parsed?.clinic?.name || '--',
+        clinicPhone:
+          parsed?.fax_number ||
+          parsed?.clinic?.fax ||
+          parsed?.clinic?.fax_number ||
+          parsed?.clinic?.phone ||
+          '--',
+      };
+    } catch {
+      return { clinicName: '--', clinicPhone: '--' };
+    }
+  }, [currentStaffProfile]);
 
   const formatDate = (dateStr: string) => {
     try {
@@ -1080,6 +1121,94 @@ const PatientDetailPage: React.FC = () => {
           </button>
         </div>
       </Snackbar>
+
+      <Dialog
+        open={isFaxPreviewOpen}
+        onClose={handleCloseFaxPreview}
+        maxWidth="xl"
+        fullWidth
+        PaperProps={{
+          sx: {
+            height: '90vh',
+            backgroundColor: isDark ? '#1A1917' : '#FAF8F5',
+          },
+        }}
+      >
+        <DialogTitle
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            borderBottom: `1px solid ${isDark ? '#334155' : '#e2e8f0'}`,
+            backgroundColor: isDark ? '#252320' : 'white',
+            color: isDark ? '#f1f5f9' : '#0f172a',
+          }}
+        >
+          <div>
+            <div className="text-base md:text-lg font-semibold">Fax Preview</div>
+            <div className={`text-xs md:text-sm mt-1 ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+              Clinic: {clinicInfo?.clinicName}<br />
+              Fax Number: <b>{clinicInfo?.clinicPhone || 'N/A'}</b>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button variant="outlined" onClick={handleCloseFaxPreview}>
+              Close
+            </Button>
+            <Button
+              variant="contained"
+              onClick={handleFaxClick}
+              disabled={isSendingFax}
+              sx={{ backgroundColor: '#10b981', '&:hover': { backgroundColor: '#059669' } }}
+            >
+              {isSendingFax ? 'Sending...' : 'Send Fax'}
+            </Button>
+          </div>
+        </DialogTitle>
+        <DialogContent
+          sx={{
+            p: 2,
+            overflow: 'auto',
+            backgroundColor: isDark ? '#1A1917' : '#FAF8F5',
+          }}
+        >
+          <div className="space-y-3 md:space-y-4">
+            <GraphSection
+              graphData={graphData}
+              isLoading={timelineLoading || timelineFetching}
+              isDark={isDark}
+              isSidebarOpen={false}
+              isChartFullscreen={isChartFullscreen}
+              onFullscreenOpen={() => setIsChartFullscreen(true)}
+              onFullscreenClose={() => setIsChartFullscreen(false)}
+              patientName={patientDetails?.patientName}
+              formatDateShort={formatDateShort}
+              lastChemoDate={timelineData?.last_chemo_date ?? null}
+              isFaxMode={true}
+            />
+
+            <PatientDataTable
+              data={tableData}
+              isDark={isDark}
+              isLoading={timelineLoading || timelineFetching}
+              page={page}
+              rowsPerPage={rowsPerPage}
+              onPageChange={setPage}
+              onRowsPerPageChange={(newRowsPerPage) => {
+                setRowsPerPage(newRowsPerPage);
+                setPage(0);
+              }}
+              formatDate={formatDate}
+            />
+
+            <PatientTabs
+              isDark={isDark}
+              questions={questions}
+              isLoading={questionsLoading}
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

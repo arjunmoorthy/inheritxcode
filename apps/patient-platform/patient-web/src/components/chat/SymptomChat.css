@@ -809,17 +809,12 @@
 }
 
 .new-chat-text {
-  max-width: 0;
-  opacity: 0;
-  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
-  font-weight: 600;
-  font-size: 15px;
-}
-
-.new-chat-fab:hover .new-chat-text {
   max-width: 150px;
   opacity: 1;
   margin-left: 8px;
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+  font-weight: 600;
+  font-size: 15px;
 }
 
 @media (max-width: 480px) {

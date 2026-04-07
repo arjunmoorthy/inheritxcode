@@ -107,16 +107,16 @@ const extractMedicationsTried = (summary: Summary): string | null => {
   return 'None tried';
 };
 
-// Get severity level from summary
+// Get severity level from backend triage_level mapping
 const getSeverity = (summary: Summary): 'mild' | 'moderate' | 'severe' | 'urgent' => {
-  const bulletedSummary = summary.bulleted_summary || '';
-  const lowerText = bulletedSummary.toLowerCase();
   const triageLevel = summary.triage_level?.toLowerCase() || '';
-  const conversationState = summary.conversation_state?.toLowerCase() || '';
-  
-  if (lowerText.includes('urgent') || triageLevel.includes('call_911') || conversationState === 'emergency') return 'urgent';
-  if (lowerText.includes('severe') || triageLevel.includes('urgent')) return 'severe';
-  if (lowerText.includes('moderate') || triageLevel.includes('notify') || lowerText.includes('notify care team')) return 'moderate';
+
+  if (triageLevel === 'call_911') return 'severe';
+  if (triageLevel === 'notify_care_team') return 'moderate';
+  if (triageLevel === 'none') return 'mild';
+
+  // Backward-compatible fallback for older records without triage_level.
+  if ((summary.conversation_state || '').toLowerCase() === 'emergency') return 'severe';
   return 'mild';
 };
 
@@ -386,7 +386,7 @@ const SummariesPage: React.FC = () => {
                       <EntryHeader>
                         <EntryDate $isDark={isDark}>{formatDate(summary.created_at)}</EntryDate>
                         <SeverityBadge $severity={severity}>
-                          {severity === 'urgent' ? 'Severe' : severity.charAt(0).toUpperCase() + severity.slice(1)}
+                          {severity.charAt(0).toUpperCase() + severity.slice(1)}
                         </SeverityBadge>
                       </EntryHeader>
 
