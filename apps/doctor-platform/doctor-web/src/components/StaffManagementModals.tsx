@@ -2,11 +2,12 @@ import React, { useEffect, useState } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { Mail, Phone, Building, MapPin, Printer, User, Edit, UserCog, CheckCircle } from 'lucide-react';
+import { Mail, Phone, Building, MapPin, Printer, User, Edit, UserCog, CheckCircle, X } from 'lucide-react';
 import { Button, Input, Select, Modal, ModalFooter } from '@/components/ui';
 import type { SelectOption } from '@/components/ui';
 import { useUser } from '../contexts/UserContext';
 import { useThemeMode } from '@oncolife/ui-components';
+import { Snackbar, Alert } from '@mui/material';
 import { useAddStaffV1, useStaffListDoctors, useUpdateStaffProfile, useAllStaff, useCurrentStaffProfile } from '../services/staff';
 import { useClinics, useCreateClinic, useUpdateClinic, type ClinicItem } from '../services/clinics';
 import { useStaffManagement } from '../contexts/StaffManagementContext';
@@ -61,6 +62,7 @@ const StaffManagementModals: React.FC = () => {
     const [updateStaffSuccess, setUpdateStaffSuccess] = useState(false);
     const [editingClinic, setEditingClinic] = useState<ClinicItem | null>(null);
     const [showClinicFormModal, setShowClinicFormModal] = useState(false);
+    const [topError, setTopError] = useState<string | null>(null);
 
     // Mutations/Services
     const addStaffMutation = useAddStaffV1();
@@ -258,6 +260,10 @@ const StaffManagementModals: React.FC = () => {
         closeModals();
     };
 
+    const showTopError = (message: string) => {
+        setTopError(message);
+    };
+
     const handleEditClinic = (clinic: ClinicItem) => {
         setEditingClinic(clinic);
         setValueClinic('name', clinic.name || '');
@@ -287,9 +293,13 @@ const StaffManagementModals: React.FC = () => {
             setEditingClinic(null);
             resetClinic();
             setShowClinicFormModal(false);
-        } catch (error) {
+        } catch (error: any) {
+            const apiMessage =
+                error?.response?.data?.message ||
+                error?.message ||
+                'Failed to save clinic. Please try again.';
+            showTopError(apiMessage);
             console.error('Clinic save failed:', error);
-            throw error;
         }
     };
 
@@ -309,6 +319,52 @@ const StaffManagementModals: React.FC = () => {
 
     return (
         <>
+            <Snackbar
+                open={!!topError}
+                autoHideDuration={6000}
+                onClose={() => setTopError(null)}
+                anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+                sx={{ zIndex: 100100 }}
+            >
+                <Alert
+                    onClose={() => setTopError(null)}
+                    severity="error"
+                    variant="filled"
+                    sx={{
+                        width: '100%',
+                        minWidth: 300,
+                        fontWeight: 600,
+                        alignItems: 'center',
+                        '& .MuiAlert-message': {
+                            width: '100%',
+                            textAlign: 'center',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                        },
+                        '& .MuiAlert-action': {
+                            display: 'flex',
+                            alignItems: 'center',
+                            margin: 0,
+                            paddingLeft: 8,
+                        },
+                    }}
+                    icon={false}
+                    action={
+                        <button
+                            type="button"
+                            onClick={() => setTopError(null)}
+                            className="text-white/90 hover:text-white transition-colors items-center justify-center flex"
+                            aria-label="Close error message"
+                        >
+                            <X size={18} />
+                        </button>
+                    }
+                >
+                    {topError}
+                </Alert>
+            </Snackbar>
+
             {/* Add New Staff Modal */}
             <Modal
                 isOpen={showAddStaffModal}
