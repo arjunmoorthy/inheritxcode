@@ -426,6 +426,8 @@ const PatientDetailPage: React.FC = () => {
   // Fax mode state
   const [isFaxMode, setIsFaxMode] = useState(false);
   const [isFaxPreviewOpen, setIsFaxPreviewOpen] = useState(false);
+  const [editableClinicName, setEditableClinicName] = useState('');
+  const [editableClinicFax, setEditableClinicFax] = useState('');
 
   // Filter states
   const defaultStartDate = useMemo(() => {
@@ -626,6 +628,12 @@ const PatientDetailPage: React.FC = () => {
       return { clinicName: '--', clinicPhone: '--' };
     }
   }, [currentStaffProfile]);
+
+  useEffect(() => {
+    if (!isFaxPreviewOpen) return;
+    setEditableClinicName(clinicInfo?.clinicName || '');
+    setEditableClinicFax(clinicInfo?.clinicPhone || '');
+  }, [isFaxPreviewOpen, clinicInfo]);
 
   const formatDate = (dateStr: string) => {
     try {
@@ -1146,9 +1154,27 @@ const PatientDetailPage: React.FC = () => {
         >
           <div>
             <div className="text-base md:text-lg font-semibold">Fax Preview</div>
-            <div className={`text-xs md:text-sm mt-1 ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
-              Clinic: {clinicInfo?.clinicName}<br />
-              Fax Number: <b>{clinicInfo?.clinicPhone || 'N/A'}</b>
+            <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-2">
+              <div className="min-w-0 md:col-span-2">
+                <label className="text-sm font-medium mb-1 block">Clinic Name :</label>
+                <input
+                  type="text"
+                  value={editableClinicName}
+                  onChange={(e) => setEditableClinicName(e.target.value)}
+                  placeholder="Clinic name"
+                  className={`w-full min-w-0 px-2 py-1.5 rounded border text-xs md:text-sm ${isDark ? 'bg-[#1A1917] border-slate-600 text-slate-200' : 'bg-white border-slate-300 text-slate-700'}`}
+                />
+              </div>
+              <div className="min-w-0">
+                <label className="text-sm font-medium mb-1 block">Fax Number :</label>
+                <input
+                  type="text"
+                  value={editableClinicFax}
+                  onChange={(e) => setEditableClinicFax(e.target.value)}
+                  placeholder="Fax number"
+                  className={`w-full min-w-0 px-2 py-1.5 rounded border text-xs md:text-sm ${isDark ? 'bg-[#1A1917] border-slate-600 text-slate-200' : 'bg-white border-slate-300 text-slate-700'}`}
+                />
+              </div>
             </div>
           </div>
           <div className="flex items-center gap-2">
