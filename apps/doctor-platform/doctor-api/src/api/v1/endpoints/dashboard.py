@@ -798,6 +798,7 @@ class PatientConversationSummaryResponse(BaseModel):
     medication_list: Optional[List[Any]] = None
     bulleted_summary: Optional[str] = None
     overall_feeling: Optional[str] = None
+    triage_level: Optional[str] = None
 
 
 def _to_provider_voice(summary: Optional[str]) -> Optional[str]:
@@ -895,6 +896,7 @@ def get_patient_summaries(
             created_at,
             updated_at,
             conversation_state,
+            triage_level,
             symptom_list,
             severity_list,
             longer_summary,
@@ -918,6 +920,7 @@ def get_patient_summaries(
             created_at=row["created_at"].isoformat() if row.get("created_at") else None,
             updated_at=row["updated_at"].isoformat() if row.get("updated_at") else None,
             conversation_state=row["conversation_state"],
+            triage_level=row.get("triage_level"),
             symptom_list=row["symptom_list"] or [],
             symptom_names=[_symptom_name(sid) for sid in (row["symptom_list"] or []) if isinstance(sid, str)],
             severity_list=row["severity_list"],
