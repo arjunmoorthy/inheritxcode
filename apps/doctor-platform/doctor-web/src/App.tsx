@@ -16,6 +16,7 @@ import { useAuth } from './contexts/AuthContext';
 import Layout from './components/Layout';
 import PatientDetailPage from './pages/PatientDetail';
 import { StaffManagementProvider } from './contexts/StaffManagementContext';
+import PublicFaxPreviewPage from './pages/PublicFaxPreview/PublicFaxPreviewPage';
 
 // Protected Route Component
 interface ProtectedRouteProps {
@@ -54,6 +55,7 @@ const App: React.FC = () => {
                         <Route path="/set-password" element={<SetPasswordPage />} />
                         <Route path="/auth/callback" element={<AuthCallback />} />
                         <Route path="/complete-profile" element={<CompleteProfile />} />
+                        <Route path="/public/fax-preview/:patientUiId" element={<PublicFaxPreviewPage />} />
 
                         <Route
                             path="/"
