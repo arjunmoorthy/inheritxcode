@@ -239,7 +239,7 @@ const ProfilePage: React.FC = () => {
                             <p className={`text-sm mb-4 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Read-only. Sourced from your account.</p>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <Input label="Clinic" placeholder="Metro Cancer Treatment Center" icon={<Building size={18} />} disabled {...register('clinic_name')} />
-                                <Input label="Department" placeholder="Patient Navigation Services" icon={<Building size={18} />} disabled {...register('clinic_department')} />
+                                {/* <Input label="Department" placeholder="Patient Navigation Services" icon={<Building size={18} />} disabled {...register('clinic_department')} /> */}
                                 <Input label="Address" placeholder="1234 Medical Plaza, Suite 500, Chicago, IL 60601" icon={<MapPin size={18} />} disabled {...register('clinic_address')} />
                                 <Input label="Fax" type="tel" placeholder="(555) 234-5679" icon={<Printer size={18} />} disabled {...register('clinic_fax')} />
                             </div>

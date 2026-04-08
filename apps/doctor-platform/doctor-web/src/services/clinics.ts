@@ -3,7 +3,7 @@ import { apiClient } from '../utils/apiClient';
 import { API_CONFIG } from '../config/api';
 
 export interface ClinicItem {
-  id: number;
+  id?: number;
   uuid: string;
   name: string;
   address?: string;
@@ -13,21 +13,54 @@ export interface ClinicItem {
 }
 
 interface ClinicsResponse {
-  success?: boolean;
-  data?: ClinicItem[];
+  clinics?: Array<{
+    uuid: string;
+    clinic_name: string;
+    clinic_address?: string | null;
+    phone_number?: string | null;
+    fax_number?: string | null;
+    department?: string | null;
+  }>;
+  total?: number;
+  skip?: number;
+  limit?: number;
 }
 
 interface ClinicPayload {
-  name: string;
-  address: string;
-  fax?: string;
+  clinic_name: string;
+  clinic_address: string;
+  phone_number?: string;
+  fax_number?: string;
 }
 
 const getClinics = async (): Promise<ClinicItem[]> => {
   const response = await apiClient.get<ClinicItem[] | ClinicsResponse>(API_CONFIG.ENDPOINTS.CLINICS.LIST);
   const data = response.data as any;
-  if (Array.isArray(data)) return data;
-  if (Array.isArray(data?.data)) return data.data;
+
+  if (Array.isArray(data?.clinics)) {
+    return data.clinics.map((clinic: any, idx: number) => ({
+      id: clinic?.id ?? idx + 1,
+      uuid: String(clinic?.uuid ?? ''),
+      name: clinic?.clinic_name ?? clinic?.name ?? '',
+      address: clinic?.clinic_address ?? clinic?.address ?? '',
+      phone: clinic?.phone_number ?? clinic?.phone ?? null,
+      fax: clinic?.fax_number ?? clinic?.fax ?? null,
+      department: clinic?.department ?? '',
+    }));
+  }
+
+  if (Array.isArray(data)) {
+    return data.map((clinic: any, idx: number) => ({
+      id: clinic?.id ?? idx + 1,
+      uuid: String(clinic?.uuid ?? ''),
+      name: clinic?.clinic_name ?? clinic?.name ?? '',
+      address: clinic?.clinic_address ?? clinic?.address ?? '',
+      phone: clinic?.phone_number ?? clinic?.phone ?? null,
+      fax: clinic?.fax_number ?? clinic?.fax ?? null,
+      department: clinic?.department ?? '',
+    }));
+  }
+
   return [];
 };
 

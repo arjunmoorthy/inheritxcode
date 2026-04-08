@@ -60,7 +60,6 @@ const StaffManagementModals: React.FC = () => {
     const [addStaffSuccess, setAddStaffSuccess] = useState<{ message: string; email?: string; role?: string } | null>(null);
     const [updateStaffSuccess, setUpdateStaffSuccess] = useState(false);
     const [editingClinic, setEditingClinic] = useState<ClinicItem | null>(null);
-    const [clinicSaveSuccess, setClinicSaveSuccess] = useState<string | null>(null);
     const [showClinicFormModal, setShowClinicFormModal] = useState(false);
 
     // Mutations/Services
@@ -250,7 +249,6 @@ const StaffManagementModals: React.FC = () => {
 
     const handleCloseClinicFormModal = () => {
         setEditingClinic(null);
-        setClinicSaveSuccess(null);
         resetClinic();
         setShowClinicFormModal(false);
     };
@@ -265,7 +263,6 @@ const StaffManagementModals: React.FC = () => {
         setValueClinic('name', clinic.name || '');
         setValueClinic('address', clinic.address || '');
         setValueClinic('fax', clinic.fax || clinic.phone || '');
-        setClinicSaveSuccess(null);
         setShowClinicFormModal(true);
     };
 
@@ -275,23 +272,21 @@ const StaffManagementModals: React.FC = () => {
                 await updateClinicMutation.mutateAsync({
                     uuid: editingClinic.uuid,
                     payload: {
-                        name: values.name,
-                        address: values.address,
-                        fax: values.fax,
+                        clinic_name: values.name,
+                        clinic_address: values.address,
+                        fax_number: values.fax,
                     },
                 });
-                setClinicSaveSuccess('Clinic updated successfully');
             } else {
                 await createClinicMutation.mutateAsync({
-                    name: values.name,
-                    address: values.address,
-                    fax: values.fax,
+                    clinic_name: values.name,
+                    clinic_address: values.address,
+                    fax_number: values.fax,
                 });
-                setClinicSaveSuccess('Clinic created successfully');
             }
             setEditingClinic(null);
             resetClinic();
-            setShowClinicFormModal(true);
+            setShowClinicFormModal(false);
         } catch (error) {
             console.error('Clinic save failed:', error);
             throw error;
@@ -302,13 +297,11 @@ const StaffManagementModals: React.FC = () => {
         if (showClinicRegistrationModal && clinicRegistrationMode === 'add') {
             setEditingClinic({ id: 0, uuid: '', name: '', address: '', fax: '', phone: '', department: '' });
             resetClinic({ name: '', address: '', fax: '' });
-            setClinicSaveSuccess(null);
             setShowClinicFormModal(true);
             return;
         }
         if (!showClinicRegistrationModal) {
             setShowClinicFormModal(false);
-            setClinicSaveSuccess(null);
             setEditingClinic(null);
             resetClinic();
         }
@@ -497,13 +490,13 @@ const StaffManagementModals: React.FC = () => {
                             )}
                         />
                         <div className="space-y-4 pt-4 border-t border-slate-200 dark:border-slate-700">
-                            <Input
+                            {/* <Input
                                 label="Department"
                                 placeholder="Enter department"
                                 icon={<Building size={18} />}
                                 disabled={!!watchStaff('autofillClinicInfo')}
                                 {...registerStaff('clinicDepartment')}
-                            />
+                            /> */}
                             <Input
                                 label="Address"
                                 placeholder="Enter clinic address"
@@ -639,60 +632,39 @@ const StaffManagementModals: React.FC = () => {
                 title={editingClinic?.uuid ? 'Edit Clinic' : 'Add Clinic'}
                 size="lg"
             >
-                {clinicSaveSuccess ? (
-                    <div className="py-4">
-                        <div className="flex flex-col items-center text-center space-y-5">
-                            <div className={`flex items-center justify-center w-16 h-16 rounded-full ${isDark ? 'bg-emerald-500/20' : 'bg-emerald-100'}`}>
-                                <CheckCircle size={32} className="text-emerald-600 dark:text-emerald-400" />
-                            </div>
-                            <h3 className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>{clinicSaveSuccess}</h3>
-                        </div>
-                        <ModalFooter className="mt-8">
-                            <Button type="button" variant="outline" onClick={() => {
-                                setClinicSaveSuccess(null);
-                                setEditingClinic({ id: 0, uuid: '', name: '', address: '', fax: '', phone: '', department: '' });
-                                resetClinic({ name: '', address: '', fax: '' });
-                            }}>
-                                Add/Edit More
-                            </Button>
-                            <Button type="button" variant="primary" onClick={handleCloseClinicFlow}>Close</Button>
-                        </ModalFooter>
-                    </div>
-                ) : (
-                    <form onSubmit={handleSubmitClinic(handleClinicSubmit)} className="space-y-5">
-                        <Input
-                            label="Clinic Name *"
-                            placeholder="Enter clinic name"
-                            icon={<Building size={18} />}
-                            error={clinicErrors.name?.message}
-                            {...registerClinic('name')}
-                        />
-                        <Input
-                            label="Clinic Address *"
-                            placeholder="Enter clinic address"
-                            icon={<MapPin size={18} />}
-                            error={clinicErrors.address?.message}
-                            {...registerClinic('address')}
-                        />
-                        <Input
-                            label="Fax Number *"
-                            placeholder="Enter fax number"
-                            icon={<Printer size={18} />}
-                            error={clinicErrors.fax?.message}
-                            {...registerClinic('fax')}
-                        />
-                        <ModalFooter className="pt-2">
-                            <Button type="button" variant="outline" onClick={handleCloseClinicFlow}>Close</Button>
-                            <Button
-                                type="submit"
-                                variant="primary"
-                                loading={isSubmittingClinic || createClinicMutation.isPending || updateClinicMutation.isPending}
-                            >
-                                {editingClinic?.uuid ? 'Save changes' : 'Create clinic'}
-                            </Button>
-                        </ModalFooter>
-                    </form>
-                )}
+                <form onSubmit={handleSubmitClinic(handleClinicSubmit)} className="space-y-5">
+                    <Input
+                        label="Clinic Name *"
+                        placeholder="Enter clinic name"
+                        icon={<Building size={18} />}
+                        error={clinicErrors.name?.message}
+                        {...registerClinic('name')}
+                    />
+                    <Input
+                        label="Clinic Address *"
+                        placeholder="Enter clinic address"
+                        icon={<MapPin size={18} />}
+                        error={clinicErrors.address?.message}
+                        {...registerClinic('address')}
+                    />
+                    <Input
+                        label="Fax Number *"
+                        placeholder="Enter fax number"
+                        icon={<Printer size={18} />}
+                        error={clinicErrors.fax?.message}
+                        {...registerClinic('fax')}
+                    />
+                    <ModalFooter className="pt-2">
+                        <Button type="button" variant="outline" onClick={handleCloseClinicFlow}>Close</Button>
+                        <Button
+                            type="submit"
+                            variant="primary"
+                            loading={isSubmittingClinic || createClinicMutation.isPending || updateClinicMutation.isPending}
+                        >
+                            {editingClinic?.uuid ? 'Save changes' : 'Create clinic'}
+                        </Button>
+                    </ModalFooter>
+                </form>
             </Modal>
         </>
     );

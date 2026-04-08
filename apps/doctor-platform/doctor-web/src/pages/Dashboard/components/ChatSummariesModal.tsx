@@ -38,6 +38,44 @@ export const ChatSummariesModal: React.FC<ChatSummariesModalProps> = ({
     }
   };
 
+  const getTriageMeta = (triageLevel?: string | null) => {
+    const value = (triageLevel || '').toLowerCase();
+
+    if (value === 'call_911') {
+      return {
+        label: 'Severe',
+        bg: isDark ? 'rgba(239, 68, 68, 0.22)' : 'rgba(239, 68, 68, 0.12)',
+        color: isDark ? '#fca5a5' : '#991b1b',
+      };
+    }
+
+    if (value === 'notify_care_team') {
+      return {
+        label: 'Moderate',
+        bg: isDark ? 'rgba(249, 115, 22, 0.22)' : 'rgba(249, 115, 22, 0.12)',
+        color: isDark ? '#fdba74' : '#9a3412',
+      };
+    }
+
+    if (value === 'none') {
+      return {
+        label: 'Mild',
+        bg: isDark ? 'rgba(16, 185, 129, 0.22)' : 'rgba(16, 185, 129, 0.12)',
+        color: isDark ? '#6ee7b7' : '#065f46',
+      };
+    }
+
+    const fallbackLabel = triageLevel
+      ? triageLevel.replace(/_/g, ' ').replace(/\b\w/g, (ch) => ch.toUpperCase())
+      : 'Unknown';
+
+    return {
+      label: fallbackLabel,
+      bg: isDark ? 'rgba(148, 163, 184, 0.22)' : 'rgba(100, 116, 139, 0.12)',
+      color: isDark ? '#cbd5e1' : '#334155',
+    };
+  };
+
   return (
     <Modal
       isOpen={isOpen}
@@ -64,6 +102,8 @@ export const ChatSummariesModal: React.FC<ChatSummariesModalProps> = ({
                 return [];
               })();
 
+              const triageMeta = getTriageMeta((conv as { triage_level?: string | null }).triage_level);
+
               return (
                 <Box
                   key={conv.uuid}
@@ -78,6 +118,20 @@ export const ChatSummariesModal: React.FC<ChatSummariesModalProps> = ({
                     <Typography variant="subtitle2" sx={{ fontWeight: 700, color: isDark ? '#f1f5f9' : '#0f172a' }}>
                       {formatDate(conv.created_at)}
                     </Typography>
+                    <Chip
+                      label={triageMeta.label}
+                      size="small"
+                      sx={{
+                        height: '24px',
+                        fontSize: '0.7rem',
+                        fontWeight: 700,
+                        backgroundColor: triageMeta.bg,
+                        color: triageMeta.color,
+                        border: 'none',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.02em',
+                      }}
+                    />
                   </Box>
 
                   <Typography variant="body2" sx={{ color: isDark ? '#cbd5e1' : '#475569', mb: 2, lineHeight: 1.6 }}>

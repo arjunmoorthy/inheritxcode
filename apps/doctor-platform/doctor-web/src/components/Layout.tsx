@@ -673,7 +673,7 @@ const Layout: React.FC = () => {
                         }}
                       >
                         <div style={{ display: 'flex', alignItems: 'center' }}>
-                          <Building size={18} style={{ marginRight: 12 }} />
+                        <UserCog size={18} style={{ marginRight: 12 }} />
                           Clinic Registration
                         </div>
                         <ChevronRight size={16} />
