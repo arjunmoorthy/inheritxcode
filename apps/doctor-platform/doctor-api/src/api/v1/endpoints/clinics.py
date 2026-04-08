@@ -24,6 +24,7 @@ from sqlalchemy.orm import Session
 from api.deps import get_current_user, get_doctor_db_session, TokenData
 from services import ClinicService
 from core.logging import get_logger
+from core.schemas import APIResponse
 
 logger = get_logger(__name__)
 
@@ -92,7 +93,7 @@ def _to_clinic_response(clinic) -> ClinicResponse:
 
 @router.get(
     "",
-    response_model=ClinicListResponse,
+    response_model=APIResponse[ClinicListResponse],
     summary="List Clinics",
     description="Get a paginated list of all clinics.",
 )
@@ -108,17 +109,21 @@ async def list_clinics(
     clinics = clinic_service.list_clinics(skip=skip, limit=limit)
     total = clinic_service.count_clinics()
     
-    return ClinicListResponse(
-        clinics=[_to_clinic_response(c) for c in clinics],
-        total=total,
-        skip=skip,
-        limit=limit,
+    return APIResponse(
+        success=True,
+        message="Clinics fetched successfully",
+        data=ClinicListResponse(
+            clinics=[_to_clinic_response(c) for c in clinics],
+            total=total,
+            skip=skip,
+            limit=limit,
+        ),
     )
 
 
 @router.get(
     "/search",
-    response_model=List[ClinicResponse],
+    response_model=APIResponse[List[ClinicResponse]],
     summary="Search Clinics",
     description="Search clinics by name.",
 )
@@ -133,12 +138,16 @@ async def search_clinics(
     
     clinics = clinic_service.search_clinics(search_term=q, limit=limit)
     
-    return [_to_clinic_response(c) for c in clinics]
+    return APIResponse(
+        success=True,
+        message="Clinics fetched successfully",
+        data=[_to_clinic_response(c) for c in clinics],
+    )
 
 
 @router.get(
     "/{clinic_uuid}",
-    response_model=ClinicResponse,
+    response_model=APIResponse[ClinicResponse],
     summary="Get Clinic",
     description="Get a specific clinic by UUID.",
 )
@@ -152,12 +161,16 @@ async def get_clinic(
     
     clinic = clinic_service.get_clinic(clinic_uuid)
     
-    return _to_clinic_response(clinic)
+    return APIResponse(
+        success=True,
+        message="Clinic fetched successfully",
+        data=_to_clinic_response(clinic),
+    )
 
 
 @router.post(
     "",
-    response_model=ClinicResponse,
+    response_model=APIResponse[ClinicResponse],
     status_code=status.HTTP_201_CREATED,
     summary="Create Clinic",
     description="Create a new clinic.",
@@ -176,12 +189,16 @@ async def create_clinic(
         fax_number=request.fax_number,
     )
     
-    return _to_clinic_response(clinic)
+    return APIResponse(
+        success=True,
+        message="Clinic created successfully",
+        data=_to_clinic_response(clinic),
+    )
 
 
 @router.put(
     "/{clinic_uuid}",
-    response_model=ClinicResponse,
+    response_model=APIResponse[ClinicResponse],
     summary="Update Clinic",
     description="Update an existing clinic.",
 )
@@ -209,12 +226,16 @@ async def update_clinic(
         fax_number=fax_number,
     )
     
-    return _to_clinic_response(clinic)
+    return APIResponse(
+        success=True,
+        message="Clinic updated successfully",
+        data=_to_clinic_response(clinic),
+    )
 
 
 @router.patch(
     "/{clinic_uuid}",
-    response_model=ClinicResponse,
+    response_model=APIResponse[ClinicResponse],
     summary="Patch Clinic",
     description="Partially update clinic fields. Only provided fields are updated.",
 )
@@ -246,12 +267,16 @@ async def patch_clinic(
         fax_number=update_data.get("fax_number"),
     )
 
-    return _to_clinic_response(clinic)
+    return APIResponse(
+        success=True,
+        message="Clinic updated successfully",
+        data=_to_clinic_response(clinic),
+    )
 
 
 @router.delete(
     "/{clinic_uuid}",
-    response_model=MessageResponse,
+    response_model=APIResponse[MessageResponse],
     summary="Delete Clinic",
     description="Delete a clinic.",
 )
@@ -265,7 +290,11 @@ async def delete_clinic(
     
     clinic_service.delete_clinic(clinic_uuid)
     
-    return MessageResponse(message="Clinic deleted successfully")
+    return APIResponse(
+        success=True,
+        message="Clinic deleted successfully",
+        data=MessageResponse(message="Clinic deleted successfully"),
+    )
 
 
 
