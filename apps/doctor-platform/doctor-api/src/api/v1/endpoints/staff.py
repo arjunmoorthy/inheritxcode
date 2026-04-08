@@ -166,10 +166,7 @@ class AddStaffRequest(BaseModel):
     full_name: str = Field(..., min_length=1, max_length=200, description="Full name (stored as first_name, last_name in user and staff)")
     email: EmailStr = Field(..., description="Email (stored in user and staff)")
     phone: str = Field(..., min_length=1, max_length=20, description="Phone (stored in staff)")
-    clinic_name: Optional[str] = Field(None, max_length=255, description="Clinic name (optional; used to look up and associate)")
-    clinic_department: Optional[str] = Field(None, max_length=100, description="Clinic department (optional; static for now)")
-    clinic_address: Optional[str] = Field(None, max_length=500, description="Clinic address (optional; static for now)")
-    fax_number: Optional[str] = Field(None, max_length=20, description="Fax number (optional; static for now)")
+    clinic_id: int = Field(..., ge=1, description="Clinic ID to attach this staff member to")
     doctor_ids: Optional[List[int]] = None
 
 class AddStaffResponse(BaseModel):
@@ -440,25 +437,12 @@ def add_staff_simple(
     # 🎭 Role mapping
     db_role = "physician" if request.role == "doctor" else "nurse"
 
-    # 🏥 Clinic lookup
-    clinic = None
-
-    if request.clinic_name:
-        clinic = clinic_repo.get_by_name(request.clinic_name.strip())
-
-    # Fallback to default clinic (since currently only one exists)
-    if not clinic:
-        clinic = (
-            db.query(Clinic)
-            .filter(Clinic.is_active == True)
-            .order_by(Clinic.id.asc())
-            .first()
-        )
-
+    # 🏥 Clinic lookup by ID
+    clinic = clinic_repo.get_by_id(request.clinic_id)
     if not clinic:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="No active clinic found. Please configure a clinic first.",
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Clinic not found",
         )
 
     # 🔒 Validation: doctor_ids rules
@@ -479,7 +463,7 @@ def add_staff_simple(
             first_name=first_name,
             last_name=last_name,
             role=db_role,
-            # clinic_id=clinic_id,
+            clinic_id=clinic.id,
             is_first_login=True,
             auth_provider="local",
             password_hash=hashed_password,
