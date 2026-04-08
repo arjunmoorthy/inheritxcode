@@ -17,7 +17,7 @@ All endpoints require authentication.
 
 from typing import List, Optional
 from uuid import UUID
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
@@ -25,6 +25,7 @@ from api.deps import get_current_user, get_doctor_db_session, TokenData
 from services import ClinicService
 from core.logging import get_logger
 from core.schemas import APIResponse
+from core.exceptions import ConflictError
 
 logger = get_logger(__name__)
 
@@ -182,12 +183,18 @@ async def create_clinic(
 ):
     """Create a new clinic."""
     clinic_service = ClinicService(db)
-    
-    clinic = clinic_service.create_clinic(
-        clinic_name=request.clinic_name,
-        clinic_address=request.clinic_address,
-        fax_number=request.fax_number,
-    )
+    try:
+        clinic = clinic_service.create_clinic(
+            clinic_name=request.clinic_name,
+            clinic_address=request.clinic_address,
+            fax_number=request.fax_number,
+        )
+    except ConflictError as exc:
+        # Align with existing API convention where duplicate resources use 400.
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=exc.message,
+        ) from exc
     
     return APIResponse(
         success=True,
