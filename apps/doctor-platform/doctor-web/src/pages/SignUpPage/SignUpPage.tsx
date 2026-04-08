@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { Activity, CheckCircle, Mail, User, Lock, ShieldCheck, Building, MapPin, Stethoscope, Briefcase, UserCircle, Sparkles } from 'lucide-react';
+import { Activity, CheckCircle, Mail, User, Lock, ShieldCheck, Building, MapPin, Briefcase, UserCircle, Sparkles } from 'lucide-react';
 import { GoogleLogin } from '@react-oauth/google';
 import { useSignup, useGoogleSSOSignup } from '../../services/login';
 import { Button, Input, Select } from '@/components/ui';
@@ -259,13 +259,13 @@ const SignUpPage: React.FC = () => {
                                     </div>
 
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-4">
-                                        <Input
+                                        {/* <Input
                                             label="Department"
                                             placeholder="Oncology"
                                             icon={<Stethoscope size={16} />}
                                             error={errors.department?.message}
                                             {...register('department')}
-                                        />
+                                        /> */}
 
                                         <Input
                                             label="Clinic Address"

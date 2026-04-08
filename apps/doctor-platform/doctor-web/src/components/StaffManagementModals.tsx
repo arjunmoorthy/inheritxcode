@@ -8,6 +8,7 @@ import type { SelectOption } from '@/components/ui';
 import { useUser } from '../contexts/UserContext';
 import { useThemeMode } from '@oncolife/ui-components';
 import { useAddStaffV1, useStaffListDoctors, useUpdateStaffProfile, useAllStaff, useCurrentStaffProfile } from '../services/staff';
+import { useClinics, useCreateClinic, useUpdateClinic, type ClinicItem } from '../services/clinics';
 import { useStaffManagement } from '../contexts/StaffManagementContext';
 
 // Staff member type (from all-staff API + for update API)
@@ -35,26 +36,40 @@ const staffSchema = z.object({
     clinicDepartment: z.string().optional(),
     clinicAddress: z.string().optional(),
     clinicFax: z.string().optional(),
+    selectedClinicUuid: z.string().optional(),
 });
 
 type StaffFormValues = z.infer<typeof staffSchema>;
 
+const clinicSchema = z.object({
+    name: z.string().min(1, 'Clinic name is required'),
+    address: z.string().min(1, 'Clinic address is required'),
+    fax: z.string().min(1, 'Fax number is required'),
+});
+
+type ClinicFormValues = z.infer<typeof clinicSchema>;
+
 const StaffManagementModals: React.FC = () => {
     const { profile } = useUser();
     const { isDark } = useThemeMode();
-    const { showAddStaffModal, showUpdateStaffModal, closeModals } = useStaffManagement();
+    const { showAddStaffModal, showUpdateStaffModal, showClinicRegistrationModal, clinicRegistrationMode, closeModals } = useStaffManagement();
     const { data: currentStaffProfile } = useCurrentStaffProfile(true);
 
     // States
     const [editingStaff, setEditingStaff] = useState<StaffMember | null>(null);
     const [addStaffSuccess, setAddStaffSuccess] = useState<{ message: string; email?: string; role?: string } | null>(null);
     const [updateStaffSuccess, setUpdateStaffSuccess] = useState(false);
+    const [editingClinic, setEditingClinic] = useState<ClinicItem | null>(null);
+    const [showClinicFormModal, setShowClinicFormModal] = useState(false);
 
     // Mutations/Services
     const addStaffMutation = useAddStaffV1();
     const updateStaffProfileMutation = useUpdateStaffProfile();
+    const createClinicMutation = useCreateClinic();
+    const updateClinicMutation = useUpdateClinic();
     const { data: allStaffData = [], isLoading: isLoadingAllStaff } = useAllStaff(showUpdateStaffModal);
     const { data: doctorsList = [], isLoading: isLoadingDoctors } = useStaffListDoctors(showAddStaffModal);
+    const { data: clinics = [], isLoading: isLoadingClinics } = useClinics(showClinicRegistrationModal || showAddStaffModal);
 
     const staffMembers: StaffMember[] = (allStaffData || []).map((s) => ({
         id: s.uuid || String(s.id),
@@ -78,6 +93,10 @@ const StaffManagementModals: React.FC = () => {
         { value: 'Doctor', label: 'Doctor' },
         { value: 'Nurse', label: 'Nurse' },
     ];
+    const clinicOptions: SelectOption[] = (clinics || []).map((clinic) => ({
+        value: clinic.uuid || String(clinic.id),
+        label: clinic.name || `Clinic ${clinic.id}`,
+    }));
 
     // Form
     const {
@@ -101,14 +120,47 @@ const StaffManagementModals: React.FC = () => {
             clinicDepartment: '',
             clinicAddress: '',
             clinicFax: '',
+            selectedClinicUuid: '',
             doctorIds: [],
+        },
+    });
+    const autofillClinicInfo = watchStaff('autofillClinicInfo');
+    const profileClinicName = (currentStaffProfile?.clinic_name || profile?.clinic_name || '').trim();
+
+    const {
+        register: registerClinic,
+        handleSubmit: handleSubmitClinic,
+        formState: { errors: clinicErrors, isSubmitting: isSubmittingClinic },
+        reset: resetClinic,
+        setValue: setValueClinic,
+    } = useForm<ClinicFormValues>({
+        resolver: zodResolver(clinicSchema),
+        defaultValues: {
+            name: '',
+            address: '',
+            fax: '',
         },
     });
 
     useEffect(() => {
         if (!showAddStaffModal) return;
         setValueStaff('autofillClinicInfo', false);
+        setValueStaff('selectedClinicUuid', '');
     }, [showAddStaffModal, setValueStaff]);
+
+    // Preserve previous behavior: when checkbox is checked, always use profile clinic data.
+    useEffect(() => {
+        if (!showAddStaffModal || !autofillClinicInfo) return;
+        const profileClinicName = currentStaffProfile?.clinic_name || profile?.clinic_name || '';
+        const matchedClinic = (clinics || []).find(
+            (clinic) => (clinic.name || '').trim().toLowerCase() === profileClinicName.trim().toLowerCase()
+        );
+        setValueStaff('selectedClinicUuid', matchedClinic ? String(matchedClinic.uuid || matchedClinic.id) : '');
+        setValueStaff('clinicName', profileClinicName);
+        setValueStaff('clinicDepartment', currentStaffProfile?.clinic_department || profile?.clinic_department || '');
+        setValueStaff('clinicAddress', currentStaffProfile?.clinic_address || profile?.clinic_address || '');
+        setValueStaff('clinicFax', currentStaffProfile?.clinic_fax || profile?.clinic_fax || '');
+    }, [showAddStaffModal, autofillClinicInfo, currentStaffProfile, profile, clinics, setValueStaff]);
 
     const handleAddStaff = async (values: StaffFormValues & { autofillClinicInfo?: boolean; doctorIds?: number[] }) => {
         if (values.role && values.role !== 'Doctor' && (values.doctorIds?.length ?? 0) < 1) {
@@ -190,6 +242,70 @@ const StaffManagementModals: React.FC = () => {
         setAddStaffSuccess(null);
         resetStaff();
     };
+
+    const handleCloseClinicModal = () => {
+        closeModals();
+    };
+
+    const handleCloseClinicFormModal = () => {
+        setEditingClinic(null);
+        resetClinic();
+        setShowClinicFormModal(false);
+    };
+
+    const handleCloseClinicFlow = () => {
+        handleCloseClinicFormModal();
+        closeModals();
+    };
+
+    const handleEditClinic = (clinic: ClinicItem) => {
+        setEditingClinic(clinic);
+        setValueClinic('name', clinic.name || '');
+        setValueClinic('address', clinic.address || '');
+        setValueClinic('fax', clinic.fax || clinic.phone || '');
+        setShowClinicFormModal(true);
+    };
+
+    const handleClinicSubmit = async (values: ClinicFormValues) => {
+        try {
+            if (editingClinic?.uuid) {
+                await updateClinicMutation.mutateAsync({
+                    uuid: editingClinic.uuid,
+                    payload: {
+                        clinic_name: values.name,
+                        clinic_address: values.address,
+                        fax_number: values.fax,
+                    },
+                });
+            } else {
+                await createClinicMutation.mutateAsync({
+                    clinic_name: values.name,
+                    clinic_address: values.address,
+                    fax_number: values.fax,
+                });
+            }
+            setEditingClinic(null);
+            resetClinic();
+            setShowClinicFormModal(false);
+        } catch (error) {
+            console.error('Clinic save failed:', error);
+            throw error;
+        }
+    };
+
+    useEffect(() => {
+        if (showClinicRegistrationModal && clinicRegistrationMode === 'add') {
+            setEditingClinic({ id: 0, uuid: '', name: '', address: '', fax: '', phone: '', department: '' });
+            resetClinic({ name: '', address: '', fax: '' });
+            setShowClinicFormModal(true);
+            return;
+        }
+        if (!showClinicRegistrationModal) {
+            setShowClinicFormModal(false);
+            setEditingClinic(null);
+            resetClinic();
+        }
+    }, [showClinicRegistrationModal, clinicRegistrationMode, resetClinic]);
 
     return (
         <>
@@ -310,7 +426,12 @@ const StaffManagementModals: React.FC = () => {
                                     const checked = e.target.checked;
                                     setValueStaff('autofillClinicInfo', checked);
                                     if (checked) {
-                                        setValueStaff('clinicName', currentStaffProfile?.clinic_name || profile?.clinic_name || '');
+                                        const profileClinicName = currentStaffProfile?.clinic_name || profile?.clinic_name || '';
+                                        const matchedClinic = (clinics || []).find(
+                                            (clinic) => (clinic.name || '').trim().toLowerCase() === profileClinicName.trim().toLowerCase()
+                                        );
+                                        setValueStaff('selectedClinicUuid', matchedClinic ? String(matchedClinic.uuid || matchedClinic.id) : '');
+                                        setValueStaff('clinicName', profileClinicName);
                                         setValueStaff('clinicDepartment', currentStaffProfile?.clinic_department || profile?.clinic_department || '');
                                         setValueStaff('clinicAddress', currentStaffProfile?.clinic_address || profile?.clinic_address || '');
                                         setValueStaff('clinicFax', currentStaffProfile?.clinic_fax || profile?.clinic_fax || '');
@@ -330,21 +451,52 @@ const StaffManagementModals: React.FC = () => {
                                 Autofill clinic info from my profile
                             </label>
                         </div>
+                        <Controller
+                            name="selectedClinicUuid"
+                            control={controlStaff}
+                            render={({ field }) => (
+                                <Select
+                                    label="Clinic"
+                                    placeholder={isLoadingClinics ? 'Loading clinic list...' : 'Select clinic'}
+                                    options={clinicOptions}
+                                    isDisabled={isLoadingClinics || !!watchStaff('autofillClinicInfo')}
+                                    value={
+                                        clinicOptions.find((opt) => String(opt.value) === String(field.value))
+                                        || (
+                                            autofillClinicInfo && profileClinicName
+                                                ? { value: '__profile_clinic__', label: profileClinicName }
+                                                : null
+                                        )
+                                    }
+                                    onChange={(option: any) => {
+                                        const value = option?.value ? String(option.value) : '';
+                                        field.onChange(value);
+                                        const selectedClinic = (clinics || []).find(
+                                            (clinic) => String(clinic.uuid || clinic.id) === value
+                                        );
+                                        if (!selectedClinic) {
+                                            setValueStaff('clinicName', '');
+                                            setValueStaff('clinicDepartment', '');
+                                            setValueStaff('clinicAddress', '');
+                                            setValueStaff('clinicFax', '');
+                                            return;
+                                        }
+                                        setValueStaff('clinicName', selectedClinic.name || '');
+                                        setValueStaff('clinicDepartment', selectedClinic.department || '');
+                                        setValueStaff('clinicAddress', selectedClinic.address || '');
+                                        setValueStaff('clinicFax', selectedClinic.fax || selectedClinic.phone || '');
+                                    }}
+                                />
+                            )}
+                        />
                         <div className="space-y-4 pt-4 border-t border-slate-200 dark:border-slate-700">
-                            <Input
-                                label="Clinic"
-                                placeholder="Enter clinic name"
-                                icon={<Building size={18} />}
-                                disabled={!!watchStaff('autofillClinicInfo')}
-                                {...registerStaff('clinicName')}
-                            />
-                            <Input
+                            {/* <Input
                                 label="Department"
                                 placeholder="Enter department"
                                 icon={<Building size={18} />}
                                 disabled={!!watchStaff('autofillClinicInfo')}
                                 {...registerStaff('clinicDepartment')}
-                            />
+                            /> */}
                             <Input
                                 label="Address"
                                 placeholder="Enter clinic address"
@@ -432,6 +584,87 @@ const StaffManagementModals: React.FC = () => {
                         </ModalFooter>
                     </form>
                 )}
+            </Modal>
+
+            {/* Clinic Registration Modal */}
+            <Modal
+                isOpen={showClinicRegistrationModal}
+                onClose={handleCloseClinicModal}
+                title="Update Existing Clinic"
+                size="lg"
+            >
+                <div className="space-y-4">
+                    {isLoadingClinics ? (
+                        <div className="py-12 flex items-center justify-center">Loading clinics...</div>
+                    ) : clinics.length === 0 ? (
+                        <div className="py-12 text-center">No clinics found.</div>
+                    ) : (
+                        <div className="space-y-3 max-h-[60vh] overflow-y-auto">
+                            {clinics.map((clinic) => (
+                                <button
+                                    key={clinic.uuid || clinic.id}
+                                    onClick={() => handleEditClinic(clinic)}
+                                    className={`w-full text-left p-4 rounded-xl border transition-colors ${isDark ? 'bg-slate-800/60 border-slate-700 hover:bg-slate-800/80 text-white' : 'bg-white border-slate-200 hover:bg-slate-50 text-slate-900'}`}
+                                >
+                                    <div className="flex items-center justify-between">
+                                        <div>
+                                            <h3 className="font-semibold">{clinic.name}</h3>
+                                            <p className="text-sm opacity-70">{clinic.address || 'No address'}</p>
+                                            <span className={`inline-block mt-1 px-2 py-0.5 rounded text-xs ${isDark ? 'bg-slate-700' : 'bg-slate-100'}`}>
+                                                Fax: {clinic.fax || clinic.phone || 'N/A'}
+                                            </span>
+                                        </div>
+                                        <Edit size={16} />
+                                    </div>
+                                </button>
+                            ))}
+                        </div>
+                    )}
+                    <ModalFooter className="mt-6">
+                        <Button variant="outline" onClick={handleCloseClinicModal}>Close</Button>
+                    </ModalFooter>
+                </div>
+            </Modal>
+
+            <Modal
+                isOpen={showClinicFormModal}
+                onClose={handleCloseClinicFlow}
+                title={editingClinic?.uuid ? 'Edit Clinic' : 'Add Clinic'}
+                size="lg"
+            >
+                <form onSubmit={handleSubmitClinic(handleClinicSubmit)} className="space-y-5">
+                    <Input
+                        label="Clinic Name *"
+                        placeholder="Enter clinic name"
+                        icon={<Building size={18} />}
+                        error={clinicErrors.name?.message}
+                        {...registerClinic('name')}
+                    />
+                    <Input
+                        label="Clinic Address *"
+                        placeholder="Enter clinic address"
+                        icon={<MapPin size={18} />}
+                        error={clinicErrors.address?.message}
+                        {...registerClinic('address')}
+                    />
+                    <Input
+                        label="Fax Number *"
+                        placeholder="Enter fax number"
+                        icon={<Printer size={18} />}
+                        error={clinicErrors.fax?.message}
+                        {...registerClinic('fax')}
+                    />
+                    <ModalFooter className="pt-2">
+                        <Button type="button" variant="outline" onClick={handleCloseClinicFlow}>Close</Button>
+                        <Button
+                            type="submit"
+                            variant="primary"
+                            loading={isSubmittingClinic || createClinicMutation.isPending || updateClinicMutation.isPending}
+                        >
+                            {editingClinic?.uuid ? 'Save changes' : 'Create clinic'}
+                        </Button>
+                    </ModalFooter>
+                </form>
             </Modal>
         </>
     );

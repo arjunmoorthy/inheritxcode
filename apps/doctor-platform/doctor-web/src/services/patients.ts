@@ -54,6 +54,7 @@ export interface ConversationSummary {
   created_at: string;
   updated_at?: string;
   conversation_state?: string;
+  triage_level?: string | null;
   symptom_list: string[];
   severity_list?: any[];
   longer_summary?: string;

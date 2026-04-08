@@ -4,8 +4,11 @@ import type { ReactNode } from 'react';
 interface StaffManagementContextType {
   showAddStaffModal: boolean;
   showUpdateStaffModal: boolean;
+  showClinicRegistrationModal: boolean;
+  clinicRegistrationMode: 'list' | 'add';
   openAddStaffModal: () => void;
   openUpdateStaffModal: () => void;
+  openClinicRegistrationModal: (mode?: 'list' | 'add') => void;
   closeModals: () => void;
 }
 
@@ -26,20 +29,33 @@ interface StaffManagementProviderProps {
 export const StaffManagementProvider: React.FC<StaffManagementProviderProps> = ({ children }) => {
   const [showAddStaffModal, setShowAddStaffModal] = useState(false);
   const [showUpdateStaffModal, setShowUpdateStaffModal] = useState(false);
+  const [showClinicRegistrationModal, setShowClinicRegistrationModal] = useState(false);
+  const [clinicRegistrationMode, setClinicRegistrationMode] = useState<'list' | 'add'>('list');
 
   const openAddStaffModal = () => {
     setShowAddStaffModal(true);
     setShowUpdateStaffModal(false);
+    setShowClinicRegistrationModal(false);
   };
 
   const openUpdateStaffModal = () => {
     setShowUpdateStaffModal(true);
     setShowAddStaffModal(false);
+    setShowClinicRegistrationModal(false);
+  };
+
+  const openClinicRegistrationModal = (mode: 'list' | 'add' = 'list') => {
+    setClinicRegistrationMode(mode);
+    setShowClinicRegistrationModal(true);
+    setShowAddStaffModal(false);
+    setShowUpdateStaffModal(false);
   };
 
   const closeModals = () => {
     setShowAddStaffModal(false);
     setShowUpdateStaffModal(false);
+    setShowClinicRegistrationModal(false);
+    setClinicRegistrationMode('list');
   };
 
   return (
@@ -47,8 +63,11 @@ export const StaffManagementProvider: React.FC<StaffManagementProviderProps> = (
       value={{
         showAddStaffModal,
         showUpdateStaffModal,
+        showClinicRegistrationModal,
+        clinicRegistrationMode,
         openAddStaffModal,
         openUpdateStaffModal,
+        openClinicRegistrationModal,
         closeModals,
       }}
     >

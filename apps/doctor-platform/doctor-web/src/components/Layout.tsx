@@ -42,6 +42,7 @@ import {
   UserCog,
   UserPlus,
   Settings,
+  Building,
   ChevronDown,
   ChevronRight
 } from 'lucide-react';
@@ -96,9 +97,11 @@ const Layout: React.FC = () => {
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
   const [profileMenuAnchor, setProfileMenuAnchor] = useState<null | HTMLElement>(null);
   const [staffMenuAnchor, setStaffMenuAnchor] = useState<null | HTMLElement>(null);
+  const [clinicMenuAnchor, setClinicMenuAnchor] = useState<null | HTMLElement>(null);
   const isStaffMenuOpen = Boolean(staffMenuAnchor);
+  const isClinicMenuOpen = Boolean(clinicMenuAnchor);
   const { toggleTheme } = useThemeMode();
-  const { openAddStaffModal, openUpdateStaffModal } = useStaffManagement();
+  const { openAddStaffModal, openUpdateStaffModal, openClinicRegistrationModal } = useStaffManagement();
   // const [sidebarCollapsed, setSidebarCollapsed] = useState(false); // Commented out - sidebar removed
 
   // Check authentication
@@ -150,14 +153,6 @@ const Layout: React.FC = () => {
   // const primaryMain = theme.palette?.primary?.main ?? (isDark ? '#3B82F6' : '#1E3A5F');
   // const headerActive = isDark ? `${primaryMain}20` : fallback.active;
 
-  // Sidebar colors: use fallbacks so styles apply on live (theme.palette may be missing)
-  const sidebarBg = isDark ? fallback.bg : primaryMain;
-  const sidebarText = fallback.text;
-  const sidebarTextMuted = fallback.textMuted;
-  const sidebarDivider = fallback.divider;
-  const sidebarHover = fallback.hover;
-  const sidebarActive = isDark ? `${primaryMain}20` : fallback.active;
-
   // Get current nav item
   const currentNav = navItems.find(item => location.pathname.startsWith(item.path))?.id || 'dashboard';
   const isProfileActive = location.pathname.startsWith('/profile');
@@ -199,6 +194,7 @@ const Layout: React.FC = () => {
   const handleProfileMenuClose = () => {
     setProfileMenuAnchor(null);
     setStaffMenuAnchor(null);
+    setClinicMenuAnchor(null);
   };
 
   const handleStaffMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
@@ -207,6 +203,14 @@ const Layout: React.FC = () => {
 
   const handleStaffMenuClose = () => {
     setStaffMenuAnchor(null);
+  };
+
+  const handleClinicMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
+    setClinicMenuAnchor(event.currentTarget);
+  };
+
+  const handleClinicMenuClose = () => {
+    setClinicMenuAnchor(null);
   };
 
   const handleProfileClick = () => {
@@ -633,26 +637,48 @@ const Layout: React.FC = () => {
                     Profile
                   </MenuItem>
                   {profile?.role === 'admin' && (
-                    <MenuItem
-                      onClick={handleStaffMenuOpen}
-                      sx={{
-                        py: 1.5,
-                        px: 2,
-                        color: isDark ? '#f1f5f9' : '#0f172a',
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        '&:hover': {
-                          bgcolor: isDark ? '#2A2725' : '#f1f5f9',
-                        },
-                      }}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center' }}>
+                    <>
+                      <MenuItem
+                        onClick={handleStaffMenuOpen}
+                        sx={{
+                          py: 1.5,
+                          px: 2,
+                          color: isDark ? '#f1f5f9' : '#0f172a',
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          '&:hover': {
+                            bgcolor: isDark ? '#2A2725' : '#f1f5f9',
+                          },
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center' }}>
+                          <UserCog size={18} style={{ marginRight: 12 }} />
+                          Manage Staff
+                        </div>
+                        <ChevronRight size={16} />
+                      </MenuItem>
+                      <MenuItem
+                        onClick={handleClinicMenuOpen}
+                        sx={{
+                          py: 1.5,
+                          px: 2,
+                          color: isDark ? '#f1f5f9' : '#0f172a',
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          '&:hover': {
+                            bgcolor: isDark ? '#2A2725' : '#f1f5f9',
+                          },
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center' }}>
                         <UserCog size={18} style={{ marginRight: 12 }} />
-                        Manage Staff
-                      </div>
-                      <ChevronRight size={16} />
-                    </MenuItem>
+                          Clinic Registration
+                        </div>
+                        <ChevronRight size={16} />
+                      </MenuItem>
+                    </>
                   )}
                   <Divider sx={{ my: 0.5, borderColor: isDark ? '#334155' : '#e2e8f0' }} />
                   <MenuItem
@@ -725,6 +751,59 @@ const Layout: React.FC = () => {
                   >
                     <Settings size={18} style={{ marginRight: 12 }} />
                     Update Existing Staff
+                  </MenuItem>
+                </Menu>
+                {/* Clinic Registration Sub-menu */}
+                <Menu
+                  anchorEl={clinicMenuAnchor}
+                  open={isClinicMenuOpen}
+                  onClose={handleClinicMenuClose}
+                  anchorOrigin={{ vertical: 'top', horizontal: 'left' }}
+                  transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+                  PaperProps={{
+                    sx: {
+                      width: 210,
+                      mt: 0,
+                      ml: -1,
+                      bgcolor: isDark ? '#1A1917' : '#ffffff',
+                      border: `1px solid ${isDark ? '#334155' : '#e2e8f0'}`,
+                      boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
+                    },
+                  }}
+                >
+                  <MenuItem
+                    onClick={() => {
+                      openClinicRegistrationModal('add');
+                      handleProfileMenuClose();
+                    }}
+                    sx={{
+                      py: 1.5,
+                      px: 2,
+                      color: isDark ? '#f1f5f9' : '#0f172a',
+                      '&:hover': {
+                        bgcolor: isDark ? '#2A2725' : '#f1f5f9',
+                      },
+                    }}
+                  >
+                    <Building size={18} style={{ marginRight: 12 }} />
+                    Add New Clinic
+                  </MenuItem>
+                  <MenuItem
+                    onClick={() => {
+                      openClinicRegistrationModal('list');
+                      handleProfileMenuClose();
+                    }}
+                    sx={{
+                      py: 1.5,
+                      px: 2,
+                      color: isDark ? '#f1f5f9' : '#0f172a',
+                      '&:hover': {
+                        bgcolor: isDark ? '#2A2725' : '#f1f5f9',
+                      },
+                    }}
+                  >
+                    <Settings size={18} style={{ marginRight: 5 }} />
+                    Update Existing Clinic
                   </MenuItem>
                 </Menu>
                 <StaffManagementModals />
