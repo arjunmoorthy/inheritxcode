@@ -38,8 +38,7 @@ class ClinicResponse(BaseModel):
     """Clinic information response."""
     uuid: str
     clinic_name: str
-    address: Optional[str] = None
-    phone_number: Optional[str] = None
+    clinic_address: Optional[str] = None
     fax_number: Optional[str] = None
     created_at: Optional[str] = None
     updated_at: Optional[str] = None
@@ -51,16 +50,14 @@ class ClinicResponse(BaseModel):
 class CreateClinicRequest(BaseModel):
     """Request to create a new clinic."""
     clinic_name: str = Field(..., min_length=1, max_length=255)
-    address: Optional[str] = Field(None, max_length=500)
-    phone_number: Optional[str] = Field(None, max_length=20)
+    clinic_address: str = Field(..., min_length=1, max_length=500)
     fax_number: Optional[str] = Field(None, max_length=20)
 
 
 class UpdateClinicRequest(BaseModel):
     """Request to update a clinic."""
     clinic_name: Optional[str] = Field(None, min_length=1, max_length=255)
-    address: Optional[str] = Field(None, max_length=500)
-    phone_number: Optional[str] = Field(None, max_length=20)
+    clinic_address: Optional[str] = Field(None, max_length=500)
     fax_number: Optional[str] = Field(None, max_length=20)
 
 
@@ -75,6 +72,18 @@ class ClinicListResponse(BaseModel):
 class MessageResponse(BaseModel):
     """Simple message response."""
     message: str
+
+
+def _to_clinic_response(clinic) -> ClinicResponse:
+    """Map Clinic model fields to API response schema."""
+    return ClinicResponse(
+        uuid=str(clinic.uuid),
+        clinic_name=clinic.name,
+        clinic_address=clinic.address,
+        fax_number=clinic.fax,
+        created_at=clinic.created_at.isoformat() if clinic.created_at else None,
+        updated_at=clinic.updated_at.isoformat() if clinic.updated_at else None,
+    )
 
 
 # =============================================================================
@@ -100,7 +109,7 @@ async def list_clinics(
     total = clinic_service.count_clinics()
     
     return ClinicListResponse(
-        clinics=[ClinicResponse(**c.to_dict()) for c in clinics],
+        clinics=[_to_clinic_response(c) for c in clinics],
         total=total,
         skip=skip,
         limit=limit,
@@ -124,7 +133,7 @@ async def search_clinics(
     
     clinics = clinic_service.search_clinics(search_term=q, limit=limit)
     
-    return [ClinicResponse(**c.to_dict()) for c in clinics]
+    return [_to_clinic_response(c) for c in clinics]
 
 
 @router.get(
@@ -143,7 +152,7 @@ async def get_clinic(
     
     clinic = clinic_service.get_clinic(clinic_uuid)
     
-    return ClinicResponse(**clinic.to_dict())
+    return _to_clinic_response(clinic)
 
 
 @router.post(
@@ -163,12 +172,11 @@ async def create_clinic(
     
     clinic = clinic_service.create_clinic(
         clinic_name=request.clinic_name,
-        address=request.address,
-        phone_number=request.phone_number,
+        clinic_address=request.clinic_address,
         fax_number=request.fax_number,
     )
     
-    return ClinicResponse(**clinic.to_dict())
+    return _to_clinic_response(clinic)
 
 
 @router.put(
@@ -185,16 +193,60 @@ async def update_clinic(
 ):
     """Update a clinic's information."""
     clinic_service = ClinicService(db)
-    
+
+    # Treat Swagger placeholder values as "not provided" to avoid accidental overwrites.
+    clinic_address = request.clinic_address
+    fax_number = request.fax_number
+    if clinic_address and clinic_address.strip().lower() == "string":
+        clinic_address = None
+    if fax_number and fax_number.strip().lower() == "string":
+        fax_number = None
+
     clinic = clinic_service.update_clinic(
         clinic_uuid=clinic_uuid,
         clinic_name=request.clinic_name,
-        address=request.address,
-        phone_number=request.phone_number,
-        fax_number=request.fax_number,
+        address=clinic_address,
+        fax_number=fax_number,
     )
     
-    return ClinicResponse(**clinic.to_dict())
+    return _to_clinic_response(clinic)
+
+
+@router.patch(
+    "/{clinic_uuid}",
+    response_model=ClinicResponse,
+    summary="Patch Clinic",
+    description="Partially update clinic fields. Only provided fields are updated.",
+)
+async def patch_clinic(
+    clinic_uuid: UUID,
+    request: UpdateClinicRequest,
+    current_user: TokenData = Depends(get_current_user),
+    db: Session = Depends(get_doctor_db_session),
+):
+    """Partially update a clinic's information."""
+    clinic_service = ClinicService(db)
+
+    update_data = request.model_dump(exclude_unset=True)
+
+    # Treat Swagger placeholder values as "not provided" to avoid accidental overwrites.
+    clinic_address = update_data.get("clinic_address")
+    fax_number = update_data.get("fax_number")
+    if isinstance(clinic_address, str) and clinic_address.strip().lower() == "string":
+        clinic_address = None
+        update_data.pop("clinic_address", None)
+    if isinstance(fax_number, str) and fax_number.strip().lower() == "string":
+        fax_number = None
+        update_data.pop("fax_number", None)
+
+    clinic = clinic_service.update_clinic(
+        clinic_uuid=clinic_uuid,
+        clinic_name=update_data.get("clinic_name"),
+        address=update_data.get("clinic_address"),
+        fax_number=update_data.get("fax_number"),
+    )
+
+    return _to_clinic_response(clinic)
 
 
 @router.delete(
