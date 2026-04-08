@@ -23,6 +23,7 @@ import {
   useSendPatientFax,
 } from '../../services/dashboard';
 import { useCurrentStaffProfile } from '../../services/staff';
+import { useClinics } from '../../services/clinics';
 
 export type PatientProfile = {
   mrn: string;
@@ -428,6 +429,7 @@ const PatientDetailPage: React.FC = () => {
   const [isFaxPreviewOpen, setIsFaxPreviewOpen] = useState(false);
   const [editableClinicName, setEditableClinicName] = useState('');
   const [editableClinicFax, setEditableClinicFax] = useState('');
+  const [selectedClinicUuid, setSelectedClinicUuid] = useState('');
 
   // Filter states
   const defaultStartDate = useMemo(() => {
@@ -497,6 +499,7 @@ const PatientDetailPage: React.FC = () => {
     isFetching: timelineFetching,
     refetch: refetchTimeline,
   } = usePatientTimeline(uuid || '', startDate, endDate);
+  const { data: clinics = [], isLoading: isLoadingClinics } = useClinics(isFaxPreviewOpen);
   const {
     data: patientDetails,
     isFetching: patientDetailsFetching,
@@ -634,6 +637,14 @@ const PatientDetailPage: React.FC = () => {
     setEditableClinicName(clinicInfo?.clinicName || '');
     setEditableClinicFax(clinicInfo?.clinicPhone || '');
   }, [isFaxPreviewOpen, clinicInfo]);
+
+  useEffect(() => {
+    if (!isFaxPreviewOpen) return;
+    const matchedClinic = clinics.find(
+      (clinic) => (clinic.name || '').trim().toLowerCase() === (editableClinicName || '').trim().toLowerCase()
+    );
+    setSelectedClinicUuid(matchedClinic ? String(matchedClinic.uuid || matchedClinic.id) : '');
+  }, [isFaxPreviewOpen, clinics, editableClinicName]);
 
   const formatDate = (dateStr: string) => {
     try {
@@ -1156,14 +1167,32 @@ const PatientDetailPage: React.FC = () => {
             <div className="text-base md:text-lg font-semibold">Fax Preview</div>
             <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-2">
               <div className="min-w-0 md:col-span-2">
-                <label className="text-sm font-medium mb-1 block">Clinic Name :</label>
-                <input
-                  type="text"
-                  value={editableClinicName}
-                  onChange={(e) => setEditableClinicName(e.target.value)}
-                  placeholder="Clinic name"
+                <label className="text-sm font-medium mb-1 block">Clinic Name :</label> 
+                <select
+                  value={selectedClinicUuid}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setSelectedClinicUuid(value);
+                    const selectedClinic = clinics.find(
+                      (clinic) => String(clinic.uuid || clinic.id) === value
+                    );
+                    if (!selectedClinic) {
+                      setEditableClinicName('');
+                      setEditableClinicFax('');
+                      return;
+                    }
+                    setEditableClinicName(selectedClinic.name || '');
+                    setEditableClinicFax(selectedClinic.fax || selectedClinic.phone || '');
+                  }}
                   className={`w-full min-w-0 px-2 py-1.5 rounded border text-xs md:text-sm ${isDark ? 'bg-[#1A1917] border-slate-600 text-slate-200' : 'bg-white border-slate-300 text-slate-700'}`}
-                />
+                >
+                  <option value="">{isLoadingClinics ? 'Loading clinic list...' : 'Select clinic'}</option>
+                  {clinics.map((clinic) => (
+                    <option key={clinic.uuid || clinic.id} value={String(clinic.uuid || clinic.id)}>
+                      {clinic.name}
+                    </option>
+                  ))}
+                </select>
               </div>
               <div className="min-w-0">
                 <label className="text-sm font-medium mb-1 block">Fax Number :</label>
