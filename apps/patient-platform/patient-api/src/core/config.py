@@ -258,6 +258,41 @@ class Settings(BaseSettings):
         default="OncoLife Care",
         description="Display name for email sender"
     )
+
+    # SMTP Settings (for password reset emails)
+    mail_username: Optional[str] = Field(
+        default=None,
+        description="SMTP username for outgoing emails",
+        validation_alias="MAIL_USERNAME",
+    )
+    mail_password: Optional[str] = Field(
+        default=None,
+        description="SMTP password or app password",
+        validation_alias="MAIL_PASSWORD",
+    )
+    mail_from: Optional[str] = Field(
+        default=None,
+        description="From address for outgoing emails",
+        validation_alias="MAIL_FROM",
+    )
+    mail_server: str = Field(
+        default="smtp.gmail.com",
+        description="SMTP server hostname",
+        validation_alias="MAIL_SERVER",
+    )
+    mail_port: int = Field(
+        default=587,
+        description="SMTP port (587 for STARTTLS, 465 for SSL)",
+        validation_alias="MAIL_PORT",
+    )
+    mail_starttls: bool = Field(
+        default=True,
+        description="Use STARTTLS for SMTP connections",
+    )
+    mail_ssl_tls: bool = Field(
+        default=False,
+        description="Use SSL/TLS for SMTP connections",
+    )
     
     # SNS Settings (for SMS)
     sns_enabled: bool = Field(
@@ -333,6 +368,12 @@ class Settings(BaseSettings):
     fax_webhook_secret: Optional[str] = Field(
         default=None,
         description="Secret for validating fax webhook requests"
+    )
+
+    # Password reset URL (patient web)
+    patient_forget_password_base_url: str = Field(
+        default="https://oncolife-patient.inheritxdev.in/reset-password?token={token}",
+        description="Base URL for patient reset-password page (link in forgot password email). Env: PATIENT_FORGET_PASSWORD_BASE_URL",
     )
     
     # ==========================================================================
