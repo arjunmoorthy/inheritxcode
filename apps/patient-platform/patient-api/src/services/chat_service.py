@@ -35,6 +35,7 @@ Copyright:
 from typing import Dict, Any, List, Tuple, Optional, AsyncGenerator
 from uuid import UUID
 from datetime import datetime, time, date
+import re
 from sqlalchemy.orm import Session
 import pytz
 from services.symptom_analytics_service import save_symptom_analytics
@@ -430,6 +431,32 @@ class ChatService:
                 except Exception as e:
                     logger.warning(f"Could not log next chemo date: {e}")
             
+            summary_data = engine_response.summary_data or {}
+            should_refine_ai_summary = bool(summary_data.get("regenerate_ai_summary"))
+
+            if should_refine_ai_summary:
+                edited_summary = str(summary_data.get("user_edited_summary", "")).strip()
+                original_summary = (
+                    (chat.patient_narrative_summary or "").strip()
+                    or (getattr(engine_response.state, "ai_generated_summary", "") or "").strip()
+                    or (chat.longer_summary or "").strip()
+                )
+
+                refined_summary = None
+                if edited_summary and original_summary:
+                    ai_service = AIClinicalSummaryService()
+                    refined_summary = await ai_service.generate_refined_patient_summary(
+                        original_summary=original_summary,
+                        user_edited_summary=edited_summary,
+                    )
+
+                final_summary = refined_summary or edited_summary or original_summary
+                if final_summary:
+                    chat.patient_narrative_summary = final_summary
+                    if engine_response.state:
+                        engine_response.state.ai_generated_summary = final_summary
+                        chat.engine_state = engine_response.state.to_dict()
+
             if engine_response.is_complete:
                 if engine_response.triage_level == TriageLevel.CALL_911:
                     chat.conversation_state = "EMERGENCY"
@@ -499,6 +526,10 @@ class ChatService:
         self.db.commit()
         
         # 6. Create and save the assistant message
+        ai_generated_summary: Optional[str] = None
+        if engine_response.message_type == "summary" and getattr(chat, "patient_narrative_summary", None):
+            ai_generated_summary = chat.patient_narrative_summary
+
         structured = {
             "options": [opt['label'] for opt in engine_response.options] if engine_response.options else None,
             "options_data": engine_response.options,
@@ -507,6 +538,7 @@ class ChatService:
             "is_complete": engine_response.is_complete,
             "symptom_groups": engine_response.symptom_groups,
             "summary_data": engine_response.summary_data,
+            "ai_generated_summary": ai_generated_summary,
             "sender": engine_response.sender,
             "phase": engine_response.state.phase.value if engine_response.state else None,
         }
@@ -515,11 +547,18 @@ class ChatService:
             structured["show_date_picker"] = True
             structured["input_type"] = "date_picker"
 
+        assistant_content = engine_response.message
+        if engine_response.message_type == "summary" and ai_generated_summary:
+            assistant_content = self._replace_summary_section_with_ai(
+                message=assistant_content,
+                ai_summary=ai_generated_summary,
+            )
+
         assistant_msg = MessageModel(
             chat_uuid=chat_uuid,
             sender="assistant",
             message_type=self._map_message_type(engine_response.message_type),
-            content=engine_response.message,
+            content=assistant_content,
             structured_data=structured,
         )
         self.db.add(assistant_msg)
@@ -531,6 +570,21 @@ class ChatService:
         frontend_message.message_type = self._map_frontend_type(engine_response.message_type)
         
         yield frontend_message
+
+    def _replace_summary_section_with_ai(self, message: str, ai_summary: str) -> str:
+        """Replace '**Summary:** ...' block with AI-generated summary text."""
+        clean_summary = (ai_summary or "").strip()
+        if not clean_summary:
+            return message
+
+        pattern = r"(\*\*Summary:\*\*\s*)(.*?)(\n\n)"
+        replacement = r"\1" + clean_summary + r"\3"
+        updated_message, count = re.subn(pattern, replacement, message, count=1, flags=re.DOTALL)
+        if count > 0:
+            return updated_message
+
+        # Fallback if template changes and Summary marker isn't present.
+        return f"**Summary:** {clean_summary}\n\n{message}"
     
     def _parse_user_response(self, message: WebSocketMessageIn) -> Any:
         """Parse the user's response based on message type."""
