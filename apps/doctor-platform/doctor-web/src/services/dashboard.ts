@@ -468,11 +468,27 @@ const generateWeeklyReport = async (weekStart?: string): Promise<{ report_id: st
   return response.data;
 };
 
+export interface SendPatientFaxPayload {
+  patientUuid: string;
+  to: string;
+  callbackUrl: string;
+  days?: number;
+}
+
 // Send Patient Fax
-const sendPatientFax = async (patientUuid: string): Promise<unknown> => {
+const sendPatientFax = async ({
+  patientUuid,
+  to,
+  callbackUrl,
+  days = 30,
+}: SendPatientFaxPayload): Promise<unknown> => {
   const response = await apiClient.post(
     API_CONFIG.ENDPOINTS.DASHBOARD.PATIENT_FAX_SEND(patientUuid),
-    {}
+    {
+      to,
+      callbackUrl,
+      days,
+    }
   );
   return response.data;
 };

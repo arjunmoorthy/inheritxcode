@@ -425,6 +425,7 @@ const PatientDetailPage: React.FC = () => {
   const [isChartFullscreen, setIsChartFullscreen] = useState(false);
 
   // Fax mode state
+  const FAX_CALLBACK_URL = 'https://webhook.site/246d5d7a-81f8-40e1-b798-aa28e8f26466';
   const [isFaxMode, setIsFaxMode] = useState(false);
   const [isFaxPreviewOpen, setIsFaxPreviewOpen] = useState(false);
   const [editableClinicName, setEditableClinicName] = useState('');
@@ -441,7 +442,7 @@ const PatientDetailPage: React.FC = () => {
   const [startDate, setStartDate] = useState(defaultStartDate);
   const [endDate, setEndDate] = useState(defaultEndDate);
   const [selectedSymptoms, setSelectedSymptoms] = useState<string[]>(['all']);
-  const [severityRange, setSeverityRange] = useState<number[]>([0, 4]);
+  const [severityRange, setSeverityRange] = useState<number[]>([2, 4]);
 
   // Notification state
   const [toast, setToast] = useState<{
@@ -590,7 +591,23 @@ const PatientDetailPage: React.FC = () => {
       setIsFaxPreviewOpen(true);
     } else {
       try {
-        await sendPatientFax(uuid || '');
+        const faxNumber = (editableClinicFax || '').trim();
+
+        if (!uuid) {
+          showToast('Patient UUID is missing.', 'error');
+          return;
+        }
+        if (!faxNumber) {
+          showToast('Fax number is required.', 'error');
+          return;
+        }
+
+        await sendPatientFax({
+          patientUuid: uuid,
+          to: faxNumber,
+          callbackUrl: FAX_CALLBACK_URL,
+          days: 30,
+        });
         showToast('Fax sent successfully!', 'success');
         setIsFaxMode(false);
         setIsFaxPreviewOpen(false);
@@ -868,7 +885,7 @@ const PatientDetailPage: React.FC = () => {
     setStartDate(timelineData?.start_date || defaultStartDate);
     setEndDate(timelineData?.end_date || defaultEndDate);
     setSelectedSymptoms(['all']);
-    setSeverityRange([0, 4]);
+    setSeverityRange([2, 4]);
     setPage(0);
   };
 
