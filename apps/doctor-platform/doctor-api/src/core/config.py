@@ -280,6 +280,30 @@ class Settings(BaseSettings):
         default="https://oncolife-doctor.inheritxdev.in/reset-password?token={token}",
         description="Base URL for doctor reset-password page (link in forgot password email). Env: DOCTOR_FORGET_PASSWORD_BASE_URL",
     )
+
+    # ==========================================================================
+    # Sinch Fax (outgoing fax API)
+    # ==========================================================================
+    sinch_fax_base_url: str = Field(
+        default="https://fax.api.sinch.com/v3",
+        description="Sinch Fax API base URL. Env: SINCH_FAX_BASE_URL",
+    )
+    sinch_fax_project_id: Optional[str] = Field(
+        default=None,
+        description="Sinch project ID for fax API. Env: SINCH_FAX_PROJECT_ID",
+    )
+    sinch_fax_access_key: Optional[str] = Field(
+        default=None,
+        description="Sinch fax access key (username for basic auth). Env: SINCH_FAX_ACCESS_KEY",
+    )
+    sinch_fax_access_secret: Optional[str] = Field(
+        default=None,
+        description="Sinch fax access secret (password for basic auth). Env: SINCH_FAX_ACCESS_SECRET",
+    )
+    sinch_fax_from_number: Optional[str] = Field(
+        default=None,
+        description="Default outgoing fax sender number in E.164 format. Env: SINCH_FAX_FROM_NUMBER",
+    )
     
     # ==========================================================================
     # Computed Properties
