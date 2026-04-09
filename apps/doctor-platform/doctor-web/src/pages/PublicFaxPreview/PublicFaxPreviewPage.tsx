@@ -5,8 +5,6 @@ import { usePatientDetails, usePatientQuestions, usePatientTimeline } from '../.
 import { useCurrentStaffProfile } from '../../services/staff';
 import { tokenManager } from '../../utils/apiClient';
 import GraphSection from '../PatientDetail/components/GraphSection';
-import PatientDataTable from '../PatientDetail/components/PatientDataTable';
-import PatientTabs from '../PatientDetail/components/PatientTabs';
 
 const symptomColors: Record<string, string> = {
   cough: '#FF9500',
@@ -142,8 +140,6 @@ const PublicFaxPreviewPage: React.FC = () => {
   const [searchParams] = useSearchParams();
   const { isDark } = useThemeMode();
   const [isChartFullscreen, setIsChartFullscreen] = useState(false);
-  const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(5);
   const [clinicName, setClinicName] = useState('');
   const [clinicFax, setClinicFax] = useState('');
 
@@ -265,25 +261,22 @@ const PublicFaxPreviewPage: React.FC = () => {
   }, [timeline]);
 
   return (
-    <div className={`min-h-screen p-4 md:p-6 ${isDark ? 'bg-[#1A1917] text-slate-100' : 'bg-[rgb(250,248,245)] text-slate-900'}`}>
-      <div className="max-w-[1400px] mx-auto space-y-4">
-        <div className={`${isDark ? 'bg-[#252320] border-slate-700/50' : 'bg-white border-slate-200'} rounded-lg border p-3 md:p-4`}>
+    <div className={`min-h-screen p-3 md:p-4 ${isDark ? 'bg-[#1A1917] text-slate-100' : 'bg-[rgb(250,248,245)] text-slate-900'}`}>
+      <div className="max-w-[1400px] mx-auto space-y-3">
+        <div className={`${isDark ? 'bg-[#252320] border-slate-700/50' : 'bg-white border-slate-200'} rounded-lg border p-3`}>
           <h1 className="text-base md:text-lg font-semibold">Fax Preview</h1>
-          <p className={`text-xs md:text-sm mt-1 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
-            Patient UI ID: {patientUiId || '--'} {patientDetails?.patientName ? `| ${patientDetails.patientName}` : ''}
+          <p className={`text-xs md:text-sm mb-0 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+            Patient UI ID: {patientUiId || '--'}
           </p>
-          <p className={`text-xs md:text-sm mt-1 ${isDark ? 'text-slate-500' : 'text-slate-500'}`}>
+          <p className={`text-xs md:text-sm mb-0 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+            Patient Name : {patientDetails?.patientName || '--'}
+          </p>
+          <p className={`text-xs md:text-sm mb-0 ${isDark ? 'text-slate-500' : 'text-slate-500'}`}>
             Date Range: {startDate} to {endDate}
           </p>
-          <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-2">
-            <div className="min-w-0 md:col-span-2">
-              <label className="text-sm font-medium mb-1 block">Clinic Name :</label>
-              <input type="text" value={clinicName} readOnly className={`w-full min-w-0 px-2 py-1.5 rounded border text-xs md:text-sm ${isDark ? 'bg-[#1A1917] border-slate-600 text-slate-200' : 'bg-white border-slate-300 text-slate-700'}`} />
-            </div>
-            <div className="min-w-0">
-              <label className="text-sm font-medium mb-1 block">Fax Number :</label>
-              <input type="text" value={clinicFax} readOnly className={`w-full min-w-0 px-2 py-1.5 rounded border text-xs md:text-sm ${isDark ? 'bg-[#1A1917] border-slate-600 text-slate-200' : 'bg-white border-slate-300 text-slate-700'}`} />
-            </div>
+          <div className={`text-xs md:text-sm font-medium flex flex-wrap items-center gap-x-6 gap-y-1 ${isDark ? 'text-slate-200' : 'text-slate-700'}`}>
+            <span>Clinic Name : <span className="font-semibold">{clinicName || '--'}</span></span>
+            <span>Fax Number : <span className="font-semibold">{clinicFax || '--'}</span></span>
           </div>
         </div>
 
@@ -301,25 +294,69 @@ const PublicFaxPreviewPage: React.FC = () => {
           isFaxMode
         />
 
-        <PatientDataTable
-          data={tableData}
-          isDark={isDark}
-          page={page}
-          rowsPerPage={rowsPerPage}
-          onPageChange={setPage}
-          onRowsPerPageChange={(nextRows) => {
-            setRowsPerPage(nextRows);
-            setPage(0);
-          }}
-          formatDate={formatDate}
-          isLoading={timelineLoading || timelineFetching}
-        />
+        <div className={`${isDark ? 'bg-[#252320] border-slate-700/50' : 'bg-white border-slate-200'} rounded-lg border p-3`}>
+          <h3 className={`text-sm md:text-base font-semibold mb-2 ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>
+            Medications
+          </h3>
+          {timelineLoading || timelineFetching ? (
+            <div className={`text-sm py-4 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Loading medications...</div>
+          ) : tableData.length === 0 ? (
+            <div className={`text-sm py-4 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>No table data</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[780px]">
+                <thead>
+                  <tr className={`border-b ${isDark ? 'border-slate-700' : 'border-slate-200'}`}>
+                    <th className={`text-left py-2 px-2 text-xs font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Date</th>
+                    <th className={`text-left py-2 px-2 text-xs font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Symptom</th>
+                    <th className={`text-left py-2 px-2 text-xs font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Severity</th>
+                    <th className={`text-left py-2 px-2 text-xs font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Medication Name and Frequency</th>
+                    <th className={`text-left py-2 px-2 text-xs font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Temperature</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {tableData.map((row, idx) => (
+                    <tr key={`${row.date}-${row.symptom}-${idx}`} className={`border-b ${isDark ? 'border-slate-800/50' : 'border-slate-100'}`}>
+                      <td className={`py-2 px-2 text-xs ${isDark ? 'text-slate-300' : 'text-slate-700'} whitespace-nowrap`}>{formatDate(row.date)}</td>
+                      <td className={`py-2 px-2 text-xs ${isDark ? 'text-slate-300' : 'text-slate-700'} whitespace-nowrap`}>{row.symptom}</td>
+                      <td className={`py-2 px-2 text-xs ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{row.severity}</td>
+                      <td className={`py-2 px-2 text-xs ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{row.medicationName}</td>
+                      <td className={`py-2 px-2 text-xs ${isDark ? 'text-slate-300' : 'text-slate-700'} whitespace-nowrap`}>{row.temperature}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
 
-        <PatientTabs
-          isDark={isDark}
-          questions={questions}
-          isLoading={questionsLoading}
-        />
+        <div className={`${isDark ? 'bg-[#252320] border-slate-700/50' : 'bg-white border-slate-200'} rounded-lg border p-3`}>
+          <h3 className={`text-sm md:text-base font-semibold mb-2 ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>
+            Shared Questions
+          </h3>
+          {questionsLoading ? (
+            <div className={`text-sm py-4 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Loading shared questions...</div>
+          ) : !questions || questions.length === 0 ? (
+            <div className={`text-sm py-4 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>No shared questions</div>
+          ) : (
+            <div className="space-y-2">
+              {questions.map((question, idx) => (
+                <div
+                  key={question.id || `question-${idx}`}
+                  className={`rounded border rounded-sm px-3 py-2 ${isDark ? 'border-slate-700 bg-[#1F1E1B]' : 'border-slate-200 bg-slate-50'}`}
+                >
+                  <p className={`text-xs md:text-sm font-medium mb-1 ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>
+                    {question.question_text}
+                  </p>
+                  <p className={`text-[11px] md:text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                    {question.category ? `${question.category} • ` : ''}
+                    {question.created_at ? `Shared on ${new Date(question.created_at).toLocaleDateString()}` : 'Shared date unavailable'}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
