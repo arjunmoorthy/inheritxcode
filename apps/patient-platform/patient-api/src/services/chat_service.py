@@ -458,6 +458,27 @@ class ChatService:
                         chat.engine_state = engine_response.state.to_dict()
 
             if engine_response.is_complete:
+                should_emit_summary_progress_flag = (
+                    engine_response.message_type == "summary"
+                    and engine_response.triage_level != TriageLevel.CALL_911
+                )
+                if should_emit_summary_progress_flag:
+                    # Emit an immediate backend flag so FE can show a progress bar
+                    # while AI summary generation is running.
+                    yield Message(
+                        id=0,
+                        chat_uuid=chat_uuid,
+                        sender="system",
+                        message_type="system",
+                        content="",
+                        structured_data={
+                            "frontend_type": "summary_generation_status",
+                            "summary_generation_in_progress": True,
+                            "summary_generation_completed": False,
+                        },
+                        created_at=datetime.utcnow(),
+                    )
+
                 if engine_response.triage_level == TriageLevel.CALL_911:
                     chat.conversation_state = "EMERGENCY"
                 else:
@@ -539,6 +560,10 @@ class ChatService:
             "symptom_groups": engine_response.symptom_groups,
             "summary_data": engine_response.summary_data,
             "ai_generated_summary": ai_generated_summary,
+            "summary_generation_in_progress": False,
+            "summary_generation_completed": bool(
+                engine_response.message_type == "summary" and ai_generated_summary
+            ),
             "sender": engine_response.sender,
             "phase": engine_response.state.phase.value if engine_response.state else None,
         }

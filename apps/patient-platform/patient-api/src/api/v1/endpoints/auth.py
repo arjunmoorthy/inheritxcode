@@ -18,6 +18,7 @@ Rate Limiting:
 from datetime import datetime, timezone, timedelta
 
 import bcrypt
+import secrets
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from fastapi.responses import JSONResponse
 from jose import jwt
@@ -39,6 +40,7 @@ from core.middleware.rate_limiting import limiter, AUTH_RATE_LIMIT, PASSWORD_RES
 from core.schemas import APIResponse, ErrorResponse
 from db.models import User, PatientProfile
 from db.doctor_models import DoctorUser, DoctorStaff, DoctorPatient
+from helpers.email import send_reset_password_email
 from services import AuthService
 
 logger = get_logger(__name__)
@@ -140,6 +142,24 @@ class CompleteNewPasswordResponse(BaseModel):
     """Response model for successful password completion."""
     message: str
     tokens: AuthTokens
+
+
+class ForgotPasswordRequest(BaseModel):
+    """Request body for forgot password."""
+    email: EmailStr
+
+
+class ResetPasswordRequest(BaseModel):
+    """Request body for reset password."""
+    token: str
+    new_password: str = Field(..., min_length=8)
+    confirm_password: str = Field(..., min_length=8)
+
+    @model_validator(mode="after")
+    def passwords_match(self):
+        if self.new_password != self.confirm_password:
+            raise ValueError("Passwords do not match.")
+        return self
 
 
 class DeletePatientRequest(BaseModel):
@@ -442,6 +462,99 @@ async def change_password(
         status_code=200,
         content={"status": "success", "message": "Password changed successfully."},
     )
+
+
+@router.post(
+    "/forgot-password",
+    summary="Forgot password",
+    description="Send password reset email for patient users.",
+)
+@limiter.limit(PASSWORD_RESET_LIMIT)
+async def forgot_password(
+    request: Request,
+    body: ForgotPasswordRequest,
+    doctor_db: Session = Depends(get_doctor_db),
+):
+    """
+    Generate a reset token and send password reset email.
+    Uses the doctor DB users table (same as login).
+    """
+    logger.info(f"Forgot password request: email={body.email}")
+
+    user = doctor_db.query(DoctorUser).filter(DoctorUser.email == body.email).first()
+    if not user:
+        return JSONResponse(
+            status_code=404,
+            content=ErrorResponse(
+                success=False,
+                message="User with the provided email does not exist.",
+                details=None,
+                status_code=404,
+            ).model_dump(),
+        )
+
+    token = secrets.token_urlsafe(32)
+    user.reset_token = token
+    user.reset_token_expires_at = datetime.now(timezone.utc) + timedelta(hours=1)
+    doctor_db.commit()
+
+    reset_link = settings.patient_forget_password_base_url.format(token=token)
+    await send_reset_password_email(email=body.email, reset_link=reset_link)
+
+    payload = APIResponse(
+        success=True,
+        message="Password reset email sent to the provided email address.",
+        data=None,
+    )
+    return JSONResponse(status_code=200, content=payload.model_dump())
+
+
+@router.post(
+    "/reset-password",
+    summary="Reset password",
+    description="Reset password using token sent to patient email.",
+)
+@limiter.limit(PASSWORD_RESET_LIMIT)
+async def reset_password(
+    request: Request,
+    body: ResetPasswordRequest,
+    doctor_db: Session = Depends(get_doctor_db),
+):
+    """
+    Reset password for patient users via reset token.
+    Uses the doctor DB users table (same as login).
+    """
+    user = doctor_db.query(DoctorUser).filter(DoctorUser.reset_token == body.token).first()
+
+    if not user:
+        return JSONResponse(
+            status_code=404,
+            content=ErrorResponse(
+                success=False,
+                message="No user found for the provided reset token.",
+                details=None,
+                status_code=404,
+            ).model_dump(),
+        )
+
+    if (
+        not user.reset_token_expires_at
+        or user.reset_token_expires_at < datetime.now(timezone.utc)
+    ):
+        raise HTTPException(status_code=400, detail="Reset token has expired.")
+
+    user.password_hash = hash_password(body.new_password)
+    user.reset_token = None
+    user.reset_token_expires_at = None
+    user.is_first_login = False
+    doctor_db.commit()
+
+    payload = APIResponse(
+        success=True,
+        message="Password has been reset successfully.",
+        data=None,
+    )
+    return JSONResponse(status_code=200, content=payload.model_dump())
 
 
 @router.post(
