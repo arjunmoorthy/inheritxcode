@@ -780,7 +780,7 @@ export const SymptomMessageBubble: React.FC<SymptomMessageBubbleProps> = ({
 
   // WhatsApp-style chat bubble
   return (
-    <div className={`message-wrapper ${isUser ? 'user' : 'assistant'} ${sender === 'system' ? 'system' : ''}`}>
+    <div className={`message-wrapper ${isUser ? 'user' : 'assistant'} ${sender === 'system' ? 'system' : ''} sender-${message.sender}`}>
       {!isUser && (
         <div className="message-with-avatar">
           {sender === 'system' ? (
@@ -807,8 +807,8 @@ export const SymptomMessageBubble: React.FC<SymptomMessageBubbleProps> = ({
         </div>
       )}
       {isUser && (
-        <div className="user-message-container">
-          <div className="message-bubble user-bubble">
+        <div className="user-message-container message-container">
+          <div className="message-bubble user-bubble sender-user-bubble">
             <div className="message-content">{formatUserResponse(message.content)}</div>
           </div>
           <div className="message-time">
