@@ -60,8 +60,7 @@ class ClinicService(BaseService):
     def create_clinic(
         self,
         clinic_name: str,
-        address: Optional[str] = None,
-        phone_number: Optional[str] = None,
+        clinic_address: Optional[str] = None,
         fax_number: Optional[str] = None,
     ) -> Clinic:
         """
@@ -98,13 +97,12 @@ class ClinicService(BaseService):
         
         # Create the clinic
         clinic = self.clinic_repo.create_clinic(
-            clinic_name=clinic_name,
-            address=address,
-            phone_number=phone_number,
-            fax_number=fax_number,
+            name=clinic_name,
+            address=clinic_address,
+            fax=fax_number,
         )
         
-        self.logger.info(f"Created clinic: {clinic.clinic_name} ({clinic.uuid})")
+        self.logger.info(f"Created clinic: {clinic.name} ({clinic.uuid})")
         return clinic
     
     def get_clinic(self, clinic_uuid: UUID) -> Clinic:
@@ -169,7 +167,7 @@ class ClinicService(BaseService):
         clinic = self.get_clinic(clinic_uuid)
         
         # Check for name conflict if changing name
-        if clinic_name and clinic_name.strip() != clinic.clinic_name:
+        if clinic_name and clinic_name.strip() != clinic.name:
             clinic_name = clinic_name.strip()
             if self.clinic_repo.name_exists(clinic_name):
                 raise ConflictError(
@@ -180,13 +178,13 @@ class ClinicService(BaseService):
         # Update the clinic
         updated_clinic = self.clinic_repo.update_clinic(
             clinic=clinic,
-            clinic_name=clinic_name,
+            name=clinic_name,
             address=address,
-            phone_number=phone_number,
-            fax_number=fax_number,
+            phone=phone_number,
+            fax=fax_number,
         )
         
-        self.logger.info(f"Updated clinic: {updated_clinic.clinic_name} ({updated_clinic.uuid})")
+        self.logger.info(f"Updated clinic: {updated_clinic.name} ({updated_clinic.uuid})")
         return updated_clinic
     
     def delete_clinic(self, clinic_uuid: UUID) -> bool:
@@ -205,7 +203,7 @@ class ClinicService(BaseService):
         clinic = self.get_clinic(clinic_uuid)
         result = self.clinic_repo.delete(clinic)
         
-        self.logger.info(f"Deleted clinic: {clinic.clinic_name} ({clinic.uuid})")
+        self.logger.info(f"Deleted clinic: {clinic.name} ({clinic.uuid})")
         return result
     
     # =========================================================================

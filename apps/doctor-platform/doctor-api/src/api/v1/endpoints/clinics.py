@@ -17,13 +17,15 @@ All endpoints require authentication.
 
 from typing import List, Optional
 from uuid import UUID
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from api.deps import get_current_user, get_doctor_db_session, TokenData
 from services import ClinicService
 from core.logging import get_logger
+from core.schemas import APIResponse
+from core.exceptions import ConflictError
 
 logger = get_logger(__name__)
 
@@ -38,8 +40,7 @@ class ClinicResponse(BaseModel):
     """Clinic information response."""
     uuid: str
     clinic_name: str
-    address: Optional[str] = None
-    phone_number: Optional[str] = None
+    clinic_address: Optional[str] = None
     fax_number: Optional[str] = None
     created_at: Optional[str] = None
     updated_at: Optional[str] = None
@@ -51,16 +52,14 @@ class ClinicResponse(BaseModel):
 class CreateClinicRequest(BaseModel):
     """Request to create a new clinic."""
     clinic_name: str = Field(..., min_length=1, max_length=255)
-    address: Optional[str] = Field(None, max_length=500)
-    phone_number: Optional[str] = Field(None, max_length=20)
+    clinic_address: str = Field(..., min_length=1, max_length=500)
     fax_number: Optional[str] = Field(None, max_length=20)
 
 
 class UpdateClinicRequest(BaseModel):
     """Request to update a clinic."""
     clinic_name: Optional[str] = Field(None, min_length=1, max_length=255)
-    address: Optional[str] = Field(None, max_length=500)
-    phone_number: Optional[str] = Field(None, max_length=20)
+    clinic_address: Optional[str] = Field(None, max_length=500)
     fax_number: Optional[str] = Field(None, max_length=20)
 
 
@@ -77,13 +76,25 @@ class MessageResponse(BaseModel):
     message: str
 
 
+def _to_clinic_response(clinic) -> ClinicResponse:
+    """Map Clinic model fields to API response schema."""
+    return ClinicResponse(
+        uuid=str(clinic.uuid),
+        clinic_name=clinic.name,
+        clinic_address=clinic.address,
+        fax_number=clinic.fax,
+        created_at=clinic.created_at.isoformat() if clinic.created_at else None,
+        updated_at=clinic.updated_at.isoformat() if clinic.updated_at else None,
+    )
+
+
 # =============================================================================
 # Endpoints
 # =============================================================================
 
 @router.get(
     "",
-    response_model=ClinicListResponse,
+    response_model=APIResponse[ClinicListResponse],
     summary="List Clinics",
     description="Get a paginated list of all clinics.",
 )
@@ -99,17 +110,21 @@ async def list_clinics(
     clinics = clinic_service.list_clinics(skip=skip, limit=limit)
     total = clinic_service.count_clinics()
     
-    return ClinicListResponse(
-        clinics=[ClinicResponse(**c.to_dict()) for c in clinics],
-        total=total,
-        skip=skip,
-        limit=limit,
+    return APIResponse(
+        success=True,
+        message="Clinics fetched successfully",
+        data=ClinicListResponse(
+            clinics=[_to_clinic_response(c) for c in clinics],
+            total=total,
+            skip=skip,
+            limit=limit,
+        ),
     )
 
 
 @router.get(
     "/search",
-    response_model=List[ClinicResponse],
+    response_model=APIResponse[List[ClinicResponse]],
     summary="Search Clinics",
     description="Search clinics by name.",
 )
@@ -124,12 +139,16 @@ async def search_clinics(
     
     clinics = clinic_service.search_clinics(search_term=q, limit=limit)
     
-    return [ClinicResponse(**c.to_dict()) for c in clinics]
+    return APIResponse(
+        success=True,
+        message="Clinics fetched successfully",
+        data=[_to_clinic_response(c) for c in clinics],
+    )
 
 
 @router.get(
     "/{clinic_uuid}",
-    response_model=ClinicResponse,
+    response_model=APIResponse[ClinicResponse],
     summary="Get Clinic",
     description="Get a specific clinic by UUID.",
 )
@@ -143,12 +162,16 @@ async def get_clinic(
     
     clinic = clinic_service.get_clinic(clinic_uuid)
     
-    return ClinicResponse(**clinic.to_dict())
+    return APIResponse(
+        success=True,
+        message="Clinic fetched successfully",
+        data=_to_clinic_response(clinic),
+    )
 
 
 @router.post(
     "",
-    response_model=ClinicResponse,
+    response_model=APIResponse[ClinicResponse],
     status_code=status.HTTP_201_CREATED,
     summary="Create Clinic",
     description="Create a new clinic.",
@@ -160,20 +183,29 @@ async def create_clinic(
 ):
     """Create a new clinic."""
     clinic_service = ClinicService(db)
+    try:
+        clinic = clinic_service.create_clinic(
+            clinic_name=request.clinic_name,
+            clinic_address=request.clinic_address,
+            fax_number=request.fax_number,
+        )
+    except ConflictError as exc:
+        # Align with existing API convention where duplicate resources use 400.
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=exc.message,
+        ) from exc
     
-    clinic = clinic_service.create_clinic(
-        clinic_name=request.clinic_name,
-        address=request.address,
-        phone_number=request.phone_number,
-        fax_number=request.fax_number,
+    return APIResponse(
+        success=True,
+        message="Clinic created successfully",
+        data=_to_clinic_response(clinic),
     )
-    
-    return ClinicResponse(**clinic.to_dict())
 
 
 @router.put(
     "/{clinic_uuid}",
-    response_model=ClinicResponse,
+    response_model=APIResponse[ClinicResponse],
     summary="Update Clinic",
     description="Update an existing clinic.",
 )
@@ -185,21 +217,73 @@ async def update_clinic(
 ):
     """Update a clinic's information."""
     clinic_service = ClinicService(db)
-    
+
+    # Treat Swagger placeholder values as "not provided" to avoid accidental overwrites.
+    clinic_address = request.clinic_address
+    fax_number = request.fax_number
+    if clinic_address and clinic_address.strip().lower() == "string":
+        clinic_address = None
+    if fax_number and fax_number.strip().lower() == "string":
+        fax_number = None
+
     clinic = clinic_service.update_clinic(
         clinic_uuid=clinic_uuid,
         clinic_name=request.clinic_name,
-        address=request.address,
-        phone_number=request.phone_number,
-        fax_number=request.fax_number,
+        address=clinic_address,
+        fax_number=fax_number,
     )
     
-    return ClinicResponse(**clinic.to_dict())
+    return APIResponse(
+        success=True,
+        message="Clinic updated successfully",
+        data=_to_clinic_response(clinic),
+    )
+
+
+@router.patch(
+    "/{clinic_uuid}",
+    response_model=APIResponse[ClinicResponse],
+    summary="Patch Clinic",
+    description="Partially update clinic fields. Only provided fields are updated.",
+)
+async def patch_clinic(
+    clinic_uuid: UUID,
+    request: UpdateClinicRequest,
+    current_user: TokenData = Depends(get_current_user),
+    db: Session = Depends(get_doctor_db_session),
+):
+    """Partially update a clinic's information."""
+    clinic_service = ClinicService(db)
+
+    update_data = request.model_dump(exclude_unset=True)
+
+    # Treat Swagger placeholder values as "not provided" to avoid accidental overwrites.
+    clinic_address = update_data.get("clinic_address")
+    fax_number = update_data.get("fax_number")
+    if isinstance(clinic_address, str) and clinic_address.strip().lower() == "string":
+        clinic_address = None
+        update_data.pop("clinic_address", None)
+    if isinstance(fax_number, str) and fax_number.strip().lower() == "string":
+        fax_number = None
+        update_data.pop("fax_number", None)
+
+    clinic = clinic_service.update_clinic(
+        clinic_uuid=clinic_uuid,
+        clinic_name=update_data.get("clinic_name"),
+        address=update_data.get("clinic_address"),
+        fax_number=update_data.get("fax_number"),
+    )
+
+    return APIResponse(
+        success=True,
+        message="Clinic updated successfully",
+        data=_to_clinic_response(clinic),
+    )
 
 
 @router.delete(
     "/{clinic_uuid}",
-    response_model=MessageResponse,
+    response_model=APIResponse[MessageResponse],
     summary="Delete Clinic",
     description="Delete a clinic.",
 )
@@ -213,7 +297,11 @@ async def delete_clinic(
     
     clinic_service.delete_clinic(clinic_uuid)
     
-    return MessageResponse(message="Clinic deleted successfully")
+    return APIResponse(
+        success=True,
+        message="Clinic deleted successfully",
+        data=MessageResponse(message="Clinic deleted successfully"),
+    )
 
 
 

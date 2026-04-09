@@ -64,6 +64,7 @@ class ClinicResponse(BaseModel):
     name: str
     address: Optional[str]
     phone: Optional[str]
+    fax: Optional[str]
     department: Optional[str]
 
 class AllStaffResponse(BaseModel):
@@ -165,10 +166,7 @@ class AddStaffRequest(BaseModel):
     full_name: str = Field(..., min_length=1, max_length=200, description="Full name (stored as first_name, last_name in user and staff)")
     email: EmailStr = Field(..., description="Email (stored in user and staff)")
     phone: str = Field(..., min_length=1, max_length=20, description="Phone (stored in staff)")
-    clinic_name: Optional[str] = Field(None, max_length=255, description="Clinic name (optional; used to look up and associate)")
-    clinic_department: Optional[str] = Field(None, max_length=100, description="Clinic department (optional; static for now)")
-    clinic_address: Optional[str] = Field(None, max_length=500, description="Clinic address (optional; static for now)")
-    fax_number: Optional[str] = Field(None, max_length=20, description="Fax number (optional; static for now)")
+    clinic_id: int = Field(..., ge=1, description="Clinic ID to attach this staff member to")
     doctor_ids: Optional[List[int]] = None
 
 class AddStaffResponse(BaseModel):
@@ -177,6 +175,21 @@ class AddStaffResponse(BaseModel):
     staff_uuid: str
     email: str
     role: str
+
+
+class SelfProfileResponse(BaseModel):
+    id: int
+    uuid: UUID
+    user_id: int
+    email: str
+    first_name: Optional[str]
+    last_name: Optional[str]
+    full_name: Optional[str]
+    role: str
+    phone: Optional[str]
+    is_profile_completed: bool
+    is_active: bool
+    clinic: Optional[ClinicResponse]
 
 
 # =============================================================================
@@ -424,25 +437,12 @@ def add_staff_simple(
     # 🎭 Role mapping
     db_role = "physician" if request.role == "doctor" else "nurse"
 
-    # 🏥 Clinic lookup
-    clinic = None
-
-    if request.clinic_name:
-        clinic = clinic_repo.get_by_name(request.clinic_name.strip())
-
-    # Fallback to default clinic (since currently only one exists)
-    if not clinic:
-        clinic = (
-            db.query(Clinic)
-            .filter(Clinic.is_active == True)
-            .order_by(Clinic.id.asc())
-            .first()
-        )
-
+    # 🏥 Clinic lookup by ID
+    clinic = clinic_repo.get_by_id(request.clinic_id)
     if not clinic:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="No active clinic found. Please configure a clinic first.",
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Clinic not found",
         )
 
     # 🔒 Validation: doctor_ids rules
@@ -463,7 +463,7 @@ def add_staff_simple(
             first_name=first_name,
             last_name=last_name,
             role=db_role,
-            # clinic_id=clinic_id,
+            clinic_id=clinic.id,
             is_first_login=True,
             auth_provider="local",
             password_hash=hashed_password,
@@ -548,6 +548,67 @@ def add_staff_simple(
         staff_uuid=str(staff.uuid),
         email=staff.email,
         role=staff.role,
+    )
+
+
+@router.get(
+    "/profile",
+    response_model=APIResponse[SelfProfileResponse],
+    summary="Get my profile",
+)
+def get_my_profile(
+    db: Session = Depends(get_doctor_db_session),
+    current_user=Depends(require_roles("admin", "physician", "nurse")),
+):
+    staff = (
+        db.query(Staff)
+        .filter(
+            Staff.user_id == current_user.id,
+            Staff.is_active == True,
+        )
+        .first()
+    )
+
+    if not staff:
+        raise HTTPException(status_code=404, detail="Staff profile not found")
+
+    primary_clinic_assoc = next(
+        (
+            assoc for assoc in staff.clinic_associations
+            if assoc.is_primary and assoc.is_active
+        ),
+        None,
+    )
+    clinic = primary_clinic_assoc.clinic if primary_clinic_assoc else None
+
+    return APIResponse(
+        success=True,
+        message="Profile fetched successfully",
+        data=SelfProfileResponse(
+            id=staff.id,
+            uuid=staff.uuid,
+            user_id=staff.user_id,
+            email=staff.email,
+            first_name=staff.first_name,
+            last_name=staff.last_name,
+            full_name=staff.full_name,
+            role=staff.role,
+            phone=staff.phone,
+            is_profile_completed=staff.is_profile_completed,
+            is_active=staff.is_active,
+            clinic=(
+                ClinicResponse(
+                    id=clinic.id,
+                    uuid=clinic.uuid,
+                    name=clinic.name,
+                    address=clinic.address,
+                    phone=clinic.phone,
+                    fax=clinic.fax,
+                    department=clinic.department,
+                )
+                if clinic else None
+            ),
+        ),
     )
 
 
@@ -739,6 +800,7 @@ def get_all_staff(
                         name=clinic.name,
                         address=clinic.address,
                         phone=clinic.phone,
+                        fax=clinic.fax,
                         department=clinic.department,
                     )
                     if clinic else None
