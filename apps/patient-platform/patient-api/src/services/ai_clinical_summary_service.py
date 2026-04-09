@@ -49,6 +49,16 @@ PATIENT_SUMMARY_PROMPT = (
     "nothing reported is omitted."
 )
 
+PATIENT_SUMMARY_REFINEMENT_PROMPT = (
+    "You are refining a patient-facing symptom summary. "
+    "You are given the originally generated summary and the patient's requested "
+    "edits/corrections. Produce one final paragraph in second-person voice, 3-5 "
+    "sentences, that keeps clinically relevant details complete and accurate. "
+    "Respect the patient's edits when they do not remove critical symptom facts. "
+    "Do not include recommendations, triage levels, or next steps. "
+    "Return only the final paragraph."
+)
+
 
 class AIClinicalSummaryService:
     """Service for generating AI-powered clinical narrative summaries."""
@@ -129,6 +139,57 @@ class AIClinicalSummaryService:
             prompt_text=PATIENT_SUMMARY_PROMPT,
             transcript=transcript,
         )
+
+    async def generate_refined_patient_summary(
+        self,
+        original_summary: str,
+        user_edited_summary: str,
+    ) -> Optional[str]:
+        """
+        Generate a final patient-facing summary from original + user edits.
+
+        Returns None on failure so caller can fallback safely.
+        """
+        if not self.is_available:
+            logger.info(
+                "Skipping Gemini patient summary refinement: "
+                f"enabled={self._enabled}, has_api_key={bool(self._api_key)}"
+            )
+            return None
+
+        original = (original_summary or "").strip()
+        edited = (user_edited_summary or "").strip()
+        if not original or not edited:
+            logger.warning(
+                "Skipping Gemini patient summary refinement due to missing inputs"
+            )
+            return None
+
+        refinement_input = (
+            f"{PATIENT_SUMMARY_REFINEMENT_PROMPT}\n\n"
+            f"Original generated summary:\n{original}\n\n"
+            f"Patient requested edits/additions:\n{edited}\n\n"
+            "Return only the final refined paragraph."
+        )
+
+        try:
+            raw_text = await asyncio.wait_for(
+                asyncio.to_thread(self._generate_sync, refinement_input),
+                timeout=self._timeout_seconds,
+            )
+        except asyncio.TimeoutError:
+            logger.warning("Gemini patient summary refinement timed out")
+            return None
+        except Exception as exc:
+            logger.error(f"Gemini patient summary refinement failed: {exc}")
+            return None
+
+        cleaned = self._normalize_output(raw_text)
+        if not cleaned:
+            logger.warning(
+                "Gemini returned empty/invalid refined patient summary output"
+            )
+        return cleaned or None
 
     async def _generate_with_prompt(
         self,

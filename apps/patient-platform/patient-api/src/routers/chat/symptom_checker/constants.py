@@ -46,6 +46,7 @@ class ConversationPhase(str, Enum):
     SCREENING = "screening"                      # Per-symptom questions
     FOLLOW_UP = "follow_up"                      # Follow-up questions
     SUMMARY = "summary"                          # Session summary
+    SUMMARY_EDIT = "summary_edit"                # Edit AI-generated summary
     ADDING_NOTES = "adding_notes"                # Adding personal notes
     COMPLETED = "completed"                      # Final state
     EMERGENCY = "emergency"                      # Emergency path
@@ -603,4 +604,9 @@ SUMMARY_ACTIONS = [
     # {"label": "📔 View in My Diary", "value": "view_diary", "icon": "diary"},
     {"label": "🔄 Report Another Symptom", "value": "report_another", "icon": "repeat"},
     {"label": "✅ Done for Today", "value": "done", "icon": "check"},
+]
+
+SUMMARY_REVIEW_OPTIONS = [
+    {"label": "Yes", "value": "yes_edit_summary", "style": "primary"},
+    {"label": "No", "value": "no_edit_summary", "style": "secondary"},
 ]

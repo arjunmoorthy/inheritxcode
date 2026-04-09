@@ -42,7 +42,7 @@ import logging
 from .constants import (
     TriageLevel, InputType, ConversationPhase,
     MEDICAL_DISCLAIMER, EMERGENCY_CHECK_MESSAGE, RUBY_GREETING,
-    EMERGENCY_SYMPTOMS, SYMPTOM_GROUPS, SUMMARY_ACTIONS,
+    EMERGENCY_SYMPTOMS, SYMPTOM_GROUPS, SUMMARY_ACTIONS, SUMMARY_REVIEW_OPTIONS,
     PATIENT_CONTEXT_MESSAGE, LAST_CHEMO_OPTIONS, PHYSICIAN_VISIT_OPTIONS,
     CHEMO_TODAY_MESSAGE, CHEMO_TODAY_OPTIONS, NEXT_CHEMO_DATE_MESSAGE,
     validate_temperature, validate_text_input, TEMP_FEVER_THRESHOLD,
@@ -110,6 +110,9 @@ class ConversationState:
     session_oral_intake_answer: Optional[str] = None
     # Cross-symptom fever yes/no: derived from temperature when available or reused if asked once.
     session_fever_answer: Optional[bool] = None
+    # AI summary review fields
+    ai_generated_summary: Optional[str] = None
+    user_summary_edit: Optional[str] = None
 
     def to_dict(self) -> Dict[str, Any]:
         """Serialize state to dictionary."""
@@ -144,6 +147,8 @@ class ConversationState:
             'session_adl_answer': self.session_adl_answer,
             'session_oral_intake_answer': self.session_oral_intake_answer,
             'session_fever_answer': self.session_fever_answer,
+            'ai_generated_summary': self.ai_generated_summary,
+            'user_summary_edit': self.user_summary_edit,
         }
 
     @classmethod
@@ -180,6 +185,8 @@ class ConversationState:
             session_adl_answer=data.get('session_adl_answer'),
             session_oral_intake_answer=data.get('session_oral_intake_answer'),
             session_fever_answer=data.get('session_fever_answer'),
+            ai_generated_summary=data.get('ai_generated_summary'),
+            user_summary_edit=data.get('user_summary_edit'),
         )
 
 
@@ -297,6 +304,9 @@ class SymptomCheckerEngine:
         
         elif self.state.phase == ConversationPhase.SUMMARY:
             return self._handle_summary_action(user_response)
+
+        elif self.state.phase == ConversationPhase.SUMMARY_EDIT:
+            return self._handle_summary_edit_input(user_response)
         
         elif self.state.phase == ConversationPhase.ADDING_NOTES:
             return self._handle_notes_input(user_response)
@@ -1440,7 +1450,11 @@ class SymptomCheckerEngine:
     # =========================================================================
     # Previous signature (kept for reference; now disabled):
     # def _generate_summary(self) -> EngineResponse:
-    def _generate_summary(self, prefix_message: Optional[str] = None) -> EngineResponse:
+    def _generate_summary(
+        self,
+        prefix_message: Optional[str] = None,
+        include_review_prompt: bool = True,
+    ) -> EngineResponse:
         """Generate the final summary of the symptom check."""
         self.state.phase = ConversationPhase.SUMMARY
         
@@ -1530,10 +1544,19 @@ class SymptomCheckerEngine:
 
         self._add_to_chat_history('ruby', summary_message)
 
+        summary_options = SUMMARY_REVIEW_OPTIONS if include_review_prompt else SUMMARY_ACTIONS
+        next_prompt = (
+            "Would you like to add/update anything in the generated summary?"
+            if include_review_prompt
+            else "What would you like to do?"
+        )
+
+        summary_message = summary_message.rsplit("What would you like to do?", 1)[0] + next_prompt
+
         return EngineResponse(
             message=summary_message,
             message_type='summary',
-            options=SUMMARY_ACTIONS,
+            options=summary_options,
             triage_level=triage_level,
             is_complete=True,  # Mark as complete so bulleted_summary is saved
             summary_data=summary_data,
@@ -1544,6 +1567,25 @@ class SymptomCheckerEngine:
 
     def _handle_summary_action(self, user_response: Any) -> EngineResponse:
         """Handle user's action selection on the summary screen."""
+        if user_response == 'yes_edit_summary':
+            self.state.phase = ConversationPhase.SUMMARY_EDIT
+            return EngineResponse(
+                message="✏️ **Edit Generated Summary**\n\n"
+                        "Please type what you want to add, remove, or correct in the generated summary.\n\n"
+                        "I will merge your edits with the generated summary and create a final version.",
+                message_type='text_input',
+                options=[
+                    {'label': '← Back to Summary', 'value': 'back_to_summary', 'style': 'secondary'}
+                ],
+                sender='ruby',
+                state=self.state
+            )
+
+        if user_response == 'no_edit_summary':
+            response = self._generate_summary(include_review_prompt=False)
+            response.is_complete = False
+            return response
+
         if user_response == 'add_notes':
             # Prompt user for personal notes
             self.state.phase = ConversationPhase.ADDING_NOTES
@@ -1611,6 +1653,37 @@ class SymptomCheckerEngine:
         
         # Default: show summary again
         return self._generate_summary()
+
+    def _handle_summary_edit_input(self, user_response: Any) -> EngineResponse:
+        """Capture user edits for AI summary and request a refined summary."""
+        if user_response == 'back_to_summary':
+            self.state.phase = ConversationPhase.SUMMARY
+            response = self._generate_summary()
+            response.is_complete = False
+            return response
+
+        edited_text = str(user_response).strip() if user_response is not None else ""
+        is_valid, error_msg = validate_text_input(edited_text, min_length=3, max_length=1200)
+        if not is_valid:
+            return EngineResponse(
+                message=error_msg,
+                message_type='text_input',
+                options=[
+                    {'label': '← Back to Summary', 'value': 'back_to_summary', 'style': 'secondary'}
+                ],
+                sender='ruby',
+                state=self.state
+            )
+
+        self.state.user_summary_edit = edited_text
+        self.state.phase = ConversationPhase.SUMMARY
+
+        response = self._generate_summary(include_review_prompt=False)
+        response.is_complete = False
+        response.summary_data = response.summary_data or {}
+        response.summary_data["regenerate_ai_summary"] = True
+        response.summary_data["user_edited_summary"] = edited_text
+        return response
 
     def _handle_notes_input(self, user_response: Any) -> EngineResponse:
         """Handle the patient's personal notes input."""
