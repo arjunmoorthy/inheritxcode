@@ -38,6 +38,10 @@ RUN apt-get update && apt-get install -y \
 # Copy virtual environment from builder
 COPY --from=builder /opt/venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
+ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+
+# Install Chromium + required system deps for Playwright PDF rendering
+RUN playwright install --with-deps chromium
 
 # Copy application code
 COPY src/ ./

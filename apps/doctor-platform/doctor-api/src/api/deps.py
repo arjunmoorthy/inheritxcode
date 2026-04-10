@@ -266,6 +266,7 @@ def get_current_user(
         user_uuid=payload.get("sub"),
         email=payload.get("email"),
         role=payload.get("role"),
+        access_token=token
     )
 
 

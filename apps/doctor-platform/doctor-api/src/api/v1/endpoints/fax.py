@@ -1,26 +1,33 @@
-from datetime import datetime
+from datetime import date, datetime, timedelta
 import json
-from typing import List, Optional
+import textwrap
+import uuid
+from typing import Any, Dict, List, Optional
 
+import httpx
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status, UploadFile
 from pydantic import BaseModel, EmailStr, Field, HttpUrl
 from sqlalchemy.orm import Session
 
-from api.deps import TokenData, get_doctor_db_session
+from api.deps import TokenData, get_doctor_db_session, get_patient_db_session
 from db.models.user import User
 from db.models.staff import PhysicianPatient, Staff
 from db.models.fax_models import FaxRecord, Patient
 from services.fax_patient_service import create_or_update_fax_patient, parse_date
 from services.structured_extractor import extract_structured_fields, flatten_structured_data
-from utils.s3 import upload_file_to_s3
+from utils.s3 import upload_file_to_s3, upload_file_to_s3_with_presigned_url
 from utils.security import verify_password, hash_password, generate_random_password
 from pydantic import model_validator
 from helpers.email import send_welcome_email
 from api.deps import require_roles
 from core.config import settings
+from core.logging import get_logger
+from api.v1.endpoints.dashboard import assert_staff_can_access_dashboard_patient, get_patient_trends
 from services.main import extract_structured_fields_dynamic
+from utils.simple_pdf import build_patient_dashboard_pdf_from_url
 
 router = APIRouter()
+logger = get_logger(__name__)
 
 
 # -----------------------------------------------------------------------------
@@ -278,6 +285,274 @@ class InboundFaxWebhook(BaseModel):
     event: str
     eventTime: datetime
     fax: FaxDetails
+
+
+class OutgoingFaxRequest(BaseModel):
+    to: str = Field(..., min_length=3, max_length=32, description="Recipient fax number in E.164 format")
+    from_number: Optional[str] = Field(
+        default=None,
+        alias="from",
+        min_length=3,
+        max_length=32,
+        description="Sender fax number in E.164 format. Defaults to SINCH_FAX_FROM_NUMBER",
+    )
+    contentUrl: HttpUrl = Field(..., description="Publicly accessible PDF URL")
+    callbackUrl: Optional[HttpUrl] = Field(default=None, description="Optional status callback URL")
+
+    model_config = {"populate_by_name": True}
+
+
+class OutgoingPatientSymptomsFaxRequest(BaseModel):
+    to: str = Field(..., min_length=3, max_length=32, description="Recipient fax number in E.164 format")
+    from_number: Optional[str] = Field(
+        default=None,
+        alias="from",
+        min_length=3,
+        max_length=32,
+        description="Sender fax number in E.164 format. Defaults to SINCH_FAX_FROM_NUMBER",
+    )
+    callbackUrl: Optional[HttpUrl] = Field(default=None, description="Optional status callback URL")
+    days: int = Field(default=30, ge=1, le=90, description="Number of past days to include in report")
+
+    model_config = {"populate_by_name": True}
+
+
+async def _submit_sinch_fax(
+    to: str,
+    content_url: str,
+    from_number_override: Optional[str] = None,
+    callback_url: Optional[str] = None,
+) -> Dict[str, Any]:
+    if not settings.sinch_fax_project_id:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Sinch fax project ID is not configured",
+        )
+    if not settings.sinch_fax_access_key or not settings.sinch_fax_access_secret:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Sinch fax credentials are not configured",
+        )
+
+    from_number = from_number_override or settings.sinch_fax_from_number
+    if not from_number:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="'from' number is required (either in payload or SINCH_FAX_FROM_NUMBER)",
+        )
+
+    request_payload: Dict[str, Any] = {
+        "to": to,
+        "from": from_number,
+        "contentUrl": content_url,
+    }
+    if callback_url:
+        request_payload["callbackUrl"] = callback_url
+
+    endpoint = (
+        f"{settings.sinch_fax_base_url.rstrip('/')}/projects/"
+        f"{settings.sinch_fax_project_id}/faxes"
+    )
+    logger.info(
+        "Submitting Sinch fax request | to=%s from=%s contentUrl=%s callback=%s endpoint=%s",
+        to,
+        from_number,
+        content_url,
+        callback_url,
+        endpoint,
+    )
+
+    try:
+        async with httpx.AsyncClient(timeout=20.0) as client:
+            response = await client.post(
+                endpoint,
+                auth=(settings.sinch_fax_access_key, settings.sinch_fax_access_secret),
+                json=request_payload,
+                headers={"Content-Type": "application/json"},
+            )
+    except httpx.RequestError as exc:
+        logger.error("Sinch fax request failed: %s", str(exc))
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Failed to reach Sinch fax API",
+        )
+
+    if response.status_code >= 400:
+        try:
+            sinch_error = response.json()
+        except ValueError:
+            sinch_error = {"message": response.text}
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail={
+                "message": "Sinch rejected outgoing fax request",
+                "sinch_status_code": response.status_code,
+                "sinch_error": sinch_error,
+            },
+        )
+
+    try:
+        parsed = response.json()
+        logger.info(
+            "Sinch fax accepted | status_code=%s fax_id=%s current_status=%s",
+            response.status_code,
+            parsed.get("id"),
+            parsed.get("status"),
+        )
+        return parsed
+    except ValueError:
+        logger.warning("Sinch returned non-JSON success response")
+        return {"raw_response": response.text}
+
+
+@router.post("/outgoing", status_code=status.HTTP_201_CREATED)
+async def send_outgoing_fax(
+    payload: OutgoingFaxRequest,
+    current_user: TokenData = Depends(require_roles("physician", "nurse", "admin")),
+):
+    """
+    Send an outgoing fax through Sinch Fax API.
+    """
+    result = await _submit_sinch_fax(
+        to=payload.to,
+        content_url=str(payload.contentUrl),
+        from_number_override=payload.from_number,
+        callback_url=str(payload.callbackUrl) if payload.callbackUrl else None,
+    )
+
+    return {
+        "status": "success",
+        "message": "Outgoing fax request submitted to Sinch",
+        "data": result,
+    }
+
+
+@router.post("/outgoing/patient/{patient_uuid}/symptoms", status_code=status.HTTP_201_CREATED)
+async def send_patient_symptoms_fax(
+    patient_uuid: uuid.UUID,
+    payload: OutgoingPatientSymptomsFaxRequest,
+    request: Request,
+    current_user: User = Depends(require_roles("physician", "nurse", "admin")),
+    db: Session = Depends(get_doctor_db_session),
+    patient_db: Session = Depends(get_patient_db_session),
+):
+    """
+    Build a patient symptom PDF report and send it as an outgoing fax through Sinch.
+    """
+    assert_staff_can_access_dashboard_patient(db, current_user, patient_uuid)
+
+    patient = (
+        db.query(Patient)
+        .join(User, User.id == Patient.user_id)
+        .filter(User.uuid == patient_uuid)
+        .first()
+    )
+    if not patient:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Patient not found for this identifier",
+        )
+
+    end_date = datetime.utcnow().date()
+    start_date = end_date - timedelta(days=payload.days)
+    trends = get_patient_trends(
+        patient_uuid=patient_uuid,
+        start_date=start_date,
+        end_date=end_date,
+        current_user=current_user,
+        patient_db=patient_db,
+        doctor_db=db,
+    )
+    logger.info(
+        "Preparing symptom fax report | patient_uuid=%s days=%s severity_series=%s temp_points=%s medication_rows=%s",
+        str(patient_uuid),
+        payload.days,
+        len(getattr(trends, "severity_series", []) or []),
+        len(getattr(trends, "temperature_series", []) or []),
+        len(getattr(trends, "medications", []) or []),
+    )
+
+    authorization_header = request.headers.get("authorization", "")
+    access_token = (
+        authorization_header.split(" ", 1)[1].strip()
+        if authorization_header.lower().startswith("bearer ")
+        else ""
+    )
+    if not access_token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Missing access token",
+        )
+
+    # Build frontend dashboard URL with caller token
+    dashboard_url = (
+        f"https://oncolife-doctor.inheritxdev.in/public/fax-preview/{patient_uuid}"
+        f"?token={access_token}&start_date={start_date.isoformat()}&end_date={end_date.isoformat()}"
+    )
+
+    pdf_bytes = await build_patient_dashboard_pdf_from_url(
+        url=dashboard_url,
+    )
+    logger.info(
+        "Generated PDF report | patient_uuid=%s bytes=%s first_16_bytes_hex=%s",
+        str(patient_uuid),
+        len(pdf_bytes),
+        pdf_bytes[:16].hex() if pdf_bytes else "",
+    )
+
+    report_filename = f"symptoms_report_{patient_uuid}_{datetime.utcnow().strftime('%Y%m%d%H%M%S')}.pdf"
+    object_url, content_url = upload_file_to_s3_with_presigned_url(
+        pdf_bytes,
+        report_filename,
+        expires_in_seconds=86400,
+    )
+    logger.info(
+        "Uploaded PDF to S3 | patient_uuid=%s file=%s objectUrl=%s presignedContentUrl=%s",
+        str(patient_uuid),
+        report_filename,
+        object_url,
+        content_url,
+    )
+
+    # Validate the uploaded PDF is publicly retrievable for Sinch conversion.
+    try:
+        async with httpx.AsyncClient(timeout=12.0, follow_redirects=True) as client:
+            head_response = await client.head(content_url)
+            if head_response.status_code >= 400 or head_response.status_code == 405:
+                get_response = await client.get(content_url)
+                logger.info(
+                    "S3 PDF GET check | status=%s content_type=%s content_length=%s",
+                    get_response.status_code,
+                    get_response.headers.get("content-type"),
+                    get_response.headers.get("content-length"),
+                )
+            else:
+                logger.info(
+                    "S3 PDF HEAD check | status=%s content_type=%s content_length=%s",
+                    head_response.status_code,
+                    head_response.headers.get("content-type"),
+                    head_response.headers.get("content-length"),
+                )
+    except Exception as e:
+        logger.warning("S3 accessibility check failed for contentUrl=%s error=%s", content_url, str(e))
+
+    sinch_result = await _submit_sinch_fax(
+        to=payload.to,
+        content_url=content_url,
+        from_number_override=payload.from_number,
+        callback_url=str(payload.callbackUrl) if payload.callbackUrl else None,
+    )
+
+    return {
+        "status": "success",
+        "message": "Patient symptom report generated and fax request submitted to Sinch",
+        "data": {
+            "patient_uuid": str(patient_uuid),
+            "dashboard_url": dashboard_url,
+            "contentUrl": content_url,
+            "sinch": sinch_result,
+        },
+    }
 
 @router.post("/inbound-webhook")
 async def inbound_fax_webhook(request: Request, background_tasks: BackgroundTasks, db: Session = Depends(get_doctor_db_session)):
