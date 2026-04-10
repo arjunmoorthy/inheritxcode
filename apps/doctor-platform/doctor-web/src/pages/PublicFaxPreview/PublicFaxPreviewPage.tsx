@@ -28,6 +28,7 @@ const fallbackSymptomPalette = ['#22C55E', '#F59E0B', '#06B6D4', '#3B82F6', '#A8
 const severityValueMap: Record<string, number> = { relieved: 0, none: 0, normal: 0, mild: 1, moderate: 2, severe: 3, 'very severe': 4, urgent: 4 };
 
 const toSymptomKey = (name: string) => name.trim().toLowerCase();
+const toSymptomIdKey = (id: unknown) => String(id ?? '').trim().toLowerCase();
 const toTitleCase = (value: string) => value.replace(/\b\w/g, (char) => char.toUpperCase());
 const toIsoDate = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 const isIsoDate = (value: string | null) => !!value && /^\d{4}-\d{2}-\d{2}$/.test(value);
@@ -149,14 +150,18 @@ const PublicFaxPreviewPage: React.FC = () => {
     return date.toISOString().split('T')[0];
   }, []);
   const defaultEndDate = useMemo(() => new Date().toISOString().split('T')[0], []);
-  const startDate = useMemo(() => {
+  const initialStartDate = useMemo(() => {
     const fromQuery = searchParams.get('start_date');
     return isIsoDate(fromQuery) ? String(fromQuery) : defaultStartDate;
   }, [searchParams, defaultStartDate]);
-  const endDate = useMemo(() => {
+  const initialEndDate = useMemo(() => {
     const fromQuery = searchParams.get('end_date');
     return isIsoDate(fromQuery) ? String(fromQuery) : defaultEndDate;
   }, [searchParams, defaultEndDate]);
+  const [startDate] = useState(initialStartDate);
+  const [endDate] = useState(initialEndDate);
+  const [selectedSymptoms] = useState<string[]>(['all']);
+  const [severityRange] = useState<number[]>([2, 4]);
   const tokenFromQuery = useMemo(() => searchParams.get('token') || '', [searchParams]);
 
   useEffect(() => {
@@ -196,7 +201,7 @@ const PublicFaxPreviewPage: React.FC = () => {
     const dateToTemperature = new Map(timeline.temperature_series.map((item) => [item.date, item.value] as const));
     const severityBySymptomAndDate = new Map<string, string>();
     timeline.severity_series.forEach((series) => {
-      const symptomIdKey = series.symptom_id?.trim().toLowerCase();
+      const symptomIdKey = toSymptomIdKey(series.symptom_id);
       if (!symptomIdKey) return;
       series.points.forEach((point) => {
         if (!point?.date) return;
@@ -205,10 +210,12 @@ const PublicFaxPreviewPage: React.FC = () => {
         severityBySymptomAndDate.set(`${symptomIdKey}|${point.date}`, value);
       });
     });
+    const selectedSet = new Set(selectedSymptoms);
     return timeline.medications
+      .filter((item) => selectedSymptoms.includes('all') || selectedSet.has(toSymptomKey(item.symptom_name)))
       .map((item) => {
         const temperature = dateToTemperature.get(item.date);
-        const severityFromSeries = severityBySymptomAndDate.get(`${item.symptom_id?.trim().toLowerCase()}|${item.date}`);
+        const severityFromSeries = severityBySymptomAndDate.get(`${toSymptomIdKey(item.symptom_id)}|${item.date}`);
         const rawSeverity = (severityFromSeries || item.severity || '').trim();
         return {
           date: item.date,
@@ -219,15 +226,25 @@ const PublicFaxPreviewPage: React.FC = () => {
           temperature: typeof temperature === 'number' ? `${temperature.toFixed(1)}°F` : '—',
         };
       })
+      .filter((row) => {
+        const severityNumeric = severityValueMap[row.severity.toLowerCase()] ?? 0;
+        return severityNumeric >= severityRange[0] && severityNumeric <= severityRange[1];
+      })
       .sort((a, b) => b.date.localeCompare(a.date));
-  }, [timeline]);
+  }, [timeline, selectedSymptoms, severityRange]);
 
   const graphData = useMemo(() => {
     if (!timeline) return { dates: [], symptoms: [] };
     const sortedDates = buildFocusedTimelineDates(timeline);
     if (!sortedDates.length) return { dates: [], symptoms: [] };
+    const selectedSet = new Set(
+      selectedSymptoms.includes('all')
+        ? timeline.severity_series.map((series) => toSymptomKey(series.symptom_name))
+        : selectedSymptoms
+    );
 
     const filteredSymptoms = timeline.severity_series
+      .filter((series) => selectedSymptoms.includes('all') || selectedSet.has(toSymptomKey(series.symptom_name)))
       .map((series) => {
         const normalizedPoints = fillSymptomSeriesByDate(sortedDates, series.points);
         const points = normalizedPoints
@@ -237,6 +254,7 @@ const PublicFaxPreviewPage: React.FC = () => {
             severity_numeric: severityValueMap[point.value.toLowerCase()] ?? 0,
             dateIndex: sortedDates.indexOf(point.date),
           }))
+          .filter((point) => point.severity_numeric >= severityRange[0] && point.severity_numeric <= severityRange[1])
           .filter((point) => point.dateIndex >= 0);
         return { name: toTitleCase(series.symptom_name), color: getSymptomColor(series.symptom_name), dataPoints: points };
       })
@@ -258,7 +276,7 @@ const PublicFaxPreviewPage: React.FC = () => {
         ? [...filteredSymptoms, { name: 'Temperature', color: symptomColors.temperature, dataPoints: temperatureDataPoints }]
         : filteredSymptoms,
     };
-  }, [timeline]);
+  }, [timeline, selectedSymptoms, severityRange]);
 
   return (
     <div className={`fax-print-root min-h-screen p-3 md:p-4 ${isDark ? 'bg-[#1A1917] text-slate-100' : 'bg-[rgb(250,248,245)] text-slate-900'}`}>
@@ -283,7 +301,7 @@ const PublicFaxPreviewPage: React.FC = () => {
             break-inside: avoid;
             width: 100% !important;
             overflow: visible !important;
-          }chemo 
+          }
           .fax-print-chart > div,
           .fax-print-chart [data-export-chart="patient-symptom-graph"] {
             width: 100% !important;
@@ -322,56 +340,60 @@ const PublicFaxPreviewPage: React.FC = () => {
           </div>
         </div>
 
-        <div className="fax-print-chart">
-          <GraphSection
-            graphData={graphData}
-            isLoading={timelineLoading || timelineFetching}
-            isDark={isDark}
-            isSidebarOpen={false}
-            isChartFullscreen={isChartFullscreen}
-            onFullscreenOpen={() => setIsChartFullscreen(true)}
-            onFullscreenClose={() => setIsChartFullscreen(false)}
-            patientName={patientDetails?.patientName}
-            formatDateShort={formatDateShort}
-            lastChemoDate={timeline?.last_chemo_date ?? null}
-            isFaxMode
-          />
-        </div>
-
-        <div className={`${isDark ? 'bg-[#252320] border-slate-700/50' : 'bg-white border-slate-200'} rounded-lg border p-3`}>
-          <h3 className={`text-sm md:text-base font-semibold mb-2 ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>
-            Medications
-          </h3>
-          {timelineLoading || timelineFetching ? (
-            <div className={`text-sm py-4 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Loading medications...</div>
-          ) : tableData.length === 0 ? (
-            <div className={`text-sm py-4 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>No table data</div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[780px]">
-                <thead>
-                  <tr className={`border-b ${isDark ? 'border-slate-700' : 'border-slate-200'}`}>
-                    <th className={`text-left py-2 px-2 text-xs font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Date</th>
-                    <th className={`text-left py-2 px-2 text-xs font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Symptom</th>
-                    <th className={`text-left py-2 px-2 text-xs font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Severity</th>
-                    <th className={`text-left py-2 px-2 text-xs font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Medication Name and Frequency</th>
-                    <th className={`text-left py-2 px-2 text-xs font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Temperature</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {tableData.map((row, idx) => (
-                    <tr key={`${row.date}-${row.symptom}-${idx}`} className={`border-b ${isDark ? 'border-slate-800/50' : 'border-slate-100'}`}>
-                      <td className={`py-2 px-2 text-xs ${isDark ? 'text-slate-300' : 'text-slate-700'} whitespace-nowrap`}>{formatDate(row.date)}</td>
-                      <td className={`py-2 px-2 text-xs ${isDark ? 'text-slate-300' : 'text-slate-700'} whitespace-nowrap`}>{row.symptom}</td>
-                      <td className={`py-2 px-2 text-xs ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{row.severity}</td>
-                      <td className={`py-2 px-2 text-xs ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{row.medicationName}</td>
-                      <td className={`py-2 px-2 text-xs ${isDark ? 'text-slate-300' : 'text-slate-700'} whitespace-nowrap`}>{row.temperature}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+        <div className="flex items-start min-h-0 gap-3">
+          <div className="flex-1 min-w-0 space-y-3">
+            <div className="fax-print-chart">
+              <GraphSection
+                graphData={graphData}
+                isLoading={timelineLoading || timelineFetching}
+                isDark={isDark}
+                isSidebarOpen={false}
+                isChartFullscreen={isChartFullscreen}
+                onFullscreenOpen={() => setIsChartFullscreen(true)}
+                onFullscreenClose={() => setIsChartFullscreen(false)}
+                patientName={patientDetails?.patientName}
+                formatDateShort={formatDateShort}
+                lastChemoDate={timeline?.last_chemo_date ?? null}
+                isFaxMode
+              />
             </div>
-          )}
+
+            <div className={`${isDark ? 'bg-[#252320] border-slate-700/50' : 'bg-white border-slate-200'} rounded-lg border p-3`}>
+              <h3 className={`text-sm md:text-base font-semibold mb-2 ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>
+                Medications
+              </h3>
+              {timelineLoading || timelineFetching ? (
+                <div className={`text-sm py-4 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Loading medications...</div>
+              ) : tableData.length === 0 ? (
+                <div className={`text-sm py-4 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>No table data</div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[780px]">
+                    <thead>
+                      <tr className={`border-b ${isDark ? 'border-slate-700' : 'border-slate-200'}`}>
+                        <th className={`text-left py-2 px-2 text-xs font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Date</th>
+                        <th className={`text-left py-2 px-2 text-xs font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Symptom</th>
+                        <th className={`text-left py-2 px-2 text-xs font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Severity</th>
+                        <th className={`text-left py-2 px-2 text-xs font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Medication Name and Frequency</th>
+                        <th className={`text-left py-2 px-2 text-xs font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Temperature</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {tableData.map((row, idx) => (
+                        <tr key={`${row.date}-${row.symptom}-${idx}`} className={`border-b ${isDark ? 'border-slate-800/50' : 'border-slate-100'}`}>
+                          <td className={`py-2 px-2 text-xs ${isDark ? 'text-slate-300' : 'text-slate-700'} whitespace-nowrap`}>{formatDate(row.date)}</td>
+                          <td className={`py-2 px-2 text-xs ${isDark ? 'text-slate-300' : 'text-slate-700'} whitespace-nowrap`}>{row.symptom}</td>
+                          <td className={`py-2 px-2 text-xs ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{row.severity}</td>
+                          <td className={`py-2 px-2 text-xs ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{row.medicationName}</td>
+                          <td className={`py-2 px-2 text-xs ${isDark ? 'text-slate-300' : 'text-slate-700'} whitespace-nowrap`}>{row.temperature}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
 
         <div className={`${isDark ? 'bg-[#252320] border-slate-700/50' : 'bg-white border-slate-200'} rounded-lg border p-3`}>
