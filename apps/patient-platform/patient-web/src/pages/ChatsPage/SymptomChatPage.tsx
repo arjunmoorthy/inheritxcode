@@ -1,9 +1,47 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
+import Box from '@mui/material/Box';
+import LinearProgress from '@mui/material/LinearProgress';
+import Typography from '@mui/material/Typography';
 import { SymptomMessageBubble } from '../../components/chat/SymptomMessageBubble';
 import { useWebSocket } from '../../hooks/useWebSocket';
 import { chatService } from '../../services/chatService';
 import type { ChatSession, Message } from '../../types/chat';
 import '../../components/chat/SymptomChat.css';
+
+/** Read summary-generation flags from a WebSocket payload (root or structured_data). */
+function extractSummaryGenerationFlags(payload: unknown): {
+  inProgress?: boolean;
+  completed?: boolean;
+} {
+  if (!payload || typeof payload !== 'object') return {};
+  const o = payload as Record<string, unknown>;
+  const out: { inProgress?: boolean; completed?: boolean } = {};
+  if (typeof o.summary_generation_in_progress === 'boolean') {
+    out.inProgress = o.summary_generation_in_progress;
+  } else if (typeof o.summaryGenerationInProgress === 'boolean') {
+    out.inProgress = o.summaryGenerationInProgress;
+  }
+  if (typeof o.summary_generation_completed === 'boolean') {
+    out.completed = o.summary_generation_completed;
+  } else if (typeof o.summaryGenerationCompleted === 'boolean') {
+    out.completed = o.summaryGenerationCompleted;
+  }
+  const sd = o.structured_data;
+  if (sd && typeof sd === 'object' && !Array.isArray(sd)) {
+    const s = sd as Record<string, unknown>;
+    if (typeof s.summary_generation_in_progress === 'boolean') {
+      out.inProgress = s.summary_generation_in_progress;
+    } else if (typeof s.summaryGenerationInProgress === 'boolean') {
+      out.inProgress = s.summaryGenerationInProgress;
+    }
+    if (typeof s.summary_generation_completed === 'boolean') {
+      out.completed = s.summary_generation_completed;
+    } else if (typeof s.summaryGenerationCompleted === 'boolean') {
+      out.completed = s.summaryGenerationCompleted;
+    }
+  }
+  return out;
+}
 
 // Send icon SVG
 const SendIcon: React.FC = () => (
@@ -26,6 +64,8 @@ const SymptomChatPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isThinking, setIsThinking] = useState(false);
+  const [summaryGenInProgress, setSummaryGenInProgress] = useState(false);
+  const [summaryGenCompleted, setSummaryGenCompleted] = useState(false);
   const [textInput, setTextInput] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
@@ -34,6 +74,18 @@ const SymptomChatPage: React.FC = () => {
   // Handle incoming WebSocket messages
   const handleNewMessage = useCallback((wsMessage: any) => {
     console.log('Received WebSocket message:', wsMessage);
+
+    const genFlags = extractSummaryGenerationFlags(wsMessage);
+    if (genFlags.inProgress !== undefined) {
+      setSummaryGenInProgress(genFlags.inProgress);
+    }
+    if (genFlags.completed !== undefined) {
+      setSummaryGenCompleted(genFlags.completed);
+    }
+    // New generation run (e.g. summary refresh): clear stale completed so the bar can show again.
+    if (genFlags.inProgress === true) {
+      setSummaryGenCompleted(false);
+    }
 
     setMessages(prevMessages => {
       // Handle regular message
@@ -94,6 +146,8 @@ const SymptomChatPage: React.FC = () => {
       
       setChatSession(sessionData);
       setMessages(Array.isArray(sessionData.messages) ? sessionData.messages : []);
+      setSummaryGenInProgress(false);
+      setSummaryGenCompleted(false);
       setLoading(false);
     } catch (err) {
       setError('Failed to load chat session');
@@ -114,6 +168,8 @@ const SymptomChatPage: React.FC = () => {
       const sessionData = await chatService.startNewSession();
       setChatSession(sessionData);
       setMessages(Array.isArray(sessionData.messages) ? sessionData.messages : []);
+      setSummaryGenInProgress(false);
+      setSummaryGenCompleted(false);
     } catch (err) {
       setError('Failed to start a new chat session');
       console.error('Failed to start a new chat session:', err);
@@ -306,6 +362,10 @@ const SymptomChatPage: React.FC = () => {
     );
   }
 
+  /** True while the server reports summary generation in progress (initial or subsequent updates). */
+  const showSummaryProgressBar =
+    summaryGenInProgress === true && summaryGenCompleted === false;
+
   return (
     <div className="symptom-chat-container">
       {/* Header */}
@@ -408,6 +468,44 @@ const SymptomChatPage: React.FC = () => {
         </div>
       )}
 
+      {showSummaryProgressBar && (
+        <Box
+          sx={{
+            flexShrink: 0,
+            alignSelf: 'stretch',
+            mx: { xs: 2, sm: 3 },
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 0.75,
+            pb: 'env(safe-area-inset-bottom, 0px)',
+            pt: 1,
+            borderTop: '1px solid var(--border-light)',
+            backgroundColor: 'var(--ruby-bubble)',
+            '& .MuiLinearProgress-bar': {
+              backgroundColor: 'var(--ruby-primary)',
+            },
+          }}
+        >
+          <Typography
+            component="p"
+            variant="body2"
+            sx={{
+              m: 0,
+              lineHeight: 1.35,
+              color: 'var(--text-secondary)',
+              textAlign: 'center',
+              fontSize: '0.8125rem',
+              fontWeight: 500,
+            }}
+          >
+            Please wait—summary generation in progress.
+          </Typography>
+          <Box sx={{ lineHeight: 0, width: '100%' }}>
+            <LinearProgress aria-label="Summary generation in progress" />
+          </Box>
+        </Box>
+      )}
+
       {/* Floating Action Button for New Check-in */}
       <button 
         className={`new-chat-fab ${shouldShowTextInput() ? 'with-input' : ''}`}
@@ -422,8 +520,3 @@ const SymptomChatPage: React.FC = () => {
 };
 
 export default SymptomChatPage;
-
-
-
-
-
