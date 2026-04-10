@@ -261,8 +261,50 @@ const PublicFaxPreviewPage: React.FC = () => {
   }, [timeline]);
 
   return (
-    <div className={`min-h-screen p-3 md:p-4 ${isDark ? 'bg-[#1A1917] text-slate-100' : 'bg-[rgb(250,248,245)] text-slate-900'}`}>
-      <div className="max-w-[1400px] mx-auto space-y-3">
+    <div className={`fax-print-root min-h-screen p-3 md:p-4 ${isDark ? 'bg-[#1A1917] text-slate-100' : 'bg-[rgb(250,248,245)] text-slate-900'}`}>
+      <style>{`
+        @media print {
+          @page {
+            size: A4 portrait;
+            margin: 10mm;
+          }
+          .fax-print-root {
+            padding: 0 !important;
+            background: #ffffff !important;
+            color: #0f172a !important;
+          }
+          .fax-print-container {
+            max-width: none !important;
+            width: 100% !important;
+            margin: 0 !important;
+          }
+          .fax-print-chart {
+            page-break-inside: avoid;
+            break-inside: avoid;
+            width: 100% !important;
+            overflow: visible !important;
+          }chemo 
+          .fax-print-chart > div,
+          .fax-print-chart [data-export-chart="patient-symptom-graph"] {
+            width: 100% !important;
+            overflow: visible !important;
+          }
+          .fax-print-chart [data-export-chart="patient-symptom-graph"] > div {
+            height: 520px !important;
+            min-height: 520px !important;
+          }
+          .fax-print-chart .recharts-responsive-container {
+            width: 100% !important;
+            height: 520px !important;
+            min-height: 520px !important;
+          }
+          .fax-print-chart .recharts-wrapper,
+          .fax-print-chart .recharts-surface {
+            width: 100% !important;
+          }
+        }
+      `}</style>
+      <div className="fax-print-container max-w-[1400px] mx-auto space-y-3">
         <div className={`${isDark ? 'bg-[#252320] border-slate-700/50' : 'bg-white border-slate-200'} rounded-lg border p-3`}>
           <h1 className="text-base md:text-lg font-semibold">Fax Preview</h1>
           <p className={`text-xs md:text-sm mb-0 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
@@ -280,19 +322,21 @@ const PublicFaxPreviewPage: React.FC = () => {
           </div>
         </div>
 
-        <GraphSection
-          graphData={graphData}
-          isLoading={timelineLoading || timelineFetching}
-          isDark={isDark}
-          isSidebarOpen={false}
-          isChartFullscreen={isChartFullscreen}
-          onFullscreenOpen={() => setIsChartFullscreen(true)}
-          onFullscreenClose={() => setIsChartFullscreen(false)}
-          patientName={patientDetails?.patientName}
-          formatDateShort={formatDateShort}
-          lastChemoDate={timeline?.last_chemo_date ?? null}
-          isFaxMode
-        />
+        <div className="fax-print-chart">
+          <GraphSection
+            graphData={graphData}
+            isLoading={timelineLoading || timelineFetching}
+            isDark={isDark}
+            isSidebarOpen={false}
+            isChartFullscreen={isChartFullscreen}
+            onFullscreenOpen={() => setIsChartFullscreen(true)}
+            onFullscreenClose={() => setIsChartFullscreen(false)}
+            patientName={patientDetails?.patientName}
+            formatDateShort={formatDateShort}
+            lastChemoDate={timeline?.last_chemo_date ?? null}
+            isFaxMode
+          />
+        </div>
 
         <div className={`${isDark ? 'bg-[#252320] border-slate-700/50' : 'bg-white border-slate-200'} rounded-lg border p-3`}>
           <h3 className={`text-sm md:text-base font-semibold mb-2 ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>
