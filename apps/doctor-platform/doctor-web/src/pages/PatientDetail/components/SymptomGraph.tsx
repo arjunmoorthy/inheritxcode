@@ -284,13 +284,28 @@ const SymptomGraph: React.FC<SymptomGraphProps> = ({
           stroke={isFaxMode ? (effectiveDark ? '#cbd5e1' : '#334155') : series.color}
           strokeWidth={isPrintMode ? 3 : (isFaxMode ? 2.5 : 2)}
           strokeDasharray={isFaxMode ? FAX_DASH_PATTERNS[idx % FAX_DASH_PATTERNS.length] : (series.isTemperature ? '5 4' : undefined)}
-          dot={{
-            r: isPrintMode ? 5 : 4,
-            fill: isFaxMode ? (effectiveDark ? '#cbd5e1' : '#334155') : series.color,
-            stroke: isFaxMode ? (effectiveDark ? '#0f172a' : '#ffffff') : '#ffffff',
-            strokeWidth: 2,
+          dot={(dotProps: any) => {
+            const { cx, cy, value } = dotProps;
+            if (cx == null || cy == null || value == null) return null;
+
+            // Use slightly different radii per symptom series so overlapping
+            // same-day/same-severity reports remain visible.
+            const baseRadius = isPrintMode ? 5 : (isFaxMode ? 4.5 : 4.8);
+            const overlapRadiusOffset = series.isTemperature ? 0 : (idx % 3) * 1.1;
+            const radius = baseRadius + overlapRadiusOffset;
+
+            return (
+              <circle
+                cx={cx}
+                cy={cy}
+                r={radius}
+                fill={isFaxMode ? (effectiveDark ? '#cbd5e1' : '#334155') : series.color}
+                stroke={isFaxMode ? (effectiveDark ? '#0f172a' : '#ffffff') : '#ffffff'}
+                strokeWidth={isFaxMode ? 1.8 : 2}
+              />
+            );
           }}
-          activeDot={{ r: 7, strokeWidth: 2.5 }}
+          activeDot={{ r: 8, strokeWidth: 2.5 }}
           connectNulls
           isAnimationActive={false}
         />
