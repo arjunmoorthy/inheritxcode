@@ -748,7 +748,7 @@ const PatientDetailPage: React.FC = () => {
 
     const printWindow = window.open('', '_blank', 'width=1024,height=768');
     if (!printWindow) return;
-    const graphSvgElement = document.querySelector('svg[data-export-chart="patient-symptom-graph"]');
+    const graphSvgElement = document.querySelector('[data-export-chart="patient-symptom-graph"] svg');
     const graphSvgMarkup = graphSvgElement ? graphSvgElement.outerHTML : '';
     const graphSvgWithTempAxis = (() => {
       if (!graphSvgMarkup) return '';
@@ -887,6 +887,7 @@ const PatientDetailPage: React.FC = () => {
     setSelectedSymptoms(['all']);
     setSeverityRange([2, 4]);
     setPage(0);
+    setIsSidebarOpen(true);
   };
 
   // Process graph data

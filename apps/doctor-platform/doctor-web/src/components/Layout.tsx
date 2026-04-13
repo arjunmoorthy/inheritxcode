@@ -59,7 +59,7 @@ import StaffManagementModals from './StaffManagementModals';
 const navItems = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, path: '/dashboard' },
   { id: 'patients', label: 'Patients', icon: Users, path: '/patients' },
-  { id: 'reports', label: 'Weekly Reports', icon: FileText, path: '/reports' },
+  // { id: 'reports', label: 'Weekly Reports', icon: FileText, path: '/reports' },
 ];
 
 // Font stack used in header so it shows DM Sans on live (theme typography may be Roboto in prod)
