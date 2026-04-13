@@ -746,8 +746,6 @@ const PatientDetailPage: React.FC = () => {
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#039;');
 
-    const printWindow = window.open('', '_blank', 'width=1024,height=768');
-    if (!printWindow) return;
     const graphSvgElement = document.querySelector('[data-export-chart="patient-symptom-graph"] svg');
     const graphSvgMarkup = graphSvgElement ? graphSvgElement.outerHTML : '';
     const graphSvgWithTempAxis = (() => {
@@ -861,11 +859,26 @@ const PatientDetailPage: React.FC = () => {
       </html>
     `;
 
-    printWindow.document.open();
-    printWindow.document.write(html);
-    printWindow.document.close();
-    printWindow.focus();
-    printWindow.print();
+    try {
+      const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      const datePart = new Date().toISOString().slice(0, 10);
+      const patientNamePart = (patientDetails?.patientName || 'patient')
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/(^-|-$)/g, '');
+
+      link.href = url;
+      link.download = `patient-dashboard-report-${patientNamePart || 'patient'}-${datePart}.html`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      showToast('Report downloaded successfully', 'success');
+    } catch {
+      showToast('Failed to download report', 'error');
+    }
   };
 
   const handleSymptomToggle = (symptom: string) => {
