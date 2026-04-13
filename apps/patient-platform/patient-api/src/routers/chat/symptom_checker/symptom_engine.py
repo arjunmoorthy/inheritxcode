@@ -1546,7 +1546,7 @@ class SymptomCheckerEngine:
 
         summary_options = SUMMARY_REVIEW_OPTIONS if include_review_prompt else SUMMARY_ACTIONS
         next_prompt = (
-            "Would you like to add/update anything in the generated summary?"
+            "Would you like to add/update anything in the summary?"
             if include_review_prompt
             else "What would you like to do?"
         )
@@ -1572,7 +1572,7 @@ class SymptomCheckerEngine:
             return EngineResponse(
                 message="✏️ **Edit Generated Summary**\n\n"
                         "Please type what you want to add, remove, or correct in the generated summary.\n\n"
-                        "I will merge your edits with the generated summary and create a final version.",
+                        "I will merge your edits with the summary and create a final version.",
                 message_type='text_input',
                 options=[
                     {'label': '← Back to Summary', 'value': 'back_to_summary', 'style': 'secondary'}

@@ -7,6 +7,7 @@ from fastapi import BackgroundTasks
 from sqlalchemy import func
 
 from core.config import settings
+from db.models.clinic import Clinic
 from db.models.fax_models import Patient
 from db.models.staff import PhysicianPatient, Staff
 from db.models.user import User
@@ -75,6 +76,34 @@ def _coerce_oncologist_str(value) -> Optional[str]:
         return None
     s = value.strip()
     return s or None
+
+
+def _coerce_location_str(value) -> Optional[str]:
+    """Structured OCR location may be plain string or {'value': '...'}."""
+    if value is None:
+        return None
+    if isinstance(value, dict):
+        value = value.get("value")
+    if not isinstance(value, str):
+        return None
+    s = value.strip()
+    return s or None
+
+
+def _ensure_clinic_exists_by_name(db, clinic_name: Optional[str]) -> None:
+    """Create clinic if missing, using case-insensitive name match."""
+    if not clinic_name:
+        return
+
+    existing = (
+        db.query(Clinic)
+        .filter(func.lower(func.trim(Clinic.name)) == clinic_name.lower())
+        .first()
+    )
+    if existing:
+        return
+
+    db.add(Clinic(name=clinic_name))
 
 
 def _normalize_name_part(s: str) -> str:
@@ -296,7 +325,9 @@ def create_or_update_fax_patient(db, fax, structured, background_tasks: Backgrou
     start_date = parse_date(v("start_date"))
     end_date = parse_date(v("end_date"))
     oncologist_name = _coerce_oncologist_str(v("oncologist"))
+    location_name = _coerce_location_str(v("location"))
     oncologist_staff_id = _staff_id_for_oncologist_name(db, oncologist_name)
+    _ensure_clinic_exists_by_name(db, location_name)
 
     patient = None
     if email:
@@ -336,6 +367,7 @@ def create_or_update_fax_patient(db, fax, structured, background_tasks: Backgrou
             phone_number=phone,
             email=email,
             bmi=v("bmi"),
+            location=location_name,
             plan_name=v("plan_name"),
             start_date=start_date,
             end_date=end_date,
@@ -367,6 +399,7 @@ def create_or_update_fax_patient(db, fax, structured, background_tasks: Backgrou
         patient.age = int(v("age")) if v("age") else None
         patient.phone_number = phone
         patient.bmi = v("bmi")
+        patient.location = location_name
         patient.plan_name = v("plan_name")
         patient.start_date = start_date
         patient.end_date = end_date

@@ -3,6 +3,7 @@ import json
 import textwrap
 import uuid
 from typing import Any, Dict, List, Optional
+from urllib.parse import unquote, urlparse
 
 import httpx
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status, UploadFile
@@ -28,6 +29,46 @@ from utils.simple_pdf import build_patient_dashboard_pdf_from_url
 
 router = APIRouter()
 logger = get_logger(__name__)
+
+def _extract_s3_bucket_and_key(s3_url: str) -> tuple[str, str]:
+    """
+    Parse S3 URL and return (bucket, key).
+    Supports:
+    - Virtual-hosted style: https://<bucket>.s3.<region>.amazonaws.com/<key>
+    - Path style:           https://s3.<region>.amazonaws.com/<bucket>/<key>
+    """
+    parsed = urlparse(s3_url)
+    if not parsed.netloc:
+        raise ValueError(f"Invalid S3 URL (missing host): {s3_url}")
+
+    host = parsed.netloc.strip().lower()
+    raw_path = (parsed.path or "").lstrip("/")
+    # URLs can contain encoded chars (spaces etc.); boto3 expects decoded key.
+    decoded_path = unquote(raw_path)
+
+    if not decoded_path:
+        raise ValueError(f"Invalid S3 URL (missing object path): {s3_url}")
+
+    # Path-style host (bucket is first path segment): s3.<region>.amazonaws.com
+    if host.startswith("s3.") or host == "s3.amazonaws.com":
+        parts = decoded_path.split("/", 1)
+        if len(parts) != 2 or not parts[0] or not parts[1]:
+            raise ValueError(f"Invalid path-style S3 URL: {s3_url}")
+        return parts[0], parts[1]
+
+    # Virtual-hosted style (bucket is host prefix before .s3...)
+    marker = ".s3."
+    if marker in host:
+        bucket = host.split(marker, 1)[0]
+    elif host.endswith(".s3.amazonaws.com"):
+        bucket = host[: -len(".s3.amazonaws.com")]
+    else:
+        raise ValueError(f"Unsupported S3 host format: {s3_url}")
+
+    if not bucket:
+        raise ValueError(f"Invalid virtual-hosted S3 URL (missing bucket): {s3_url}")
+
+    return bucket, decoded_path
 
 
 # -----------------------------------------------------------------------------
@@ -656,38 +697,56 @@ async def inbound_fax_webhook(request: Request, background_tasks: BackgroundTask
 def run_fax_ocr_task(fax_record_id: int):
     from db.models.fax_models import FaxRecord
     from utils.textract import run_textract_from_s3
-    from urllib.parse import urlparse
     from db.session import DoctorSessionLocal
 
     db = DoctorSessionLocal()
     fax = None  # ✅ IMPORTANT
     background_tasks = BackgroundTasks()
 
-    print(f"Starting OCR task for fax_record_id={fax_record_id}")
+    logger.info("OCR task started | fax_record_id=%s", fax_record_id)
 
     try:
         fax = db.query(FaxRecord).get(fax_record_id)
         if not fax:
+            logger.warning("OCR task aborted: fax record not found | fax_record_id=%s", fax_record_id)
             return
 
-        # 🔹 Parse S3 URL stored in DB
+        # Parse stored S3 URL (supports path-style and virtual-hosted style)
         parsed = urlparse(fax.file_url)
+        bucket, key = _extract_s3_bucket_and_key(fax.file_url)
 
-        bucket = parsed.netloc.replace(".s3.us-east-1.amazonaws.com", "")
-        key = parsed.path.lstrip("/")
-
-        print("OCR BUCKET:", bucket)
-        print("OCR KEY:", key)
+        logger.info(
+            "OCR input parsed | fax_record_id=%s file_url=%s scheme=%s netloc=%s bucket=%s key=%s",
+            fax_record_id,
+            fax.file_url,
+            parsed.scheme,
+            parsed.netloc,
+            bucket,
+            key,
+        )
 
         fax.ocr_status = "processing"
         db.commit()
+        logger.info("OCR status updated to processing | fax_record_id=%s", fax_record_id)
 
         # 🔹 PASS HERE
+        logger.info("Calling Textract start_document_text_detection | fax_record_id=%s", fax_record_id)
         text = run_textract_from_s3(bucket, key)
+        logger.info(
+            "Textract completed successfully | fax_record_id=%s lines=%s avg_confidence=%s",
+            fax_record_id,
+            len(text.get("lines", []) or []),
+            text.get("avg_confidence"),
+        )
 
         structured_data = extract_structured_fields_dynamic(text["lines"])
         structured_data = flatten_structured_data(structured_data)
         fax.structured_ocr_data = structured_data
+        logger.info(
+            "Structured OCR extraction completed | fax_record_id=%s structured_keys=%s",
+            fax_record_id,
+            sorted(list(structured_data.keys())) if isinstance(structured_data, dict) else [],
+        )
 
 
         try:
@@ -696,25 +755,31 @@ def run_fax_ocr_task(fax_record_id: int):
             fax.structured_ocr_data = structured_data
             fax.ocr_status = "success"
             db.commit()
+            logger.info("OCR persisted successfully | fax_record_id=%s", fax_record_id)
 
             create_or_update_fax_patient(db, fax, structured_data, background_tasks)
-
-            print("Patient created/updated from OCR data successfully")
+            logger.info("Patient create/update completed from OCR | fax_record_id=%s", fax_record_id)
 
         except Exception as e:
             db.rollback()
             fax.ocr_status = "failed"
             db.commit()
-            print("Failed to create/update patient from OCR data:", str(e))
+            logger.exception(
+                "Failed while persisting OCR or creating/updating patient | fax_record_id=%s error=%s",
+                fax_record_id,
+                str(e),
+            )
             raise e
             
 
 
     except Exception as e:
-        print("OCR failed:", str(e))
+        logger.exception("OCR task failed | fax_record_id=%s error=%s", fax_record_id, str(e))
         if fax:
             fax.ocr_status = "failed"
             db.commit()
+            logger.info("OCR status updated to failed | fax_record_id=%s", fax_record_id)
 
     finally:
         db.close()
+        logger.info("OCR task finished | fax_record_id=%s", fax_record_id)
