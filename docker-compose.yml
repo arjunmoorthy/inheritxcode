@@ -94,7 +94,7 @@ services:
       - GEMINI_MODEL=gemini-2.5-flash
       - GEMINI_TIMEOUT_SECONDS=120
       # CORS
-      - CORS_ORIGINS=http://localhost:3000,http://localhost:5173,http://127.0.0.1:5173,http://127.0.0.1:3000,https://oncolife-patient.inheritxdev.in,https://oncolife-patient-api.inheritxdev.in
+      - CORS_ORIGINS=http://localhost:3000,http://localhost:5173,http://127.0.0.1:5173,http://127.0.0.1:3000,https://patient.healthai.global,https://api.patient.healthai.global
     ports:
       - "8000:8000"
     depends_on:
@@ -152,7 +152,7 @@ services:
       - COGNITO_CLIENT_ID=${COGNITO_CLIENT_ID:-}
       - COGNITO_CLIENT_SECRET=${COGNITO_CLIENT_SECRET:-}
       # CORS
-      - CORS_ORIGINS=http://localhost:3001,http://localhost:5174,http://127.0.0.1:5174,http://127.0.0.1:3001,https://oncolife-doctor.inheritxdev.in,https://oncolife-doctor-api.inheritxdev.in
+      - CORS_ORIGINS=http://localhost:3001,http://localhost:5174,http://127.0.0.1:5174,http://127.0.0.1:3001,https://doctor.healthai.global,https://api.doctor.healthai.global
       - JWT_SECRET_KEY=${JWT_SECRET_KEY:-supersecretkey}
       # Mail (MAIL_USERNAME, MAIL_PASSWORD, etc. loaded from env_file: doctor-api/.env above)
       - MAIL_FROM=${MAIL_FROM:-}
