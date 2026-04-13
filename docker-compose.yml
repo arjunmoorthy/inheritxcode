@@ -260,8 +260,9 @@ services:
     ports:
       - "80:80"
       - "443:443"
+    command: ["/bin/sh", "/etc/nginx/custom/start-nginx.sh"]
     volumes:
-      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./nginx:/etc/nginx/custom:ro
       - /etc/letsencrypt:/etc/letsencrypt:ro
       - /var/www/certbot:/var/www/certbot:ro
     depends_on:
@@ -294,6 +295,5 @@ networks:
 volumes:
   postgres_data:
     driver: local
-
 
 
