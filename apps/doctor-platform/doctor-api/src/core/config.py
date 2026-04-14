@@ -22,7 +22,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Optional, List
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic import Field, computed_field
+from pydantic import AliasChoices, Field, computed_field
 
 # Resolve .env from project root (doctor-api/), not from current working directory.
 # This way the app loads .env correctly whether run as "uvicorn main:app" from
@@ -276,8 +276,8 @@ class Settings(BaseSettings):
     )
 
     doctor_forget_password_base_url: str = Field(
-        # default="https://oncolife-ai-doctor-web-4got.vercel.app/reset-password?token={token}",
-        default="https://oncolife-doctor.inheritxdev.in/reset-password?token={token}",
+        ...,
+        validation_alias=AliasChoices("FORGET_PASSWORD_BASE_URL", "DOCTOR_FORGET_PASSWORD_BASE_URL"),
         description="Base URL for doctor reset-password page (link in forgot password email). Env: DOCTOR_FORGET_PASSWORD_BASE_URL",
     )
 
