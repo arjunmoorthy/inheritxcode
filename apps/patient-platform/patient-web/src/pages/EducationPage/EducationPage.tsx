@@ -597,6 +597,9 @@ interface Resource {
   priority: 'High' | 'Medium' | 'Low';
   isNew?: boolean;
   color: string;
+  symptomName?: string;
+  source?: string;
+  pdfUrl?: string;
 }
 
 interface Symptom {
@@ -679,7 +682,7 @@ const myDocuments = [
   },
 ];
 
-const categories = ['Current Symptoms', 'All Categories', 'Symptom Management', 'Mental Health', 'Nutrition', 'Exercise'];
+const categories = ['Current Symptoms', 'All Categories', 'Symptom Management', 'Handbook', 'Mental Health', 'Nutrition', 'Exercise'];
 
 // ============= Component =============
 
@@ -696,10 +699,10 @@ const EducationPage: React.FC = () => {
   const { data: educationData, isLoading } = useEducationPdfs();
   
   // Transform API data into UI format
-  const apiResources = useMemo(() => {
-    if (!educationData?.symptom_pdfs) return [];
-    
-    return educationData.symptom_pdfs.map((pdf, index) => ({
+  const apiResources = useMemo<Resource[]>(() => {
+    if (!educationData) return [];
+
+    const symptomResources: Resource[] = (educationData.symptom_pdfs || []).map((pdf, index) => ({
       id: pdf.id,
       title: pdf.title,
       description: pdf.summary || `Learn about managing ${pdf.symptom_name.toLowerCase()} during treatment.`,
@@ -712,6 +715,22 @@ const EducationPage: React.FC = () => {
       source: pdf.source,
       symptomName: pdf.symptom_name,
     }));
+
+    const handbookResources: Resource[] = (educationData.handbooks || []).map((handbook, index) => ({
+      id: handbook.id,
+      title: handbook.title,
+      description: handbook.description || 'Essential education handbook for treatment support.',
+      category: 'Handbook',
+      readTime: 12 + (index % 4), 
+      priority: 'High',
+      color: colors.purple,
+      isNew: false,
+      pdfUrl: handbook.pdf_url,
+      source: handbook.handbook_type ? `Handbook: ${handbook.handbook_type}` : 'Handbook',
+      // symptomName: 'Care Guide',
+    }));
+
+    return [...symptomResources, ...handbookResources];
   }, [educationData]);
   
   // Use API data if available, otherwise fall back to static resources

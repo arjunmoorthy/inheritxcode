@@ -37,7 +37,7 @@ const staffSchema = z.object({
     clinicDepartment: z.string().optional(),
     clinicAddress: z.string().optional(),
     clinicFax: z.string().optional(),
-    selectedClinicUuid: z.string().optional(),
+    selectedClinicUuid: z.string().min(1, 'Clinic is required'),
 });
 
 type StaffFormValues = z.infer<typeof staffSchema>;
@@ -96,7 +96,7 @@ const StaffManagementModals: React.FC = () => {
         { value: 'Nurse', label: 'Nurse' },
     ];
     const clinicOptions: SelectOption[] = (clinics || []).map((clinic) => ({
-        value: clinic.uuid || String(clinic.id),
+        value: clinic.id ?? '',
         label: clinic.name || `Clinic ${clinic.id}`,
     }));
 
@@ -157,7 +157,7 @@ const StaffManagementModals: React.FC = () => {
         const matchedClinic = (clinics || []).find(
             (clinic) => (clinic.name || '').trim().toLowerCase() === profileClinicName.trim().toLowerCase()
         );
-        setValueStaff('selectedClinicUuid', matchedClinic ? String(matchedClinic.uuid || matchedClinic.id) : '');
+        setValueStaff('selectedClinicUuid', matchedClinic ? String(matchedClinic.id) : '');
         setValueStaff('clinicName', profileClinicName);
         setValueStaff('clinicDepartment', currentStaffProfile?.clinic_department || profile?.clinic_department || '');
         setValueStaff('clinicAddress', currentStaffProfile?.clinic_address || profile?.clinic_address || '');
@@ -171,18 +171,18 @@ const StaffManagementModals: React.FC = () => {
         }
         try {
             const autofill = !!values.autofillClinicInfo;
-            const clinicName = currentStaffProfile?.clinic_name || profile?.clinic_name || '';
-            const clinicDepartment = currentStaffProfile?.clinic_department || profile?.clinic_department || '';
-            const clinicAddress = currentStaffProfile?.clinic_address || profile?.clinic_address || '';
             const clinicFax = currentStaffProfile?.clinic_fax || profile?.clinic_fax || '';
+            const clinicId = Number(values.selectedClinicUuid);
+            if (!Number.isFinite(clinicId) || clinicId < 1) {
+                setErrorStaff('selectedClinicUuid', { type: 'manual', message: 'Please select a valid clinic.' });
+                return;
+            }
             const payload = {
                 role: (values.role || 'doctor').toLowerCase().replace(/\s+/g, '_'),
                 full_name: values.fullName,
                 email: values.email,
                 phone: values.phone || '',
-                clinic_name: autofill ? clinicName : (values.clinicName || ''),
-                clinic_department: autofill ? clinicDepartment : (values.clinicDepartment || ''),
-                clinic_address: autofill ? clinicAddress : (values.clinicAddress || ''),
+                clinic_id: clinicId,
                 fax_number: autofill ? clinicFax : (values.clinicFax || ''),
                 doctor_ids: values.doctorIds ?? [],
             };
@@ -492,7 +492,7 @@ const StaffManagementModals: React.FC = () => {
                                         const matchedClinic = (clinics || []).find(
                                             (clinic) => (clinic.name || '').trim().toLowerCase() === profileClinicName.trim().toLowerCase()
                                         );
-                                        setValueStaff('selectedClinicUuid', matchedClinic ? String(matchedClinic.uuid || matchedClinic.id) : '');
+                                        setValueStaff('selectedClinicUuid', matchedClinic ? String(matchedClinic.id) : '');
                                         setValueStaff('clinicName', profileClinicName);
                                         setValueStaff('clinicDepartment', currentStaffProfile?.clinic_department || profile?.clinic_department || '');
                                         setValueStaff('clinicAddress', currentStaffProfile?.clinic_address || profile?.clinic_address || '');
@@ -534,7 +534,7 @@ const StaffManagementModals: React.FC = () => {
                                         const value = option?.value ? String(option.value) : '';
                                         field.onChange(value);
                                         const selectedClinic = (clinics || []).find(
-                                            (clinic) => String(clinic.uuid || clinic.id) === value
+                                            (clinic) => String(clinic.id) === value
                                         );
                                         if (!selectedClinic) {
                                             setValueStaff('clinicName', '');

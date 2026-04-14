@@ -55,9 +55,7 @@ export interface AddStaffV1Payload {
   full_name: string;
   email: string;
   phone: string;
-  clinic_name: string;
-  clinic_department: string;
-  clinic_address: string;
+  clinic_id: number;
   fax_number: string;
   doctor_ids: number[];
 }
