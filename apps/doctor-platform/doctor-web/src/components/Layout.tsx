@@ -37,7 +37,6 @@ import {
   Activity,
   Moon,
   Sun,
-  FileText,
   User,
   UserCog,
   UserPlus,
@@ -92,7 +91,7 @@ const Layout: React.FC = () => {
   const location = useLocation();
   const { profile } = useUser();
   const { logout } = useAuth();
-  const { isDark } = useThemeMode();
+  const { isDark, toggleTheme } = useThemeMode();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
   const [profileMenuAnchor, setProfileMenuAnchor] = useState<null | HTMLElement>(null);
@@ -100,7 +99,6 @@ const Layout: React.FC = () => {
   const [clinicMenuAnchor, setClinicMenuAnchor] = useState<null | HTMLElement>(null);
   const isStaffMenuOpen = Boolean(staffMenuAnchor);
   const isClinicMenuOpen = Boolean(clinicMenuAnchor);
-  const { toggleTheme } = useThemeMode();
   const { openAddStaffModal, openUpdateStaffModal, openClinicRegistrationModal } = useStaffManagement();
   // const [sidebarCollapsed, setSidebarCollapsed] = useState(false); // Commented out - sidebar removed
 
@@ -318,6 +316,7 @@ const Layout: React.FC = () => {
               <ListItem key={item.id} disablePadding>
                 <ListItemButton
                   onClick={() => handleNavigation(item.path)}
+                  aria-current={isActive ? 'page' : undefined}
                   sx={{
                     mx: 1,
                     borderRadius: 2,
@@ -356,6 +355,7 @@ const Layout: React.FC = () => {
           <ListItem disablePadding>
             <ListItemButton
               onClick={() => handleNavigation('/profile')}
+              aria-current={isProfileActive ? 'page' : undefined}
               sx={{
                 mx: 1,
                 borderRadius: 2,
@@ -388,6 +388,115 @@ const Layout: React.FC = () => {
               />
             </ListItemButton>
           </ListItem>
+          {profile?.role === 'admin' && (
+            <>
+              <Divider sx={{ mx: 2, my: 1.5, borderColor: headerDivider }} />
+              <ListItem disablePadding>
+                <ListItemButton
+                  onClick={() => {
+                    openAddStaffModal();
+                    setMobileDrawerOpen(false);
+                  }}
+                  sx={{
+                    mx: 1,
+                    borderRadius: 2,
+                    color: headerText,
+                    transition: 'all 0.2s ease',
+                    minHeight: 48,
+                    '&:hover': {
+                      bgcolor: headerHover,
+                    },
+                  }}
+                >
+                  <ListItemIcon sx={{ minWidth: 40, justifyContent: 'center', color: headerTextMuted }}>
+                    <UserPlus size={22} />
+                  </ListItemIcon>
+                  <ListItemText
+                    primary="Add New Staff"
+                    primaryTypographyProps={{ fontWeight: 500, color: 'inherit' }}
+                  />
+                </ListItemButton>
+              </ListItem>
+              <ListItem disablePadding>
+                <ListItemButton
+                  onClick={() => {
+                    openUpdateStaffModal();
+                    setMobileDrawerOpen(false);
+                  }}
+                  sx={{
+                    mx: 1,
+                    borderRadius: 2,
+                    color: headerText,
+                    transition: 'all 0.2s ease',
+                    minHeight: 48,
+                    '&:hover': {
+                      bgcolor: headerHover,
+                    },
+                  }}
+                >
+                  <ListItemIcon sx={{ minWidth: 40, justifyContent: 'center', color: headerTextMuted }}>
+                    <UserCog size={22} />
+                  </ListItemIcon>
+                  <ListItemText
+                    primary="Update Staff"
+                    primaryTypographyProps={{ fontWeight: 500, color: 'inherit' }}
+                  />
+                </ListItemButton>
+              </ListItem>
+              <ListItem disablePadding>
+                <ListItemButton
+                  onClick={() => {
+                    openClinicRegistrationModal('add');
+                    setMobileDrawerOpen(false);
+                  }}
+                  sx={{
+                    mx: 1,
+                    borderRadius: 2,
+                    color: headerText,
+                    transition: 'all 0.2s ease',
+                    minHeight: 48,
+                    '&:hover': {
+                      bgcolor: headerHover,
+                    },
+                  }}
+                >
+                  <ListItemIcon sx={{ minWidth: 40, justifyContent: 'center', color: headerTextMuted }}>
+                    <Building size={22} />
+                  </ListItemIcon>
+                  <ListItemText
+                    primary="Add New Clinic"
+                    primaryTypographyProps={{ fontWeight: 500, color: 'inherit' }}
+                  />
+                </ListItemButton>
+              </ListItem>
+              <ListItem disablePadding>
+                <ListItemButton
+                  onClick={() => {
+                    openClinicRegistrationModal('list');
+                    setMobileDrawerOpen(false);
+                  }}
+                  sx={{
+                    mx: 1,
+                    borderRadius: 2,
+                    color: headerText,
+                    transition: 'all 0.2s ease',
+                    minHeight: 48,
+                    '&:hover': {
+                      bgcolor: headerHover,
+                    },
+                  }}
+                >
+                  <ListItemIcon sx={{ minWidth: 40, justifyContent: 'center', color: headerTextMuted }}>
+                    <Settings size={22} />
+                  </ListItemIcon>
+                  <ListItemText
+                    primary="Update Clinics"
+                    primaryTypographyProps={{ fontWeight: 500, color: 'inherit' }}
+                  />
+                </ListItemButton>
+              </ListItem>
+            </>
+          )}
         </List>
       </Box>
 
@@ -456,14 +565,21 @@ const Layout: React.FC = () => {
         }}>
           {/* Left: Logo */}
           <Box
+            component="button"
+            type="button"
             sx={{
               display: 'flex',
               alignItems: 'center',
               gap: 1.5,
               cursor: 'pointer',
+              border: 0,
+              p: 0,
+              m: 0,
+              background: 'transparent',
               '&:hover': { opacity: 0.9 },
             }}
             onClick={() => handleNavigation('/dashboard')}
+            aria-label="Go to dashboard"
           >
             <Box
               className="doctor-header-logo"
@@ -550,6 +666,7 @@ const Layout: React.FC = () => {
                 <Tooltip title="Profile Menu">
                   <IconButton
                     onClick={handleProfileMenuOpen}
+                    aria-label="Open profile menu"
                     sx={{
                       p: 0.5,
                       '&:hover': {
@@ -814,6 +931,7 @@ const Layout: React.FC = () => {
             {isMobile && (
               <IconButton
                 onClick={() => setMobileDrawerOpen(true)}
+                aria-label="Open navigation menu"
                 sx={{ color: headerText }}
               >
                 <MenuIcon size={24} />
