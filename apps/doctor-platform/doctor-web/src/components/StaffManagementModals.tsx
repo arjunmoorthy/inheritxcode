@@ -310,6 +310,12 @@ const StaffManagementModals: React.FC = () => {
             setShowClinicFormModal(true);
             return;
         }
+        if (showClinicRegistrationModal && clinicRegistrationMode === 'list') {
+            setShowClinicFormModal(false);
+            setEditingClinic(null);
+            resetClinic();
+            return;
+        }
         if (!showClinicRegistrationModal) {
             setShowClinicFormModal(false);
             setEditingClinic(null);
@@ -644,7 +650,7 @@ const StaffManagementModals: React.FC = () => {
 
             {/* Clinic Registration Modal */}
             <Modal
-                isOpen={showClinicRegistrationModal}
+                isOpen={showClinicRegistrationModal && clinicRegistrationMode === 'list'}
                 onClose={handleCloseClinicModal}
                 title="Update Existing Clinic"
                 size="lg"
