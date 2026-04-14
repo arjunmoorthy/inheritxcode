@@ -211,15 +211,10 @@ export const useLogout = () => {
   });
 };
 
-const FORGOT_PASSWORD_ABSOLUTE_URL =
-  import.meta.env.VITE_FORGOT_PASSWORD_URL ||
-  'https://oncolife-patient-api.inheritxdev.in/api/v1/auth/forgot-password';
-
 const forgotPassword = async (data: ForgotPasswordData): Promise<ForgotPasswordResponse> => {
-  // Always send the exact payload shape required by API.
   const payload = { email: data.email };
   const response = await apiClient.post<ForgotPasswordResponse>(
-    FORGOT_PASSWORD_ABSOLUTE_URL,
+    API_CONFIG.ENDPOINTS.AUTH.FORGOT_PASSWORD,
     payload
   );
   return response.data;
@@ -231,17 +226,16 @@ export const useForgotPassword = () => {
   });
 };
 
-const RESET_PASSWORD_ABSOLUTE_URL =
-  import.meta.env.VITE_RESET_PASSWORD_URL ||
-  'https://oncolife-patient-api.inheritxdev.in/api/v1/auth/reset-password';
-
 const resetPassword = async (data: ResetPasswordData): Promise<ResetPasswordResponse> => {
   const payload = {
     token: data.token,
     new_password: data.new_password,
     confirm_password: data.confirm_password,
   };
-  const response = await apiClient.post<ResetPasswordResponse>(RESET_PASSWORD_ABSOLUTE_URL, payload);
+  const response = await apiClient.post<ResetPasswordResponse>(
+    API_CONFIG.ENDPOINTS.AUTH.RESET_PASSWORD,
+    payload
+  );
   return response.data;
 };
 
