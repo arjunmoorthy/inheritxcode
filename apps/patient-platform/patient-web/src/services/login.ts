@@ -26,13 +26,22 @@ interface ForgotPasswordData {
   email: string;
 }
 
-interface VerifyResetTokenData {
-  token: string;
+interface ForgotPasswordResponse {
+  success?: boolean;
+  status?: string;
+  message?: string;
 }
 
 interface ResetPasswordData {
   token: string;
   new_password: string;
+  confirm_password: string;
+}
+
+interface ResetPasswordResponse {
+  success?: boolean;
+  status?: string;
+  message?: string;
 }
 
 export interface CompleteNewPasswordResponse {
@@ -202,8 +211,12 @@ export const useLogout = () => {
   });
 };
 
-const forgotPassword = async (data: ForgotPasswordData) => {
-  const response = await apiClient.post(API_CONFIG.ENDPOINTS.AUTH.FORGOT_PASSWORD, data);
+const forgotPassword = async (data: ForgotPasswordData): Promise<ForgotPasswordResponse> => {
+  const payload = { email: data.email };
+  const response = await apiClient.post<ForgotPasswordResponse>(
+    API_CONFIG.ENDPOINTS.AUTH.FORGOT_PASSWORD,
+    payload
+  );
   return response.data;
 };
 
@@ -213,19 +226,16 @@ export const useForgotPassword = () => {
   });
 };
 
-const verifyResetToken = async (data: VerifyResetTokenData) => {
-  const response = await apiClient.post(API_CONFIG.ENDPOINTS.AUTH.VERIFY_RESET_TOKEN, data);
-  return response.data;
-};
-
-export const useVerifyResetToken = () => {
-  return useMutation({
-    mutationFn: verifyResetToken,
-  });
-};
-
-const resetPassword = async (data: ResetPasswordData) => {
-  const response = await apiClient.post(API_CONFIG.ENDPOINTS.AUTH.RESET_PASSWORD, data);
+const resetPassword = async (data: ResetPasswordData): Promise<ResetPasswordResponse> => {
+  const payload = {
+    token: data.token,
+    new_password: data.new_password,
+    confirm_password: data.confirm_password,
+  };
+  const response = await apiClient.post<ResetPasswordResponse>(
+    API_CONFIG.ENDPOINTS.AUTH.RESET_PASSWORD,
+    payload
+  );
   return response.data;
 };
 

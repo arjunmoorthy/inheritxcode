@@ -401,12 +401,12 @@ const LoginPage: React.FC = () => {
                     />
                   </div> */}
 
-                  <div className={`mt-6 text-center text-sm transition-colors duration-300 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                  {/* <div className={`mt-6 text-center text-sm transition-colors duration-300 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
                     Don't have an account?
                     <Link to="/signup" className="link-primary ml-2 font-bold text-secondary">
                       Register Now
                     </Link>
-                  </div>
+                  </div> */}
 
                   {/* Development Mode Card */}
 

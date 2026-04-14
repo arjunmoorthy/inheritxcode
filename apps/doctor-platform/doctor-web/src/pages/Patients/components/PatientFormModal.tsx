@@ -89,6 +89,13 @@ const defaultFormValues: PatientFormValues = {
 
 function patientToFormValues(patient: Patient): PatientFormValues {
   console.log('Patient:', patient);
+  const resolvedLocation =
+    patient.location ||
+    (patient as any).associateClinic ||
+    (patient as any).clinic_name ||
+    (patient as any).clinicName ||
+    'Honor Health Cancer Care - Deer Valley';
+
   return {
     firstName: patient.firstName,
     lastName: patient.lastName,
@@ -97,7 +104,7 @@ function patientToFormValues(patient: Patient): PatientFormValues {
     mrn: patient.mrn,
     dateOfBirth: patient.dateOfBirth,
     gender: patient.sex,
-    location: patient.location || 'Honor Health Cancer Care - Deer Valley',
+    location: resolvedLocation,
     diagnosis: patient.diagnosis || patient.cancer_type || patient.diseaseType || '',
     patientStatus: 'active',
     regimenName: patient.plan_name || patient.treatmentType || '',
@@ -433,11 +440,15 @@ export const PatientFormModal: React.FC<PatientFormModalProps> = ({
                 );
               }} />
               <Controller name="location" control={control} render={({ field }) => {
-                const selectedOption = locationOptions.find(opt => opt.value === field.value);
+                const selectedOption = locationOptions.find(opt => opt.value === field.value)
+                  || (field.value ? { value: field.value, label: field.value } : null);
+                const locationSelectOptions = selectedOption
+                  ? [...locationOptions, ...(locationOptions.some(opt => opt.value === selectedOption.value) ? [] : [selectedOption])]
+                  : locationOptions;
                 return (
                   <Select
                     label="Location"
-                    options={locationOptions}
+                    options={locationSelectOptions}
                     value={selectedOption || null}
                     onChange={(v: SingleValue<SelectOption> | MultiValue<SelectOption>) => {
                       const opt = Array.isArray(v) ? v[0] : v;

@@ -56,6 +56,21 @@ const TEMP_TICKS = [96, 98, 100, 102, 104];
 const FAX_DASH_PATTERNS = ['', '8 4', '2 2', '10 4 2 4', '5 5', '15 5', '8 3 2 3 2 3'];
 const CHART_MARGIN = { top: 14, right: 44, bottom: 50, left: 18 } as const;
 
+const normalizeToIsoDate = (value?: string | null) => {
+  if (!value) return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  const prefixMatch = trimmed.match(/(\d{4}-\d{2}-\d{2})/);
+  if (prefixMatch?.[1]) return prefixMatch[1];
+
+  const parsed = new Date(trimmed);
+  if (Number.isNaN(parsed.getTime())) return null;
+  const year = parsed.getFullYear();
+  const month = String(parsed.getMonth() + 1).padStart(2, '0');
+  const day = String(parsed.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 const SymptomGraph: React.FC<SymptomGraphProps> = ({
   graphData,
   isLoading,
@@ -104,7 +119,18 @@ const SymptomGraph: React.FC<SymptomGraphProps> = ({
     : (fullscreen ? Math.max(420, window.innerHeight - 220) : isMobileViewport ? 300 : 380);
   const printChartWidth = Math.max(980, viewportWidth - 40);
   const { dates, symptoms } = graphData;
-  const hasData = dates.length > 0 && symptoms.length > 0;
+  const normalizedChemoDate = useMemo(() => normalizeToIsoDate(lastChemoDate), [lastChemoDate]);
+  const chartDates = useMemo(() => {
+    if (!dates.length) return dates;
+    if (!normalizedChemoDate || dates.includes(normalizedChemoDate)) return dates;
+
+    const firstDate = dates[0];
+    const lastDate = dates[dates.length - 1];
+    if (normalizedChemoDate < firstDate || normalizedChemoDate > lastDate) return dates;
+
+    return [...dates, normalizedChemoDate].sort();
+  }, [dates, normalizedChemoDate]);
+  const hasData = chartDates.length > 0 && symptoms.length > 0;
 
   const seriesMeta = useMemo(() => (
     symptoms.map((symptom, idx) => ({
@@ -116,57 +142,26 @@ const SymptomGraph: React.FC<SymptomGraphProps> = ({
   ), [symptoms]);
 
   const chartData = useMemo<ChartRow[]>(() => {
-    return dates.map((date, idx) => {
+    return chartDates.map((date) => {
       const row: ChartRow = { date };
       symptoms.forEach((symptom, sIdx) => {
-        const point = symptom.dataPoints.find((dp) => dp.dateIndex === idx);
+        const point = symptom.dataPoints.find((dp) => dp.date === date);
         row[`series_${sIdx}`] = point?.severity_numeric;
       });
       return row;
     });
-  }, [dates, symptoms]);
+  }, [chartDates, symptoms]);
 
   const maxXAxisLabels = fullscreen ? 16 : isMobileViewport ? 5 : 8;
-  const labelStep = Math.max(1, Math.ceil(dates.length / maxXAxisLabels));
+  const labelStep = Math.max(1, Math.ceil(chartDates.length / maxXAxisLabels));
   const visibleTicks = useMemo(
-    () => dates.filter((_, idx) => idx === 0 || idx === dates.length - 1 || idx % labelStep === 0),
-    [dates, labelStep]
+    () => chartDates.filter((_, idx) => idx === 0 || idx === chartDates.length - 1 || idx % labelStep === 0),
+    [chartDates, labelStep]
   );
   const chemoMarkerDate = useMemo(() => {
-    if (!lastChemoDate || !dates.length) return null;
-    if (dates.includes(lastChemoDate)) return lastChemoDate;
-
-    const chemoTime = new Date(`${lastChemoDate}T00:00:00`).getTime();
-    if (Number.isNaN(chemoTime)) return null;
-
-    let nearestDate: string | null = null;
-    let nearestDistance = Number.POSITIVE_INFINITY;
-    dates.forEach((date) => {
-      const dateTime = new Date(`${date}T00:00:00`).getTime();
-      if (Number.isNaN(dateTime)) return;
-      const distance = Math.abs(dateTime - chemoTime);
-      if (distance < nearestDistance) {
-        nearestDistance = distance;
-        nearestDate = date;
-      }
-    });
-
-    return nearestDate;
-  }, [lastChemoDate, dates]);
-  const chemoMarkerRatio = useMemo(() => {
-    if (!chemoMarkerDate || !dates.length) return null;
-    const idx = dates.indexOf(chemoMarkerDate);
-    if (idx < 0) return null;
-    return dates.length <= 1 ? 0 : idx / (dates.length - 1);
-  }, [chemoMarkerDate, dates]);
-  const chemoOverlayBounds = useMemo(() => {
-    // Match the visual plot area more tightly so the chemo line
-    // does not extend into the x-axis label space.
-    return {
-      top: CHART_MARGIN.top + 2,
-      bottom: CHART_MARGIN.bottom + 30,
-    };
-  }, []);
+    if (!normalizedChemoDate || !chartDates.length) return null;
+    return chartDates.includes(normalizedChemoDate) ? normalizedChemoDate : null;
+  }, [normalizedChemoDate, chartDates]);
 
   if (isLoading) {
     return (
@@ -204,6 +199,24 @@ const SymptomGraph: React.FC<SymptomGraphProps> = ({
           ifOverflow="extendDomain"
         />
       ))}
+      {chemoMarkerDate && (
+        <ReferenceLine
+          x={chemoMarkerDate}
+          yAxisId="severity"
+          stroke={effectiveDark ? '#22d3ee' : '#0891b2'}
+          strokeDasharray="4 4"
+          strokeWidth={2}
+          ifOverflow="visible"
+          label={{
+            value: 'Chemo',
+            position: 'insideTop',
+            fill: effectiveDark ? '#67e8f9' : '#0e7490',
+            fontSize: 11,
+            fontWeight: 700,
+            offset: 0,
+          }}
+        />
+      )}
       <XAxis
         dataKey="date"
         ticks={visibleTicks}
@@ -271,13 +284,28 @@ const SymptomGraph: React.FC<SymptomGraphProps> = ({
           stroke={isFaxMode ? (effectiveDark ? '#cbd5e1' : '#334155') : series.color}
           strokeWidth={isPrintMode ? 3 : (isFaxMode ? 2.5 : 2)}
           strokeDasharray={isFaxMode ? FAX_DASH_PATTERNS[idx % FAX_DASH_PATTERNS.length] : (series.isTemperature ? '5 4' : undefined)}
-          dot={{
-            r: isPrintMode ? 5 : 4,
-            fill: isFaxMode ? (effectiveDark ? '#cbd5e1' : '#334155') : series.color,
-            stroke: isFaxMode ? (effectiveDark ? '#0f172a' : '#ffffff') : '#ffffff',
-            strokeWidth: 2,
+          dot={(dotProps: any) => {
+            const { cx, cy, value } = dotProps;
+            if (cx == null || cy == null || value == null) return null;
+
+            // Use slightly different radii per symptom series so overlapping
+            // same-day/same-severity reports remain visible.
+            const baseRadius = isPrintMode ? 5 : (isFaxMode ? 4.5 : 4.8);
+            const overlapRadiusOffset = series.isTemperature ? 0 : (idx % 3) * 1.1;
+            const radius = baseRadius + overlapRadiusOffset;
+
+            return (
+              <circle
+                cx={cx}
+                cy={cy}
+                r={radius}
+                fill={isFaxMode ? (effectiveDark ? '#cbd5e1' : '#334155') : series.color}
+                stroke={isFaxMode ? (effectiveDark ? '#0f172a' : '#ffffff') : '#ffffff'}
+                strokeWidth={isFaxMode ? 1.8 : 2}
+              />
+            );
           }}
-          activeDot={{ r: 7, strokeWidth: 2.5 }}
+          activeDot={{ r: 8, strokeWidth: 2.5 }}
           connectNulls
           isAnimationActive={false}
         />
@@ -296,40 +324,6 @@ const SymptomGraph: React.FC<SymptomGraphProps> = ({
           <ResponsiveContainer width="100%" height="100%">
             {chartContent}
           </ResponsiveContainer>
-        )}
-        {chemoMarkerDate && chemoMarkerRatio !== null && (
-          <div
-            className="pointer-events-none absolute"
-            style={{
-              left: CHART_MARGIN.left,
-              right: CHART_MARGIN.right,
-              top: chemoOverlayBounds.top,
-              bottom: chemoOverlayBounds.bottom,
-              zIndex: 5,
-            }}
-          >
-            <div
-              className="absolute"
-              style={{
-                left: `${chemoMarkerRatio * 100}%`,
-                top: 0,
-                bottom: 0,
-                borderLeft: `1.5px dashed ${effectiveDark ? '#22d3ee' : '#0891b2'}`,
-                transform: 'translateX(-50%)',
-              }}
-            />
-            <div
-              className="absolute text-[11px] font-semibold"
-              style={{
-                left: `${chemoMarkerRatio * 100}%`,
-                top: -12,
-                transform: 'translateX(-50%)',
-                color: effectiveDark ? '#67e8f9' : '#0e7490',
-              }}
-            >
-              Chemo
-            </div>
-          </div>
         )}
       </div>
     </div>

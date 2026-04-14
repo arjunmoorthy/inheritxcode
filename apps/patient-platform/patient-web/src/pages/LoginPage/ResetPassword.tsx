@@ -12,7 +12,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { AlertCircle, Activity, CheckCircle } from 'lucide-react';
-import { useVerifyResetToken, useResetPassword } from '../../services/login';
+import { useResetPassword } from '../../services/login';
 import { Input } from '../../components/ui';
 import { useThemeMode } from '@oncolife/ui-components';
 
@@ -33,11 +33,8 @@ const ResetPassword: React.FC = () => {
 
     const [error, setError] = useState<string | null>(null);
     const [isSuccess, setIsSuccess] = useState(false);
-    const [isVerifying, setIsVerifying] = useState(true);
-    const [tokenValid, setTokenValid] = useState(false);
     const { isDark } = useThemeMode();
 
-    const verifyTokenMutation = useVerifyResetToken();
     const resetPasswordMutation = useResetPassword();
     const navigate = useNavigate();
 
@@ -49,30 +46,10 @@ const ResetPassword: React.FC = () => {
         resolver: zodResolver(resetPasswordSchema),
     });
 
-    // Verify token on mount
     useEffect(() => {
-        const verifyToken = async () => {
-            if (!token) {
-                setError('Invalid or missing reset token');
-                setIsVerifying(false);
-                return;
-            }
-
-            try {
-                const result = await verifyTokenMutation.mutateAsync({ token });
-                if (result.success) {
-                    setTokenValid(true);
-                } else {
-                    setError('Invalid or expired reset token');
-                }
-            } catch (err: any) {
-                setError('Unable to verify reset token');
-            } finally {
-                setIsVerifying(false);
-            }
-        };
-
-        verifyToken();
+        if (!token) {
+            setError('Invalid or missing reset token');
+        }
     }, [token]);
 
     const onResetSubmit = async (values: ResetPasswordFormValues) => {
@@ -83,9 +60,14 @@ const ResetPassword: React.FC = () => {
             const result = await resetPasswordMutation.mutateAsync({
                 token,
                 new_password: values.password,
+                confirm_password: values.confirmPassword,
             });
 
-            if (result.success) {
+            const isSuccessResponse = Boolean(
+                result?.success ||
+                String(result?.status || '').toLowerCase() === 'success'
+            );
+            if (isSuccessResponse) {
                 setIsSuccess(true);
             } else {
                 setError(result.message || 'Failed to reset password');
@@ -150,15 +132,7 @@ const ResetPassword: React.FC = () => {
                                 </p>
                             </div>
 
-                            {/* Verifying State */}
-                            {isVerifying ? (
-                                <div className="flex flex-col items-center justify-center py-12 text-center">
-                                    <div className="w-12 h-12 border-4 border-primary/20 border-t-primary rounded-full animate-spin mb-4" />
-                                    <p className={`font-bold text-sm tracking-wide ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
-                                        Verifying Reset Token...
-                                    </p>
-                                </div>
-                            ) : !tokenValid ? (
+                            {!token ? (
                                 <div className="text-center py-8 animate-fade-in">
                                     <div className={`inline-flex items-center justify-center w-20 h-20 rounded-full mb-6 ${isDark ? 'bg-red-900/20 text-red-400' : 'bg-red-50 text-red-600'}`}>
                                         <AlertCircle size={48} />

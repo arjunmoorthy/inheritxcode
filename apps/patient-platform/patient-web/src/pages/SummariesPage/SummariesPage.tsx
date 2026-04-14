@@ -397,7 +397,7 @@ const SummariesPage: React.FC = () => {
                         <NotesQuote $isDark={isDark}>"{notes}"</NotesQuote>
                       )}
                       
-                      <MetadataRow $isDark={isDark}>
+                      {/* <MetadataRow $isDark={isDark}>
                         {duration && (
                           <>
                             <span>Duration: {duration}</span>
@@ -405,7 +405,7 @@ const SummariesPage: React.FC = () => {
                           </>
                         )}
                         <span>Tried: {meds || 'None tried'}</span>
-                      </MetadataRow>
+                      </MetadataRow> */}
                       
                       {symptoms.length > 0 && (
                         <SymptomTags>

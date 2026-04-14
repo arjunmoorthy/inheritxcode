@@ -92,12 +92,17 @@ const FiltersSidebar: React.FC<FiltersSidebarProps> = ({
                 Filters
               </h3>
             </div>
-            <Tooltip title="Clear all filters">
+            <Tooltip title="Close filters">
               <IconButton
                 size="small"
-                onClick={onResetFilters}
+                type="button"
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  onClose();
+                }}
                 className={isDark ? 'text-slate-400 hover:text-slate-200' : 'text-slate-500 hover:text-slate-700'}
-                aria-label="Clear all filters"
+                aria-label="Close filters"
               >
                 <X size={16} />
               </IconButton>

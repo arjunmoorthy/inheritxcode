@@ -248,7 +248,7 @@
 
 /* Custom scrollbar */
 .symptom-messages-container::-webkit-scrollbar {
-  width: 6px;
+  width: 10px;
 }
 
 .symptom-messages-container::-webkit-scrollbar-track {
@@ -753,7 +753,8 @@
 }
 
 .text-input::placeholder {
-  color: var(--text-muted);
+  color: #000000;
+  font-size: 18px;
 }
 
 .send-btn {

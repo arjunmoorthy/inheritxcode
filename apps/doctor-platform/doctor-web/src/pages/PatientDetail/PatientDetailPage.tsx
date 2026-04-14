@@ -746,9 +746,7 @@ const PatientDetailPage: React.FC = () => {
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#039;');
 
-    const printWindow = window.open('', '_blank', 'width=1024,height=768');
-    if (!printWindow) return;
-    const graphSvgElement = document.querySelector('svg[data-export-chart="patient-symptom-graph"]');
+    const graphSvgElement = document.querySelector('[data-export-chart="patient-symptom-graph"] svg');
     const graphSvgMarkup = graphSvgElement ? graphSvgElement.outerHTML : '';
     const graphSvgWithTempAxis = (() => {
       if (!graphSvgMarkup) return '';
@@ -785,9 +783,22 @@ const PatientDetailPage: React.FC = () => {
       )
       .join('');
 
+    const downloadedAt = new Date();
     const selectedSymptomsLabel = selectedSymptoms.includes('all')
       ? 'All Symptoms'
-      : selectedSymptoms.join(', ');
+      : selectedSymptoms
+        .map((symptomId) => symptomOptions.find((option) => option.id === symptomId)?.label || toTitleCase(symptomId))
+        .join(', ');
+    const graphLegendHtml = graphData.symptoms.length
+      ? graphData.symptoms
+        .map((symptom) => `
+          <span style="display:inline-flex;align-items:center;margin:2px 10px 2px 0;font-size:12px;color:#334155;">
+            <span style="display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;background:${escapeHtml(symptom.color)};border:1px solid rgba(15,23,42,0.15);"></span>
+            ${escapeHtml(symptom.name)}
+          </span>
+        `)
+        .join('')
+      : '<span style="font-size:12px;color:#64748b;">No symptom labels available</span>';
 
     const html = `
       <!doctype html>
@@ -810,7 +821,8 @@ const PatientDetailPage: React.FC = () => {
         </head>
         <body>
           <h1>Patient Dashboard Report</h1>
-          <p class="meta">Generated: ${escapeHtml(new Date().toLocaleString())}</p>
+          <p class="meta">Generated: ${escapeHtml(downloadedAt.toLocaleString())}</p>
+          <p class="meta">Downloaded Time: ${escapeHtml(downloadedAt.toLocaleTimeString())}</p>
 
           <h2>Patient Details</h2>
           <div class="grid">
@@ -836,6 +848,7 @@ const PatientDetailPage: React.FC = () => {
           <strong>Medication Entries:</strong> ${escapeHtml(timelineData?.medications?.length ?? 0)}</p>
           
           <h2>Symptom & Temperature Graph</h2>
+          <p class="small"><strong>Symptoms in Graph:</strong> ${graphLegendHtml}</p>
           ${graphSvgWithTempAxis
         ? `<div style="border:1px solid #cbd5e1; border-radius:8px; padding:10px; background:#f8fafc;">${graphSvgWithTempAxis}</div>`
         : '<p class="small">Graph preview unavailable at export time.</p>'
@@ -861,11 +874,26 @@ const PatientDetailPage: React.FC = () => {
       </html>
     `;
 
-    printWindow.document.open();
-    printWindow.document.write(html);
-    printWindow.document.close();
-    printWindow.focus();
-    printWindow.print();
+    try {
+      const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      const datePart = new Date().toISOString().slice(0, 10);
+      const patientNamePart = (patientDetails?.patientName || 'patient')
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/(^-|-$)/g, '');
+
+      link.href = url;
+      link.download = `patient-dashboard-report-${patientNamePart || 'patient'}-${datePart}.html`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      showToast('Report downloaded successfully', 'success');
+    } catch {
+      showToast('Failed to download report', 'error');
+    }
   };
 
   const handleSymptomToggle = (symptom: string) => {
@@ -887,6 +915,7 @@ const PatientDetailPage: React.FC = () => {
     setSelectedSymptoms(['all']);
     setSeverityRange([2, 4]);
     setPage(0);
+    setIsSidebarOpen(true);
   };
 
   // Process graph data

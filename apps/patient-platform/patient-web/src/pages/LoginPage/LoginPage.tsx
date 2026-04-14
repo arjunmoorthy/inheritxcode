@@ -126,7 +126,11 @@ const LoginPage: React.FC = () => {
     setError(null);
     try {
       const result = await forgotPasswordMutation.mutateAsync({ email: values.email });
-      if (result.success) {
+      const isSuccess = Boolean(
+        result?.success ||
+        String(result?.status || '').toLowerCase() === 'success'
+      );
+      if (isSuccess) {
         setForgotSuccess(true);
       } else {
         setError(result.message || 'Unable to process request. Please try again.');
