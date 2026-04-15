@@ -49,6 +49,7 @@ export interface PatientListingApiItem {
   end_date: string | null;
   created_at: string;
   last_chatbot_date?: string | null;
+  latest_severity_level?: string | null;
   /** Diagnosis/cancer type from API when available */
   diagnosis?: string | null;
   cancer_type?: string | null;
@@ -301,7 +302,13 @@ const transformListingToSummary = (item: PatientListingApiItem): PatientSummary 
   lastUpdated: item.last_chatbot_date || '',
   status: 'active',
   priority: 'medium',
-  maxSeverity: null,
+  maxSeverity:
+    item.latest_severity_level === 'mild' ||
+    item.latest_severity_level === 'moderate' ||
+    item.latest_severity_level === 'severe' ||
+    item.latest_severity_level === 'urgent'
+      ? item.latest_severity_level
+      : null,
   hasEscalation: false,
   severityBadge: '',
   email: item.email || undefined,

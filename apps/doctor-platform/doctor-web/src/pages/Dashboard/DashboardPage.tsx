@@ -227,7 +227,7 @@ const DashboardPage: React.FC = () => {
   };
 
 
-  const getSeverity = (patient: PatientSummary): 'mild' | 'moderate' | 'severe' | 'urgent' => {
+  const getSeverity = (patient: PatientSummary): 'mild' | 'moderate' | 'severe' | 'urgent' | null => {
     // Use severity from API if available
     if (patient.maxSeverity) {
       return patient.maxSeverity;
@@ -243,7 +243,7 @@ const DashboardPage: React.FC = () => {
     if (summary.toLowerCase().includes('moderate')) {
       return 'moderate';
     }
-    return 'mild';
+    return null;
   };
 
   /*
@@ -861,7 +861,7 @@ const mapSeverityToPriority = (severity: string | null | undefined): 'low' | 'me
                 const nextChemo = getNextChemo(patient);
                 const dob = patient.dateOfBirth || (patient as any).date_of_birth || '';
                 const patientRouteId = getPatientRouteId(patient);
-                const severity = getSeverity(patient);
+                const severity = getSeverity(patient) as 'mild' | 'moderate' | 'severe' | 'urgent' | null;
 
                 return (
                   <div
@@ -899,16 +899,19 @@ const mapSeverityToPriority = (severity: string | null | undefined): 'low' | 'me
                             </div>
                           </div>
                           {/* Severity Badge - top-right on mobile */}
-                          <span className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider flex-shrink-0 ${severity === 'urgent'
+                          <span className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs font-bold tracking-wider flex-shrink-0 ${severity === 'urgent'
                             ? isDark ? 'bg-red-500/20 text-red-400' : 'bg-red-500 text-white'
                             : severity === 'severe'
                               ? isDark ? 'bg-orange-500/20 text-orange-400' : 'bg-orange-500 text-white'
                               : severity === 'moderate'
                                 ? isDark ? 'bg-yellow-500/20 text-yellow-400' : 'bg-yellow-500 text-white'
-                                : isDark ? 'bg-emerald-500/20 text-emerald-400' : 'bg-emerald-500 text-white'
+                                : severity === 'mild'
+                                  ? isDark ? 'bg-emerald-500/20 text-emerald-400' : 'bg-emerald-500 text-white'
+                                  : isDark ? 'bg-slate-500/20 text-slate-300' : 'bg-slate-200 text-slate-700'
                             }`}>
-                            {severity}
+                            {severity ? `${severity.charAt(0).toUpperCase()}${severity.slice(1)}` : 'N/A'}
                           </span>
+
                         </div>
 
                         {/* Diagnosis, Last Chatbot, Last Chemo - stacked on mobile, row on desktop */}
