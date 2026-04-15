@@ -264,14 +264,12 @@ class Settings(BaseSettings):
     # Patient Portal (welcome email / set-password link)
     # ==========================================================================
     patient_set_password_base_url: str = Field(
-        # default="https://oncolife-ai-patient-web.vercel.app/set-password?email={email}",
-        default="https://oncolife-patient.inheritxdev.in/set-password?email={email}",
+        ...,
         description="Base URL for patient set-password page (login link in welcome email). Env: PATIENT_SET_PASSWORD_BASE_URL",
     )
 
     doctor_set_password_base_url: str = Field(
-        # default="https://oncolife-ai-doctor-web-4got.vercel.app/set-password?email={email}",
-        default="https://oncolife-doctor.inheritxdev.in/set-password?email={email}",
+        ...,
         description="Base URL for doctor set-password page (login link in welcome email). Env: DOCTOR_SET_PASSWORD_BASE_URL",
     )
 
