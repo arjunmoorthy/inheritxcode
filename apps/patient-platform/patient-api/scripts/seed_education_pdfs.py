@@ -23,7 +23,7 @@ from datetime import datetime
 # Database connection - uses environment variable or defaults to local
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
-    "postgresql://oncolife_user:oncolife_password@localhost:5432/oncolife_patient"
+    "postgresql://postgres:bulbulkj@localhost:5432/oncolife_patient_dev"
 )
 
 # =============================================================================
@@ -68,15 +68,6 @@ SYMPTOM_PDFS = [
         "summary": "Clinical guide on managing chemotherapy-induced nausea and vomiting with medication protocols and supportive care strategies.",
         "keywords": ["management", "protocol", "supportive care", "evidence-based"],
     },
-    {
-        "symptom_code": "NAU-203",
-        "symptom_name": "Nausea",
-        "title": "Nausea Management Guide - AI Summary",
-        "source": "Perplexity AI",
-        "file_path": "symptoms/nausea/Nausea-_Perplexity_AI.pdf",
-        "summary": "Comprehensive overview of nausea management strategies compiled from medical sources.",
-        "keywords": ["guide", "management", "overview", "tips"],
-    },
     
     # ===== VOMITING =====
     {
@@ -96,15 +87,6 @@ SYMPTOM_PDFS = [
         "file_path": "symptoms/vomiting/Nausea,_Vomiting_&_Chemotherapy.pdf",
         "summary": "Information on chemotherapy-related vomiting, medication options, and practical management tips.",
         "keywords": ["chemotherapy", "antiemetics", "management"],
-    },
-    {
-        "symptom_code": "VOM-204",
-        "symptom_name": "Vomiting",
-        "title": "Nausea and Vomiting Treatment - NCI PDQ",
-        "source": "NCI",
-        "file_path": "symptoms/vomiting/Nausea_and_Vomiting_Related_to_Cancer_Treatment_PDQr_-_NCI.pdf",
-        "summary": "NCI's comprehensive PDQ information on cancer treatment-related nausea and vomiting management.",
-        "keywords": ["PDQ", "treatment", "evidence-based", "clinical"],
     },
     {
         "symptom_code": "VOM-204",
@@ -207,15 +189,6 @@ SYMPTOM_PDFS = [
     {
         "symptom_code": "MSO-208",
         "symptom_name": "Mouth Sores",
-        "title": "Mouth Sores - Chat GPT Summary",
-        "source": "ChatGPT",
-        "file_path": "symptoms/mouth_sores/Mouth_Sores-_Chat_GPT.pdf",
-        "summary": "Overview of mouth sore management during cancer treatment.",
-        "keywords": ["mucositis", "oral care", "pain relief"],
-    },
-    {
-        "symptom_code": "MSO-208",
-        "symptom_name": "Mouth Sores",
         "title": "Mouth Sores due to Chemotherapy - Chemocare",
         "source": "Chemocare",
         "file_path": "symptoms/mouth_sores/Mouth_Sores_due_to_Chemotherapy.pdf",
@@ -231,26 +204,8 @@ SYMPTOM_PDFS = [
         "summary": "NCI guide on oral and throat complications from cancer treatment.",
         "keywords": ["NCI", "mucositis", "xerostomia", "dysphagia"],
     },
-    {
-        "symptom_code": "MSO-208",
-        "symptom_name": "Mouth Sores",
-        "title": "Mouth Sores - Perplexity AI Summary",
-        "source": "Perplexity AI",
-        "file_path": "symptoms/mouth_sores/Mouth_Sores-_Perplexity_AI.pdf",
-        "summary": "Comprehensive guide on managing mouth sores during chemotherapy.",
-        "keywords": ["management", "prevention", "relief"],
-    },
     
     # ===== FEVER =====
-    {
-        "symptom_code": "FEV-202",
-        "symptom_name": "Fever",
-        "title": "Fever - Chat GPT Summary",
-        "source": "ChatGPT",
-        "file_path": "symptoms/fever/Fever-_Chat_GPT.pdf",
-        "summary": "Overview of fever management during cancer treatment.",
-        "keywords": ["fever", "temperature", "infection"],
-    },
     {
         "symptom_code": "FEV-202",
         "symptom_name": "Fever",
@@ -259,15 +214,6 @@ SYMPTOM_PDFS = [
         "file_path": "symptoms/fever/Fever,_Neutropenic_Fever,_and_their_Relationship_to_Chemotherapy.pdf",
         "summary": "Critical information on neutropenic fever, a medical emergency in chemotherapy patients.",
         "keywords": ["neutropenia", "neutropenic fever", "infection", "emergency"],
-    },
-    {
-        "symptom_code": "FEV-202",
-        "symptom_name": "Fever",
-        "title": "Fever - Perplexity AI Summary",
-        "source": "Perplexity AI",
-        "file_path": "symptoms/fever/Fever-_Perplexity_AI.pdf",
-        "summary": "Guide on when fever requires immediate medical attention in cancer patients.",
-        "keywords": ["fever", "100.4", "emergency", "infection"],
     },
     
     # ===== FATIGUE =====
@@ -307,38 +253,7 @@ SYMPTOM_PDFS = [
         "summary": "Patient education on managing fatigue during and after cancer treatment.",
         "keywords": ["energy conservation", "activity", "sleep"],
     },
-    {
-        "symptom_code": "FAT-206",
-        "symptom_name": "Fatigue",
-        "title": "Fatigue - Perplexity AI Summary",
-        "source": "Perplexity AI",
-        "file_path": "symptoms/fatigue/Fatigue-_Perplexity_AI.pdf",
-        "summary": "Comprehensive overview of cancer fatigue management strategies.",
-        "keywords": ["management", "tips", "energy"],
-    },
-    
-    # ===== COUGH =====
-    {
-        "symptom_code": "COU-215",
-        "symptom_name": "Cough",
-        "title": "Cough Management - Perplexity AI Summary",
-        "source": "Perplexity AI",
-        "file_path": "symptoms/cough/Cough_Perplexity.pdf",
-        "summary": "Guide on managing cough during cancer treatment, when to seek help, and relief strategies.",
-        "keywords": ["cough", "respiratory", "mucus", "relief"],
-    },
-    
-    # ===== HEADACHE =====
-    {
-        "symptom_code": "HEA-210",
-        "symptom_name": "Headache",
-        "title": "Headache Management",
-        "source": "General",
-        "file_path": "symptoms/headache/Headache.pdf",
-        "summary": "Information on headaches during cancer treatment including causes and when to seek emergency care.",
-        "keywords": ["headache", "pain", "neurological", "emergency"],
-    },
-    
+        
     # ===== NEUROPATHY =====
     {
         "symptom_code": "NEU-216",
@@ -387,21 +302,12 @@ SYMPTOM_PDFS = [
         "summary": "NCI fact sheet on cancer treatment-related pain and management approaches.",
         "keywords": ["NCI", "pain management", "opioids", "non-opioids"],
     },
-    {
-        "symptom_code": "PAI-213",
-        "symptom_name": "Pain",
-        "title": "Pain - Perplexity AI Summary",
-        "source": "Perplexity AI",
-        "file_path": "symptoms/pain/Pain-_Perplexity_AI.pdf",
-        "summary": "Comprehensive overview of cancer pain management strategies.",
-        "keywords": ["pain", "management", "relief", "medications"],
-    },
     
     # ===== SKIN RASH =====
     {
         "symptom_code": "SKI-212",
         "symptom_name": "Skin Rash",
-        "title": "Skin Reactions - ACS",
+        "title": "Skin Reactions, Hand and Foot Syndrome",
         "source": "ACS",
         "file_path": "symptoms/skin_rash/ACS.pdf",
         "summary": "Guide on skin changes and reactions during cancer treatment.",
@@ -424,24 +330,6 @@ SYMPTOM_PDFS = [
         "file_path": "symptoms/skin_rash/Skin_and_Nail_Changes_and_Cancer_Treatment_-_Side_Effects_-_NCI.pdf",
         "summary": "NCI guide on skin and nail changes from cancer treatment.",
         "keywords": ["NCI", "skin", "nails", "side effects"],
-    },
-    {
-        "symptom_code": "SKI-212",
-        "symptom_name": "Skin Rash",
-        "title": "Skin Reactions from Radiation - OncoLink",
-        "source": "OncoLink",
-        "file_path": "symptoms/skin_rash/skin_reactions_from_radiation-2067-19-eng-us.pdf",
-        "summary": "Information on radiation-related skin reactions and care.",
-        "keywords": ["radiation", "skin", "dermatitis", "care"],
-    },
-    {
-        "symptom_code": "SKI-212",
-        "symptom_name": "Skin Rash",
-        "title": "Skin Reactions - Perplexity AI Summary",
-        "source": "Perplexity AI",
-        "file_path": "symptoms/skin_rash/Skin_Reactions-_Perplexity_AI.pdf",
-        "summary": "Overview of skin reaction management during cancer treatment.",
-        "keywords": ["skin", "management", "care", "relief"],
     },
     
     # ===== SWELLING =====
@@ -477,41 +365,14 @@ SYMPTOM_PDFS = [
     {
         "symptom_code": "EYE-207",
         "symptom_name": "Eye Problems",
-        "title": "Eye Problems - Chat GPT Summary",
-        "source": "ChatGPT",
-        "file_path": "symptoms/eye_problems/Eye_Problems-_Chat_GPT.pdf",
-        "summary": "Overview of eye problems during cancer treatment.",
-        "keywords": ["eyes", "vision", "dryness", "tearing"],
-    },
-    {
-        "symptom_code": "EYE-207",
-        "symptom_name": "Eye Problems",
         "title": "Eye Problems - Chemocare",
         "source": "Chemocare",
         "file_path": "symptoms/eye_problems/Eye_Problems.pdf",
         "summary": "Information on chemotherapy-related eye problems and care.",
         "keywords": ["eyes", "chemotherapy", "vision changes"],
     },
-    {
-        "symptom_code": "EYE-207",
-        "symptom_name": "Eye Problems",
-        "title": "Eye Problems - Perplexity AI Summary",
-        "source": "Perplexity AI",
-        "file_path": "symptoms/eye_problems/Eye_Problems-_Perplexity_AI.pdf",
-        "summary": "Guide on managing eye symptoms during cancer treatment.",
-        "keywords": ["eyes", "management", "care"],
-    },
     
     # ===== URINARY =====
-    {
-        "symptom_code": "URI-211",
-        "symptom_name": "Urinary Problems",
-        "title": "UTI - Chat GPT Summary",
-        "source": "ChatGPT",
-        "file_path": "symptoms/urinary/UTI-_Chat_GPT.pdf",
-        "summary": "Overview of urinary tract infections during cancer treatment.",
-        "keywords": ["UTI", "urinary", "infection"],
-    },
     {
         "symptom_code": "URI-211",
         "symptom_name": "Urinary Problems",
@@ -529,15 +390,6 @@ SYMPTOM_PDFS = [
         "file_path": "symptoms/urinary/Urinary_and_Bladder_Problems_and_Cancer_Treatment_-_Side_Effects_-_NCI.pdf",
         "summary": "NCI guide on urinary and bladder issues from cancer treatment.",
         "keywords": ["NCI", "bladder", "urinary", "side effects"],
-    },
-    {
-        "symptom_code": "URI-211",
-        "symptom_name": "Urinary Problems",
-        "title": "UTI - Perplexity AI Summary",
-        "source": "Perplexity AI",
-        "file_path": "symptoms/urinary/UTI-_Perplexity_AI.pdf",
-        "summary": "Guide on urinary problems management during cancer treatment.",
-        "keywords": ["UTI", "management", "prevention"],
     },
     
     # ===== BLEEDING =====
@@ -573,15 +425,6 @@ SYMPTOM_PDFS = [
     {
         "symptom_code": "URG-103",
         "symptom_name": "Bruising",
-        "title": "Bruising - ACS",
-        "source": "ACS",
-        "file_path": "symptoms/bruising/Bruising1.pdf",
-        "summary": "Guide on bruising during cancer treatment and when to be concerned.",
-        "keywords": ["bruising", "platelets", "bleeding"],
-    },
-    {
-        "symptom_code": "URG-103",
-        "symptom_name": "Bruising",
         "title": "Bruising (Hematoma) - Chemocare",
         "source": "Chemocare",
         "file_path": "symptoms/bruising/Bruising_Hematoma.pdf",
@@ -608,6 +451,7 @@ SYMPTOM_PDFS = [
         "summary": "Critical information on blood clots presenting as leg pain - a potential emergency.",
         "keywords": ["DVT", "blood clots", "leg pain", "emergency"],
     },
+
 ]
 
 # =============================================================================
@@ -622,6 +466,14 @@ HANDBOOKS = [
         "handbook_type": "general",
         "display_order": 1,
     },
+
+    {
+        "title": "Chemotherapy Basics Book",
+        "description": "Comprehensive handbook covering chemotherapy basics, managing side effects, and when/who to call for help. Essential reading for all chemotherapy patients.",
+        "file_path": "handbooks/Chemotherapy Basics Book.pdf",
+        "handbook_type": "general",
+        "display_order": 2,
+    }
 ]
 
 # =============================================================================

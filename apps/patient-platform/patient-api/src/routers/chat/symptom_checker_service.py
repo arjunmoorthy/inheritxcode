@@ -16,6 +16,7 @@ import logging
 from .symptom_checker import SymptomCheckerEngine, TriageLevel
 from .symptom_checker.symptom_engine import ConversationState, EngineResponse
 from .symptom_checker.symptom_definitions import SYMPTOMS
+from .symptom_checker.constants import EMERGENCY_SYMPTOMS
 from .models import (
     WebSocketMessageIn, WebSocketMessageOut,
     ConnectionEstablished, Message
@@ -32,7 +33,12 @@ def _display_content_for_user_symptom_message(message: WebSocketMessageIn) -> st
     """
     raw = (message.content or "").strip()
     msg_type = message.message_type
-    if msg_type not in ("multi_select_response", "symptom_select_response"):
+    if msg_type not in (
+        "multi_select_response",
+        "symptom_select_response",
+        "button_response",
+        "emergency_check_response",
+    ):
         return message.content or ""
 
     sd = message.structured_data or {}
@@ -45,6 +51,8 @@ def _display_content_for_user_symptom_message(message: WebSocketMessageIn) -> st
             ids = [str(x).strip() for x in (sd.get("selected_values") or []) if str(x).strip()]
     elif msg_type == "multi_select_response" and "selected_values" in sd:
         ids = [str(x).strip() for x in (sd.get("selected_values") or []) if str(x).strip()]
+    elif msg_type in ("button_response", "emergency_check_response") and "selected_values" in sd:
+        ids = [str(x).strip() for x in (sd.get("selected_values") or []) if str(x).strip()]
 
     if not ids and raw:
         ids = [s.strip() for s in raw.split(",") if s.strip()]
@@ -52,10 +60,18 @@ def _display_content_for_user_symptom_message(message: WebSocketMessageIn) -> st
     if not ids:
         return message.content or ""
 
-    if not any(t in SYMPTOMS for t in ids):
+    emergency_display_map = {
+        str(item.get("id", "")).strip(): str(item.get("name", "")).strip()
+        for item in EMERGENCY_SYMPTOMS
+        if item.get("id") and item.get("name")
+    }
+    symptom_display_map = {symptom_id: symptom.name for symptom_id, symptom in SYMPTOMS.items()}
+    display_map = {**emergency_display_map, **symptom_display_map}
+
+    if not any(t in display_map for t in ids):
         return message.content or ""
 
-    parts = [SYMPTOMS[t].name if t in SYMPTOMS else t for t in ids]
+    parts = [display_map.get(token, token) for token in ids]
     return ", ".join(parts)
 
 
