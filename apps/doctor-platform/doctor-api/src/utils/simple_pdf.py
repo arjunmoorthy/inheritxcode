@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import logging
 
-from playwright.async_api import async_playwright
+from playwright.async_api import Error as PlaywrightError, TimeoutError as PlaywrightTimeoutError, async_playwright
+
+from core.config import settings
 logger = logging.getLogger(__name__)
 
 
@@ -14,15 +16,23 @@ async def build_patient_dashboard_pdf_from_url(url: str) -> bytes:
                 args=["--no-sandbox", "--disable-dev-shm-usage"]
             )
 
-            context = await browser.new_context()
+            context = await browser.new_context(
+                # Non-production environments may use self-signed or mismatched certs.
+                # This prevents fax generation from failing on cert chain issues.
+                ignore_https_errors=not settings.is_production,
+            )
             page = await context.new_page()
 
-            # 👉 Load your frontend print URL
-            await page.goto(url, wait_until="networkidle")
+            # Load page with a practical wait strategy.
+            # `networkidle` is often too strict for SPAs with background calls.
+            await page.goto(url, wait_until="domcontentloaded", timeout=60_000)
 
-            # ✅ Wait for charts to render (IMPORTANT)
-            await page.wait_for_load_state("networkidle")
-            await page.wait_for_timeout(5000)        # small buffer
+            # Try to wait for network to settle, but continue if it never reaches idle.
+            try:
+                await page.wait_for_load_state("networkidle", timeout=15_000)
+            except PlaywrightTimeoutError:
+                logger.warning("Playwright networkidle timeout; continuing PDF render for url=%s", url)
+            await page.wait_for_timeout(2000)
 
             # 🧼 Optional: remove unwanted UI (if any)
             await page.add_style_tag(content="""
@@ -46,10 +56,14 @@ async def build_patient_dashboard_pdf_from_url(url: str) -> bytes:
                 }
             )
 
+            await context.close()
             await browser.close()
             return pdf_bytes
 
+    except (PlaywrightError, PlaywrightTimeoutError) as e:
+        logger.error("Playwright PDF failed for url=%s error=%s", url, str(e))
+        raise
     except Exception as e:
-        logger.error(f"Playwright PDF failed: {str(e)}")
+        logger.exception("Unexpected PDF generation failure for url=%s error=%s", url, str(e))
         raise
 
