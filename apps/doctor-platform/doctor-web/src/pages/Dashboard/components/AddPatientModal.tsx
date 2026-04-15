@@ -30,6 +30,7 @@ import {
   AlertCircle,
 } from 'lucide-react';
 import { useStaffListDoctors } from '../../../services/staff';
+import { useClinics, type ClinicItem } from '../../../services/clinics';
 import dayjs from 'dayjs';
 
 // Validation Schema
@@ -91,9 +92,7 @@ const genderOptions: SelectOption[] = [
   { value: 'Female', label: 'Female' },
   { value: 'Other', label: 'Other' },
 ];
-const locationOptions: SelectOption[] = [
-  { value: 'Honor Health Cancer Care - Deer Valley', label: 'Honor Health Cancer Care - Deer Valley' },
-];
+const DEFAULT_LOCATION = '';
 
 /** Extract user-facing message from API error (e.g. { error, error_code, message, details }) or axios shape */
 function getApiErrorMessage(err: unknown): string {
@@ -114,8 +113,20 @@ export const AddPatientModal: React.FC<AddPatientModalProps> = ({
   const { isDark } = useThemeMode();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const { data: doctors = [], isLoading: isLoadingDoctors } = useStaffListDoctors(isOpen);
+  const { data: clinicsData, isLoading: isLoadingClinics } = useClinics(isOpen);
+  const clinics: ClinicItem[] = (clinicsData as ClinicItem[] | undefined) ?? [];
   const { user } = useAuth();
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
+  const locationOptions = React.useMemo<SelectOption[]>(
+    () =>
+      clinics
+        .map((clinic) => ({
+          value: clinic.name,
+          label: clinic.name,
+        }))
+        .filter((option) => option.value && option.label),
+    [clinics]
+  );
 
   const {
     control,
@@ -133,7 +144,7 @@ export const AddPatientModal: React.FC<AddPatientModalProps> = ({
       mrn: '',
       dateOfBirth: '',
       gender: '',
-      location: 'Honor Health Cancer Care - Deer Valley',
+      location: DEFAULT_LOCATION,
       diagnosis: '',
       patientStatus: 'active',
       regimenName: '',
@@ -197,7 +208,7 @@ export const AddPatientModal: React.FC<AddPatientModalProps> = ({
       isOpen={isOpen}
       onClose={handleCancel}
       title="Add New Patient"
-      titleDescription="Enter patient information to create a new profile."
+      titleDescription="Enter patient information to create a new profile.22"
       size="xl"
     >
       <LocalizationProvider dateAdapter={AdapterDayjs} adapterLocale="en">
@@ -377,17 +388,23 @@ export const AddPatientModal: React.FC<AddPatientModalProps> = ({
                 name="location"
                 control={control}
                 render={({ field }) => {
-                  const selectedOption = locationOptions.find(opt => opt.value === field.value);
+                  const selectedOption =
+                    locationOptions.find(opt => opt.value === field.value) ||
+                    (field.value ? { value: field.value, label: field.value } : null);
+                  const locationSelectOptions = selectedOption
+                    ? [...locationOptions, ...(locationOptions.some(opt => opt.value === selectedOption.value) ? [] : [selectedOption])]
+                    : locationOptions;
                   return (
                     <Select
                       label="Location"
-                      options={locationOptions}
+                      options={locationSelectOptions}
                       value={selectedOption || null}
+                      isDisabled={isLoadingClinics}
                       onChange={(newValue: SingleValue<SelectOption> | MultiValue<SelectOption>) => {
                         const option = Array.isArray(newValue) ? newValue[0] : newValue;
                         field.onChange(option?.value as string || '');
                       }}
-                      placeholder="Select location"
+                      placeholder={isLoadingClinics ? 'Loading clinics...' : 'Select location'}
                       fullWidth
                     />
                   );

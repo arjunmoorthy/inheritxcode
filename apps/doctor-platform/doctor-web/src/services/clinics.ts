@@ -33,8 +33,13 @@ interface ClinicPayload {
   fax_number?: string;
 }
 
-const getClinics = async (): Promise<ClinicItem[]> => {
-  const response = await apiClient.get<ClinicItem[] | ClinicsResponse>(API_CONFIG.ENDPOINTS.CLINICS.LIST);
+const getClinics = async (skip = 0, limit = 100): Promise<ClinicItem[]> => {
+  const response = await apiClient.get<ClinicItem[] | ClinicsResponse>(
+    API_CONFIG.ENDPOINTS.CLINICS.LIST,
+    {
+      params: { skip, limit },
+    }
+  );
   const data = response.data as any;
   const clinicsFromResponse =
     (Array.isArray(data?.clinics) && data.clinics) ||
@@ -69,7 +74,7 @@ const updateClinic = async (uuid: string, payload: ClinicPayload): Promise<unkno
 };
 
 export const useClinics = (enabled = true) =>
-  useQuery({
+  useQuery<ClinicItem[]>({
     queryKey: ['clinics'],
     queryFn: getClinics,
     enabled,
