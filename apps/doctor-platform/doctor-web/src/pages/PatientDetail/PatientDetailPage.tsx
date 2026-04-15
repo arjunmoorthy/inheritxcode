@@ -425,7 +425,7 @@ const PatientDetailPage: React.FC = () => {
   const [isChartFullscreen, setIsChartFullscreen] = useState(false);
 
   // Fax mode state
-  const FAX_CALLBACK_URL = 'https://webhook.site/246d5d7a-81f8-40e1-b798-aa28e8f26466';
+  const FAX_CALLBACK_URL = 'https://webhook.site/acf434d1-2f2e-4455-a51f-260da5ae0687';
   const [isFaxMode, setIsFaxMode] = useState(false);
   const [isFaxPreviewOpen, setIsFaxPreviewOpen] = useState(false);
   const [editableClinicName, setEditableClinicName] = useState('');
