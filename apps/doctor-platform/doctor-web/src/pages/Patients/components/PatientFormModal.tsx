@@ -36,6 +36,7 @@ import {
   Pill,
 } from 'lucide-react';
 import { useStaffListDoctors } from '../../../services/staff';
+import { useClinics, type ClinicItem } from '../../../services/clinics';
 
 const patientSchema = z.object({
   firstName: z.string().min(1, 'First name is required').max(50, 'First name is too long'),
@@ -63,6 +64,8 @@ const patientSchema = z.object({
 
 export type PatientFormValues = z.infer<typeof patientSchema>;
 
+const DEFAULT_LOCATION = '';
+
 const defaultFormValues: PatientFormValues = {
   firstName: '',
   lastName: '',
@@ -71,7 +74,7 @@ const defaultFormValues: PatientFormValues = {
   mrn: '',
   dateOfBirth: '',
   gender: '',
-  location: 'Honor Health Cancer Care - Deer Valley',
+  location: DEFAULT_LOCATION,
   diagnosis: '',
   patientStatus: 'active',
   regimenName: '',
@@ -94,7 +97,7 @@ function patientToFormValues(patient: Patient): PatientFormValues {
     (patient as any).associateClinic ||
     (patient as any).clinic_name ||
     (patient as any).clinicName ||
-    'Honor Health Cancer Care - Deer Valley';
+    DEFAULT_LOCATION;
 
   return {
     firstName: patient.firstName,
@@ -216,9 +219,6 @@ const genderOptions: SelectOption[] = [
   { value: 'Female', label: 'Female' },
   { value: 'Other', label: 'Other' },
 ];
-const locationOptions: SelectOption[] = [
-  { value: 'Honor Health Cancer Care - Deer Valley', label: 'Honor Health Cancer Care - Deer Valley' },
-];
 
 export type PatientFormModalMode = 'add' | 'edit';
 
@@ -241,7 +241,19 @@ export const PatientFormModal: React.FC<PatientFormModalProps> = ({
   const addMutation = useAddManualPatient();
   const updateMutation = useUpdatePatientProfile();
   const { data: doctors = [] } = useStaffListDoctors(open);
+  const { data: clinicsData, isLoading: isLoadingClinics } = useClinics(open);
+  const clinics: ClinicItem[] = (clinicsData as ClinicItem[] | undefined) ?? [];
   const { user } = useAuth();
+  const locationOptions = React.useMemo<SelectOption[]>(
+    () =>
+      clinics
+        .map((clinic) => ({
+          value: clinic.name,
+          label: clinic.name,
+        }))
+        .filter((option) => option.value && option.label),
+    [clinics]
+  );
 
   const isEdit = mode === 'edit';
 
@@ -450,11 +462,12 @@ export const PatientFormModal: React.FC<PatientFormModalProps> = ({
                     label="Location"
                     options={locationSelectOptions}
                     value={selectedOption || null}
+                    isDisabled={isLoadingClinics}
                     onChange={(v: SingleValue<SelectOption> | MultiValue<SelectOption>) => {
                       const opt = Array.isArray(v) ? v[0] : v;
                       field.onChange(opt?.value as string || '');
                     }}
-                    placeholder="Select location"
+                    placeholder={isLoadingClinics ? 'Loading clinics...' : 'Select location'}
                     fullWidth
                   />
                 );
