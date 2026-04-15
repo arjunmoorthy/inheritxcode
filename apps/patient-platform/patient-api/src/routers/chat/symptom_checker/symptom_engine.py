@@ -1506,7 +1506,7 @@ class SymptomCheckerEngine:
                 "📋 **Assessment Complete**\n\n"
                 f"**Summary:** {concise_summary}\n\n"
                 "---\n\n"
-                "⚠️ **Please call your care team** - they will assist you further.\n\n"
+                "⚠️ **Please call your care team** - I’m in the OncoLife study, and my check-in recommended a brief update on my progress\n\n"
                 "📔 **Saved to your summaries** automatically for your records.\n\n"
                 "💬 **Want to add anything?** You can add personal notes.\n\n"
                 "What would you like to do?"
