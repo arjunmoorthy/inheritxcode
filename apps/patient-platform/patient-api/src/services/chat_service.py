@@ -36,6 +36,7 @@ from typing import Dict, Any, List, Tuple, Optional, AsyncGenerator
 from uuid import UUID
 from datetime import datetime, time, date
 import re
+from copy import deepcopy
 from sqlalchemy.orm import Session
 import pytz
 from services.symptom_analytics_service import save_symptom_analytics
@@ -46,6 +47,8 @@ from services.ai_clinical_summary_service import AIClinicalSummaryService
 # Symptom checker engine
 from routers.chat.symptom_checker import SymptomCheckerEngine, TriageLevel
 from routers.chat.symptom_checker.symptom_engine import ConversationState, EngineResponse
+from routers.chat.symptom_checker.constants import ConversationPhase
+from routers.chat.symptom_checker.symptom_definitions import get_symptom_by_id
 from routers.chat.models import (
     WebSocketMessageIn, WebSocketMessageOut,
     ConnectionEstablished, Message
@@ -211,6 +214,7 @@ class ChatService:
         
         # Store engine state in chat metadata; conversation_state tracks current phase
         new_chat.engine_state = response.state.to_dict() if response.state else {}
+        new_chat.engine_state["undo_stack"] = []
         new_chat.conversation_state = response.state.phase.value if response.state else "disclaimer"
 
         # If patient already answered chemo today in another check-in, copy so we skip chemo in this one
@@ -248,6 +252,70 @@ class ChatService:
         }
         
         return new_chat, initial_message
+
+    def _snapshot_state_for_undo(self, state_data: Dict[str, Any]) -> Dict[str, Any]:
+        snapshot = deepcopy(state_data or {})
+        snapshot.pop("undo_stack", None)
+        return snapshot
+
+    def _append_undo_snapshot(
+        self,
+        next_state_data: Dict[str, Any],
+        previous_state_data: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        updated_state = deepcopy(next_state_data or {})
+        undo_stack = list(updated_state.get("undo_stack") or [])
+        undo_stack.append(self._snapshot_state_for_undo(previous_state_data))
+        updated_state["undo_stack"] = undo_stack[-50:]
+        return updated_state
+
+    def _build_response_for_current_state(self, engine: SymptomCheckerEngine) -> EngineResponse:
+        phase = engine.state.phase
+
+        if phase == ConversationPhase.DISCLAIMER:
+            return engine._handle_disclaimer("undo")
+        if phase == ConversationPhase.CHEMO_TODAY_CHECK:
+            return engine._show_chemo_today_check()
+        if phase == ConversationPhase.NEXT_CHEMO_DATE:
+            return engine._show_next_chemo_date()
+        if phase == ConversationPhase.EMERGENCY_CHECK:
+            return engine._show_emergency_check()
+        if phase == ConversationPhase.SYMPTOM_SELECTION:
+            return engine._show_symptom_selection()
+        if phase in (ConversationPhase.SCREENING, ConversationPhase.FOLLOW_UP):
+            symptom = get_symptom_by_id(engine.state.current_symptom_id) if engine.state.current_symptom_id else None
+            if not symptom:
+                return engine._show_symptom_selection()
+            return engine._get_next_question(symptom)
+        if phase == ConversationPhase.SUMMARY:
+            response = engine._generate_summary(include_review_prompt=False)
+            response.is_complete = False
+            return response
+        if phase == ConversationPhase.SUMMARY_EDIT:
+            return EngineResponse(
+                message="✏️ **Edit Generated Summary**\n\n"
+                        "Please type what you want to add, remove, or correct in the generated summary.\n\n"
+                        "I will merge your edits with the summary and create a final version.",
+                message_type='text_input',
+                options=[
+                    {'label': '← Back to Summary', 'value': 'back_to_summary', 'style': 'secondary'}
+                ],
+                sender='ruby',
+                state=engine.state,
+            )
+        if phase == ConversationPhase.ADDING_NOTES:
+            return EngineResponse(
+                message="✏️ **Add Personal Notes**\n\n"
+                        "Type any additional information you'd like to include with this symptom check.",
+                message_type='text_input',
+                options=[
+                    {'label': '💾 Save Notes & Continue', 'value': 'submit_notes', 'style': 'primary'},
+                    {'label': '← Back to Summary', 'value': 'back_to_summary', 'style': 'secondary'}
+                ],
+                sender='ruby',
+                state=engine.state,
+            )
+        return engine._show_symptom_selection()
     
     def delete_chat(
         self,
@@ -365,6 +433,90 @@ class ChatService:
         if not chat:
             logger.error(f"Chat not found: {chat_uuid}")
             return
+
+        if message.message_type == "undo_last_step":
+            engine_state_data = getattr(chat, 'engine_state', None) or {}
+            undo_stack = list(engine_state_data.get("undo_stack") or [])
+            if not undo_stack:
+                no_undo_msg = MessageModel(
+                    chat_uuid=chat_uuid,
+                    sender="assistant",
+                    message_type="text",
+                    content="There is no previous question to go back to in this session.",
+                    structured_data={
+                        "frontend_type": "text",
+                        "session_entry_action": "show_undo_last_step",
+                        "can_undo_last_step": False,
+                    },
+                )
+                self.db.add(no_undo_msg)
+                self.db.commit()
+                self.db.refresh(no_undo_msg)
+                yield Message.from_orm(no_undo_msg)
+                return
+
+            restored_state_dict = deepcopy(undo_stack.pop())
+            restored_state_dict["undo_stack"] = undo_stack
+
+            recent = self.db.query(MessageModel).filter(
+                MessageModel.chat_uuid == chat_uuid
+            ).order_by(
+                MessageModel.created_at.desc(),
+                MessageModel.id.desc()
+            ).limit(2).all()
+            if len(recent) >= 2 and recent[0].sender == "assistant" and recent[1].sender == "user":
+                self.db.delete(recent[0])
+                self.db.delete(recent[1])
+            elif recent:
+                self.db.delete(recent[0])
+
+            restored_state = ConversationState.from_dict(restored_state_dict)
+            engine = SymptomCheckerEngine(state=restored_state)
+            engine_response = self._build_response_for_current_state(engine)
+
+            next_state = engine_response.state.to_dict() if engine_response.state else restored_state_dict
+            next_state["undo_stack"] = undo_stack
+            chat.engine_state = next_state
+            chat.symptom_list = next_state.get("selected_symptoms", [])
+            chat.conversation_state = (
+                engine_response.state.phase.value if engine_response.state else next_state.get("phase", chat.conversation_state)
+            )
+            chat.is_complete = "false"
+            chat.completed_at = None
+            self.db.commit()
+
+            structured = {
+                "options": [opt['label'] for opt in engine_response.options] if engine_response.options else None,
+                "options_data": engine_response.options,
+                "frontend_type": engine_response.message_type,
+                "triage_level": engine_response.triage_level.value if engine_response.triage_level else None,
+                "is_complete": False,
+                "symptom_groups": engine_response.symptom_groups,
+                "summary_data": engine_response.summary_data,
+                "sender": engine_response.sender,
+                "phase": engine_response.state.phase.value if engine_response.state else None,
+                "session_entry_action": "show_undo_last_step",
+                "can_undo_last_step": bool(undo_stack),
+            }
+            if engine_response.message_type == "next_chemo_date":
+                structured["show_date_picker"] = True
+                structured["input_type"] = "date_picker"
+
+            assistant_msg = MessageModel(
+                chat_uuid=chat_uuid,
+                sender="assistant",
+                message_type=self._map_message_type(engine_response.message_type),
+                content=engine_response.message,
+                structured_data=structured,
+            )
+            self.db.add(assistant_msg)
+            self.db.commit()
+            self.db.refresh(assistant_msg)
+
+            frontend_message = Message.from_orm(assistant_msg)
+            frontend_message.message_type = self._map_frontend_type(engine_response.message_type)
+            yield frontend_message
+            return
         
         # 1. Save the user's message (symptom codes -> display names; engine still parses raw message below)
         display_content = _display_content_for_user_symptom_message(message)
@@ -381,6 +533,7 @@ class ChatService:
         
         # 2. Load or create the engine with saved state
         engine_state_data = getattr(chat, 'engine_state', None) or {}
+        previous_state_snapshot = self._snapshot_state_for_undo(engine_state_data)
         if engine_state_data:
             state = ConversationState.from_dict(engine_state_data)
             engine = SymptomCheckerEngine(state=state)
@@ -417,7 +570,10 @@ class ChatService:
         
         # 5. Save the engine state
         if engine_response.state:
-            chat.engine_state = engine_response.state.to_dict()
+            chat.engine_state = self._append_undo_snapshot(
+                next_state_data=engine_response.state.to_dict(),
+                previous_state_data=previous_state_snapshot,
+            )
             chat.symptom_list = engine_response.state.selected_symptoms
 
             # When user just submitted next chemo date (previous phase was NEXT_CHEMO_DATE), persist it
@@ -567,6 +723,8 @@ class ChatService:
             ),
             "sender": engine_response.sender,
             "phase": engine_response.state.phase.value if engine_response.state else None,
+            "session_entry_action": "show_undo_last_step",
+            "can_undo_last_step": not bool(engine_response.is_complete),
         }
         # Explicit flag for FE: show calendar when asking for next chemo date
         if engine_response.message_type == "next_chemo_date":

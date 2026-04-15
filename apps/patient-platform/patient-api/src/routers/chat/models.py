@@ -81,12 +81,22 @@ class ChatSummaryResponse(BaseModel):
 class FullChatResponse(Chat):
     messages: List[Message]
 
+class LastQuestionForUndo(BaseModel):
+    """Payload for restoring the previous assistant question."""
+    message_id: int
+    message_type: str
+    content: str
+    structured_data: Optional[Dict[str, Any]] = None
+
 class TodaySessionResponse(BaseModel):
     chat_uuid: UUID
     conversation_state: str
     messages: List[Message]
     is_new_session: bool
     symptom_list: Optional[List[str]] = []  # Include symptom list for localStorage
+    session_entry_action: Literal["show_new_checkin", "show_undo_last_step"] = "show_new_checkin"
+    can_undo_last_step: bool = False
+    last_question_for_undo: Optional[LastQuestionForUndo] = None
 
     class Config:
         from_attributes = True
@@ -111,7 +121,17 @@ class UpdateStateRequest(BaseModel):
 class WebSocketMessageIn(BaseModel):
     """A message received from the client over WebSocket."""
     type: Literal["user_message"]
-    message_type: Literal["text", "button_response", "multi_select_response", "feeling_response"]
+    message_type: Literal[
+        "text",
+        "button_response",
+        "multi_select_response",
+        "feeling_response",
+        "disclaimer_response",
+        "emergency_check_response",
+        "symptom_select_response",
+        "summary_action",
+        "undo_last_step",
+    ]
     content: str
     structured_data: Optional[Dict[str, Any]] = None
 
