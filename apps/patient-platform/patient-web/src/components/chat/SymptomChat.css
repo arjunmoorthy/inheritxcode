@@ -384,6 +384,15 @@
   padding: 0 4px;
 }
 
+/* Keep timestamp color scoped to symptom chat (prevents global chat CSS overrides). */
+.symptom-chat-container .message-time {
+  color: var(--text-muted) !important;
+}
+
+[data-theme="dark"] .symptom-chat-container .message-time {
+  color: #94a3b8 !important;
+}
+
 /* Ruby Avatar in messages */
 .message-with-avatar {
   display: flex;
@@ -753,8 +762,16 @@
 }
 
 .text-input::placeholder {
-  color: #000000;
+  color: var(--text-muted);
   font-size: 18px;
+}
+
+[data-theme="dark"] .text-input {
+  color: #ffffff;
+}
+
+[data-theme="dark"] .text-input::placeholder {
+  color: #cbd5e1;
 }
 
 .send-btn {
