@@ -208,7 +208,7 @@ export const AddPatientModal: React.FC<AddPatientModalProps> = ({
       isOpen={isOpen}
       onClose={handleCancel}
       title="Add New Patient"
-      titleDescription="Enter patient information to create a new profile.22"
+      titleDescription="Enter patient information to create a new profile."
       size="xl"
     >
       <LocalizationProvider dateAdapter={AdapterDayjs} adapterLocale="en">

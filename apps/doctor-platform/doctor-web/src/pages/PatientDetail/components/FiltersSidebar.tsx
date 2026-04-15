@@ -85,10 +85,10 @@ const FiltersSidebar: React.FC<FiltersSidebarProps> = ({
 
         {/* Sidebar Header - Desktop */}
         {!isMobile && (
-          <div className="flex items-center justify-between mb-4 pb-4 border-b border-slate-700/50">
+          <div className="flex items-center justify-between  border-b border-slate-700/50">
             <div className="flex items-center gap-2">
               <Filter size={18} className={isDark ? 'text-slate-400' : 'text-slate-600'} />
-              <h3 className={`text-base font-semibold ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>
+              <h3 className={`text-base font-semibold mb-0 ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>
                 Filters
               </h3>
             </div>
@@ -200,7 +200,7 @@ const FiltersSidebar: React.FC<FiltersSidebarProps> = ({
               Overall Severity
             </label>
           </div>
-          <div className="px-1">
+          <div className="px-2 pb-1">
             <Slider
               value={severityRange}
               onChange={(_, newValue) => onSeverityRangeChange(newValue as number[])}
@@ -210,46 +210,56 @@ const FiltersSidebar: React.FC<FiltersSidebarProps> = ({
               valueLabelDisplay="auto"
               valueLabelFormat={(value) => value.toFixed(1)}
               marks={[
-                { value: 0, label: 'Relieved' },
-                { value: 4, label: 'Very Severe' },
+                { value: 0, label: isMobile ? 'Low' : 'Relieved' },
+                { value: 4, label: isMobile ? 'High' : 'Very Severe' },
               ]}
               sx={{
                 color: '#2563EB',
+                overflow: 'visible',
                 '& .MuiSlider-thumb': {
                   backgroundColor: '#2563EB',
-                  width: 18,
-                  height: 18,
+                  width: isMobile ? 16 : 18,
+                  height: isMobile ? 16 : 18,
                   '&:hover': {
                     boxShadow: '0 0 0 8px rgba(37, 99, 235, 0.16)',
                   },
                 },
                 '& .MuiSlider-track': {
                   backgroundColor: '#2563EB',
-                  height: 4,
+                  height: isMobile ? 3 : 4,
                 },
                 '& .MuiSlider-rail': {
                   backgroundColor: isDark ? '#334155' : '#e2e8f0',
-                  height: 4,
+                  height: isMobile ? 3 : 4,
                 },
                 '& .MuiSlider-markLabel': {
                   color: isDark ? '#94a3b8' : '#64748b',
-                  fontSize: '0.7rem',
+                  fontSize: isMobile ? '0.65rem' : '0.7rem',
                   fontWeight: 500,
+                  top: isMobile ? 24 : 30,
+                  whiteSpace: 'nowrap',
+                },
+                '& .MuiSlider-markLabel[data-index="0"]': {
+                  transform: 'translateX(0%)',
+                },
+                '& .MuiSlider-markLabel[data-index="1"]': {
+                  transform: 'translateX(-100%)',
+                  textAlign: 'right',
                 },
                 '& .MuiSlider-valueLabel': {
                   backgroundColor: '#2563EB',
-                  fontSize: '0.75rem',
+                  fontSize: isMobile ? '0.7rem' : '0.75rem',
                 },
               }}
             />
-            <div className="flex justify-between mt-2">
+            {/* <div className="flex justify-between mt-2">
               <span className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
                 Symptom Relieved
               </span>
               <span className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
                 Very Severe
               </span>
-            </div>
+            </div> */}
           </div>
         </div>
 
