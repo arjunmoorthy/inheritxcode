@@ -37,7 +37,7 @@ const staffSchema = z.object({
     clinicDepartment: z.string().optional(),
     clinicAddress: z.string().optional(),
     clinicFax: z.string().optional(),
-    selectedClinicUuid: z.string().min(1, 'Clinic is required'),
+    selectedClinicUuid: z.string().optional(),
 });
 
 type StaffFormValues = z.infer<typeof staffSchema>;
