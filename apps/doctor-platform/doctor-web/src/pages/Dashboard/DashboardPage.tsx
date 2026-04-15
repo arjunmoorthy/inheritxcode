@@ -175,9 +175,30 @@ const DashboardPage: React.FC = () => {
   const formatDateShort = (dateString: string) => {
     if (!dateString || dateString === 'None' || dateString === 'Invalid Date' || dateString === 'null') return 'N/A';
     try {
+      // Preserve source calendar date from API strings (YYYY-MM-DD or ISO timestamp)
+      // to avoid timezone-based day shifts in UI.
+      const match = String(dateString).match(/^(\d{4})-(\d{2})-(\d{2})/);
+      if (match) {
+        const year = Number(match[1]);
+        const monthIndex = Number(match[2]) - 1;
+        const day = Number(match[3]);
+        const utcDate = new Date(Date.UTC(year, monthIndex, day));
+        return utcDate.toLocaleDateString('en-US', {
+          month: 'short',
+          day: '2-digit',
+          year: 'numeric',
+          timeZone: 'UTC',
+        });
+      }
+
       const date = new Date(dateString);
       if (Number.isNaN(date.getTime())) return 'N/A';
-      return date.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
+      return date.toLocaleDateString('en-US', {
+        month: 'short',
+        day: '2-digit',
+        year: 'numeric',
+        timeZone: 'UTC',
+      });
     } catch {
       return dateString;
     }

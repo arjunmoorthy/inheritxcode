@@ -48,6 +48,7 @@ export interface PatientListingApiItem {
   start_date: string | null;
   end_date: string | null;
   created_at: string;
+  last_chatbot_date?: string | null;
   /** Diagnosis/cancer type from API when available */
   diagnosis?: string | null;
   cancer_type?: string | null;
@@ -295,7 +296,9 @@ const transformListingToSummary = (item: PatientListingApiItem): PatientSummary 
   mrn: (item.mrn && String(item.mrn)) || String(item.patient_id),
   symptoms: '—',
   summary: item.plan_name || '—',
-  lastUpdated: item.created_at || '',
+  // "Last Chatbot" should only come from chatbot timestamp.
+  // If API sends null, UI should display N/A (empty string here).
+  lastUpdated: item.last_chatbot_date || '',
   status: 'active',
   priority: 'medium',
   maxSeverity: null,
