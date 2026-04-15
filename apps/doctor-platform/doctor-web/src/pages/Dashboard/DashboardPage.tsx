@@ -840,6 +840,7 @@ const mapSeverityToPriority = (severity: string | null | undefined): 'low' | 'me
                 const nextChemo = getNextChemo(patient);
                 const dob = patient.dateOfBirth || (patient as any).date_of_birth || '';
                 const patientRouteId = getPatientRouteId(patient);
+                const severity = getSeverity(patient);
 
                 return (
                   <div
@@ -877,7 +878,7 @@ const mapSeverityToPriority = (severity: string | null | undefined): 'low' | 'me
                             </div>
                           </div>
                           {/* Severity Badge - top-right on mobile */}
-                          {/* <span className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider flex-shrink-0 ${severity === 'urgent'
+                          <span className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider flex-shrink-0 ${severity === 'urgent'
                             ? isDark ? 'bg-red-500/20 text-red-400' : 'bg-red-500 text-white'
                             : severity === 'severe'
                               ? isDark ? 'bg-orange-500/20 text-orange-400' : 'bg-orange-500 text-white'
@@ -886,7 +887,7 @@ const mapSeverityToPriority = (severity: string | null | undefined): 'low' | 'me
                                 : isDark ? 'bg-emerald-500/20 text-emerald-400' : 'bg-emerald-500 text-white'
                             }`}>
                             {severity}
-                          </span> */}
+                          </span>
                         </div>
 
                         {/* Diagnosis, Last Chatbot, Last Chemo - stacked on mobile, row on desktop */}
