@@ -1025,6 +1025,18 @@ async def login(
             status_code=401
         )
 
+    # Doctor portal access guard: patient accounts must use patient portal.
+    if (user.role or "").strip().lower() == "patient":
+        return JSONResponse(
+            status_code=403,
+            content=ErrorResponse(
+                success=False,
+                message="Only doctor and staff users can log in to doctor portal.",
+                details=None,
+                status_code=403,
+            ).model_dump(),
+        )
+
     # Reject login if user has not set a new password (still on temp password from welcome email)
     if user.is_first_login:
         return JSONResponse(
