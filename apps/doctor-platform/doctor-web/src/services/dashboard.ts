@@ -228,6 +228,30 @@ export interface DashboardResponse {
 // Transform Functions
 // =============================================================================
 
+const mapApiSeverityToDashboardSeverity = (
+  value: string | null | undefined
+): 'mild' | 'moderate' | 'severe' | 'urgent' | null => {
+  if (!value) return null;
+  const normalized = String(value).toLowerCase();
+
+  // Explicit mapping requested by product:
+  // call_911 -> severe, notify_care_team -> moderate, none -> mild
+  if (normalized === 'call_911') return 'severe';
+  if (normalized === 'notify_care_team') return 'moderate';
+  if (normalized === 'none') return 'mild';
+
+  if (
+    normalized === 'mild' ||
+    normalized === 'moderate' ||
+    normalized === 'severe' ||
+    normalized === 'urgent'
+  ) {
+    return normalized;
+  }
+
+  return null;
+};
+
 
 
 /*
@@ -302,13 +326,7 @@ const transformListingToSummary = (item: PatientListingApiItem): PatientSummary 
   lastUpdated: item.last_chatbot_date || '',
   status: 'active',
   priority: 'medium',
-  maxSeverity:
-    item.latest_severity_level === 'mild' ||
-    item.latest_severity_level === 'moderate' ||
-    item.latest_severity_level === 'severe' ||
-    item.latest_severity_level === 'urgent'
-      ? item.latest_severity_level
-      : null,
+  maxSeverity: mapApiSeverityToDashboardSeverity(item.latest_severity_level),
   hasEscalation: false,
   severityBadge: '',
   email: item.email || undefined,
