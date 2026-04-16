@@ -23,6 +23,8 @@ interface FiltersSidebarProps {
   selectedSymptoms: string[];
   symptomOptions: Array<{ id: string; label: string; color: string | null }>;
   severityRange: number[];
+  minAvailableDate?: string;
+  maxAvailableDate?: string;
   onStartDateChange: (date: string) => void;
   onEndDateChange: (date: string) => void;
   onSymptomToggle: (symptom: string) => void;
@@ -40,12 +42,20 @@ const FiltersSidebar: React.FC<FiltersSidebarProps> = ({
   selectedSymptoms,
   symptomOptions,
   severityRange,
+  minAvailableDate,
+  maxAvailableDate,
   onStartDateChange,
   onEndDateChange,
   onSymptomToggle,
   onSeverityRangeChange,
   onResetFilters,
 }) => {
+  const clampToAvailableRange = (date: string) => {
+    if (minAvailableDate && date < minAvailableDate) return minAvailableDate;
+    if (maxAvailableDate && date > maxAvailableDate) return maxAvailableDate;
+    return date;
+  };
+
   return (
     <div
       className={`flex-shrink-0 transition-all duration-300 ease-in-out ${
@@ -126,7 +136,10 @@ const FiltersSidebar: React.FC<FiltersSidebarProps> = ({
             </label>
             <DatePicker
               value={startDate ? dayjs(startDate, 'YYYY-MM-DD', true) : null}
-              onChange={(newValue) => onStartDateChange(newValue.format('YYYY-MM-DD'))}
+              onChange={(newValue) => {
+                if (!newValue || !newValue.isValid()) return;
+                onStartDateChange(clampToAvailableRange(newValue.format('YYYY-MM-DD')));
+              }}
               label="Start Date"
               placeholder="Start Date"
               views={['day', 'month', 'year']}
@@ -140,7 +153,10 @@ const FiltersSidebar: React.FC<FiltersSidebarProps> = ({
             </label>
             <DatePicker
               value={endDate ? dayjs(endDate, 'YYYY-MM-DD', true) : null}
-              onChange={(newValue) => onEndDateChange(newValue.format('YYYY-MM-DD'))}
+              onChange={(newValue) => {
+                if (!newValue || !newValue.isValid()) return;
+                onEndDateChange(clampToAvailableRange(newValue.format('YYYY-MM-DD')));
+              }}
               label="End Date"
               placeholder="End Date"
               views={['day', 'month', 'year']}

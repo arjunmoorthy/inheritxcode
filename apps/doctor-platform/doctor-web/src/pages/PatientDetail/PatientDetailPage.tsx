@@ -967,6 +967,55 @@ const PatientDetailPage: React.FC = () => {
     return { dates: sortedDates, symptoms: withTemperature };
   }, [timelineData, selectedSymptoms, severityRange]);
 
+  const chartMinDate = useMemo(() => {
+    if (graphData.dates.length > 0) return graphData.dates[0];
+    return timelineData?.start_date || '';
+  }, [graphData.dates, timelineData?.start_date]);
+
+  const chartMaxDate = useMemo(() => {
+    if (graphData.dates.length > 0) return graphData.dates[graphData.dates.length - 1];
+    return timelineData?.end_date || '';
+  }, [graphData.dates, timelineData?.end_date]);
+
+  const handleStartDateChange = (newStartDate: string) => {
+    if (!chartMinDate || !chartMaxDate) {
+      setStartDate(newStartDate);
+      return;
+    }
+    const clampedStart = clampDate(newStartDate, chartMinDate, chartMaxDate);
+    setStartDate(clampedStart);
+    setEndDate((prevEndDate) => {
+      const clampedEnd = clampDate(prevEndDate, chartMinDate, chartMaxDate);
+      return clampedEnd < clampedStart ? clampedStart : clampedEnd;
+    });
+  };
+
+  const handleEndDateChange = (newEndDate: string) => {
+    if (!chartMinDate || !chartMaxDate) {
+      setEndDate(newEndDate);
+      return;
+    }
+    const clampedEnd = clampDate(newEndDate, chartMinDate, chartMaxDate);
+    setEndDate(clampedEnd);
+    setStartDate((prevStartDate) => {
+      const clampedStart = clampDate(prevStartDate, chartMinDate, chartMaxDate);
+      return clampedStart > clampedEnd ? clampedEnd : clampedStart;
+    });
+  };
+
+  useEffect(() => {
+    if (!chartMinDate || !chartMaxDate) return;
+
+    setStartDate((prevStartDate) => {
+      const nextStart = clampDate(prevStartDate, chartMinDate, chartMaxDate);
+      return nextStart > endDate ? endDate : nextStart;
+    });
+    setEndDate((prevEndDate) => {
+      const nextEnd = clampDate(prevEndDate, chartMinDate, chartMaxDate);
+      return nextEnd < startDate ? startDate : nextEnd;
+    });
+  }, [chartMinDate, chartMaxDate]);
+
   useEffect(() => {
     if (!patientDetails) return;
 
@@ -1071,8 +1120,10 @@ const PatientDetailPage: React.FC = () => {
             selectedSymptoms={selectedSymptoms}
             symptomOptions={symptomOptions}
             severityRange={severityRange}
-            onStartDateChange={setStartDate}
-            onEndDateChange={setEndDate}
+            minAvailableDate={chartMinDate}
+            maxAvailableDate={chartMaxDate}
+            onStartDateChange={handleStartDateChange}
+            onEndDateChange={handleEndDateChange}
             onSymptomToggle={handleSymptomToggle}
             onSeverityRangeChange={setSeverityRange}
             onResetFilters={handleResetFilters}
