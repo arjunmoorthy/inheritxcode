@@ -32,7 +32,8 @@ export default defineConfig(({ mode }) => {
         'localhost',
         'isidra-nonpapal-georgine.ngrok-free.dev',
         'oncolife-doctor.inheritxdev.in',
-        'oncolife-doctor-api.inheritxdev.in'
+        'oncolife-doctor-api.inheritxdev.in',
+        "charmain-tzaristic-nonroyally.ngrok-free.dev"
       ],
       proxy: {
         '/api': {
@@ -51,7 +52,8 @@ export default defineConfig(({ mode }) => {
       allowedHosts: [
         'localhost',
         'oncolife-doctor.inheritxdev.in',
-        'oncolife-doctor-api.inheritxdev.in'
+        'oncolife-doctor-api.inheritxdev.in',
+        "charmain-tzaristic-nonroyally.ngrok-free.dev"
       ],
       proxy: {
         '/api': {
