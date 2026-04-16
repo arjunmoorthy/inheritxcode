@@ -708,6 +708,13 @@ class ChatService:
         if engine_response.message_type == "summary" and getattr(chat, "patient_narrative_summary", None):
             ai_generated_summary = chat.patient_narrative_summary
 
+        current_phase = engine_response.state.phase.value if engine_response.state else None
+        allow_undo = (
+            not bool(engine_response.is_complete)
+            and current_phase not in {"summary", "summary_edit", "adding_notes", "completed", "emergency"}
+            and engine_response.message_type not in {"summary", "text_input", "download"}
+        )
+
         structured = {
             "options": [opt['label'] for opt in engine_response.options] if engine_response.options else None,
             "options_data": engine_response.options,
@@ -722,9 +729,9 @@ class ChatService:
                 engine_response.message_type == "summary" and ai_generated_summary
             ),
             "sender": engine_response.sender,
-            "phase": engine_response.state.phase.value if engine_response.state else None,
+            "phase": current_phase,
             "session_entry_action": "show_undo_last_step",
-            "can_undo_last_step": not bool(engine_response.is_complete),
+            "can_undo_last_step": allow_undo,
         }
         # Explicit flag for FE: show calendar when asking for next chemo date
         if engine_response.message_type == "next_chemo_date":
