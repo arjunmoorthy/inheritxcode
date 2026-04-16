@@ -354,61 +354,61 @@ def extract_structured_fields(extracted_data: list[dict]) -> dict:
 
     #     return " ".join(results) if results else None
 
-    def extract_past_medical_history():
-        results = []
-        capture = False
+    # def extract_past_medical_history():
+    #     results = []
+    #     capture = False
 
-        for line in lines:
-            original = line.strip()
-            lower = original.lower()
+    #     for line in lines:
+    #         original = line.strip()
+    #         lower = original.lower()
 
-            # -----------------------------
-            # 🎯 START
-            # -----------------------------
-            if "Past Medical History" in original:
-                capture = True
-                continue
+    #         # -----------------------------
+    #         # 🎯 START
+    #         # -----------------------------
+    #         if "Past Medical History" in original:
+    #             capture = True
+    #             continue
 
-            if not capture:
-                continue
+    #         if not capture:
+    #             continue
 
-            # -----------------------------
-            # 🛑 STOP
-            # -----------------------------
-            if any(stop in lower for stop in [
-                "past surgical history",
-                "social history",
-                "family history",
-                "allergies",
-                "medications",
-                "labs",
-                "imaging",
-                "orders"
-            ]):
-                break
+    #         # -----------------------------
+    #         # 🛑 STOP
+    #         # -----------------------------
+    #         if any(stop in lower for stop in [
+    #             "past surgical history",
+    #             "social history",
+    #             "family history",
+    #             "allergies",
+    #             "medications",
+    #             "labs",
+    #             "imaging",
+    #             "orders"
+    #         ]):
+    #             break
 
-            # -----------------------------
-            # ❌ SKIP NOISE
-            # -----------------------------
-            if (
-                not original
-                or re.search(r"\d{1,2}/\d{1,2}/\d{2,4}", original)
-            ):
-                continue
+    #         # -----------------------------
+    #         # ❌ SKIP NOISE
+    #         # -----------------------------
+    #         if (
+    #             not original
+    #             or re.search(r"\d{1,2}/\d{1,2}/\d{2,4}", original)
+    #         ):
+    #             continue
 
-            # -----------------------------
-            # ✅ HANDLE BULLETS (IMPORTANT)
-            # -----------------------------
-            clean = re.sub(r"^[•\-\*]\s*", "", original)
+    #         # -----------------------------
+    #         # ✅ HANDLE BULLETS (IMPORTANT)
+    #         # -----------------------------
+    #         clean = re.sub(r"^[•\-\*]\s*", "", original)
 
-            # remove small OCR junk
-            if len(clean.split()) <= 1:
-                continue
+    #         # remove small OCR junk
+    #         if len(clean.split()) <= 1:
+    #             continue
 
-            results.append(clean)
+    #         results.append(clean)
 
-        # ✅ KEEP FORMAT (NOT SINGLE STRING)
-        return results if results else None
+    #     # ✅ KEEP FORMAT (NOT SINGLE STRING)
+    #     return results if results else None
 
 
     # def extract_past_medical_history():
@@ -446,57 +446,57 @@ def extract_structured_fields(extracted_data: list[dict]) -> dict:
 
     #     return results if results else None
     
-    def extract_past_surgical_history():
-        results = []
-        capture = False
+    # def extract_past_surgical_history():
+    #     results = []
+    #     capture = False
 
-        for line in lines:
-            lower = line.lower().strip()
+    #     for line in lines:
+    #         lower = line.lower().strip()
 
-            # -----------------------------
-            # 🎯 START
-            # -----------------------------
-            if "past surgical history" in lower:
-                capture = True
-                continue
+    #         # -----------------------------
+    #         # 🎯 START
+    #         # -----------------------------
+    #         if "past surgical history" in lower:
+    #             capture = True
+    #             continue
 
-            if not capture:
-                continue
+    #         if not capture:
+    #             continue
 
-            # -----------------------------
-            # 🛑 HARD STOP
-            # -----------------------------
-            if any(stop in lower for stop in [
-                "social history",
-                "family history",
-                "allergies",
-                "medications",
-                "labs",
-                "imaging",
-                "orders"
-            ]):
-                break
+    #         # -----------------------------
+    #         # 🛑 HARD STOP
+    #         # -----------------------------
+    #         if any(stop in lower for stop in [
+    #             "social history",
+    #             "family history",
+    #             "allergies",
+    #             "medications",
+    #             "labs",
+    #             "imaging",
+    #             "orders"
+    #         ]):
+    #             break
 
-            # -----------------------------
-            # ❌ SKIP NOISE
-            # -----------------------------
-            if (
-                not line.strip()
-                or "performed by" in lower
-                or re.search(r"\d{1,2}/\d{1,2}/\d{2,4}", line)
-                or len(line.split()) > 10
-            ):
-                continue
+    #         # -----------------------------
+    #         # ❌ SKIP NOISE
+    #         # -----------------------------
+    #         if (
+    #             not line.strip()
+    #             or "performed by" in lower
+    #             or re.search(r"\d{1,2}/\d{1,2}/\d{2,4}", line)
+    #             or len(line.split()) > 10
+    #         ):
+    #             continue
 
-            # -----------------------------
-            # ✅ CLEAN PROCEDURE
-            # -----------------------------
-            clean = re.sub(r"\b(N/A|Date|Procedure|Laterality)\b", "", line, flags=re.I)
-            clean = re.sub(r"\s+", " ", clean).strip()
+    #         # -----------------------------
+    #         # ✅ CLEAN PROCEDURE
+    #         # -----------------------------
+    #         clean = re.sub(r"\b(N/A|Date|Procedure|Laterality)\b", "", line, flags=re.I)
+    #         clean = re.sub(r"\s+", " ", clean).strip()
 
-            results.append(clean)
+    #         results.append(clean)
 
-        return " ".join(results) if results else None
+    #     return " ".join(results) if results else None
 
     # -----------------------------------------------------
     # Safe Date Extractor (REAL DOB ONLY)
@@ -524,6 +524,90 @@ def extract_structured_fields(extracted_data: list[dict]) -> dict:
     #             return match.group()
 
     #     return None
+
+
+    def get_section_text(text, start_key, stop_keys):
+        text_lower = text.lower()
+        start = text_lower.find(start_key)
+
+        if start == -1:
+            return ""
+
+        end = len(text)
+
+        for stop in stop_keys:
+            idx = text_lower.find(stop, start + 1)
+            if idx != -1:
+                end = min(end, idx)
+
+        return text[start:end]
+    
+    def clean_medical_text(text):
+        text = re.sub(r"past medical history[:]*", "", text, flags=re.I)
+        text = re.sub(r"past surgical history[:]*", "", text, flags=re.I)
+
+        # remove common junk words
+        text = re.sub(r"\b(Diagnosis Date|Procedure|Laterality|Date)\b", "", text, flags=re.I)
+
+        # remove timestamps & dates
+        text = re.sub(r"\d{1,2}/\d{1,2}/\d{2,4}", "", text)
+        text = re.sub(r"\d{1,2}:\d{2}\s*(AM|PM)?", "", text, flags=re.I)
+
+        # remove random numbers like 6/10
+        text = re.sub(r"\b\d+/\d+\b", "", text)
+
+        # normalize spaces
+        text = re.sub(r"\s+", " ", text).strip()
+
+        return text
+    
+    def extract_conditions(text):
+        words = text.split()
+
+        conditions = []
+        current = []
+
+        for word in words:
+            # heuristic: new condition starts with capital letter
+            if word[0].isupper() and current:
+                conditions.append(" ".join(current))
+                current = []
+
+            current.append(word)
+
+        if current:
+            conditions.append(" ".join(current))
+
+        return conditions
+
+    def extract_past_medical_history(full_text):
+        raw = get_section_text(
+            full_text,
+            "past medical history",
+            ["past surgical history", "social history", "family history"]
+        )
+
+        cleaned = clean_medical_text(raw)
+
+        conditions = extract_conditions(cleaned)
+
+        return " | ".join(conditions) if conditions else None
+    
+    def extract_past_surgical_history(full_text):
+        raw = get_section_text(
+            full_text,
+            "past surgical history",
+            ["social history", "family history", "allergies"]
+        )
+
+        cleaned = clean_medical_text(raw)
+
+        # split by keywords or capital chunks
+        procedures = re.split(r"\b(?=[A-Z]{3,})", cleaned)
+
+        procedures = [p.strip() for p in procedures if len(p.strip()) > 3]
+
+        return " | ".join(procedures) if procedures else None
 
     def extract_dob():
         candidates = []
@@ -1099,11 +1183,13 @@ def extract_structured_fields(extracted_data: list[dict]) -> dict:
     if pathway:
         structured["start_on_pathway_regimen"] = {"value": pathway}
 
-    past_medical = extract_past_medical_history()
+    full_text = " ".join(lines)
+    past_medical = extract_past_medical_history(full_text)
     if past_medical:
         structured["past_medical_history"] = {"value": past_medical}
-
-    past_surgical = extract_past_surgical_history()
+        
+    full_text = " ".join(lines)
+    past_surgical = extract_past_surgical_history(full_text)
     if past_surgical:
         structured["past_surgical_history"] = {"value": past_surgical}
 
