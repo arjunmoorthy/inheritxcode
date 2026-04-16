@@ -565,20 +565,23 @@ def patient_listing_dashboard(
             severity_rows = patient_db.execute(
                 text(
                     """
-                    SELECT DISTINCT ON (sd.patient_id::text)
-                        sd.patient_id::text AS patient_uuid,
-                        sd.severity,
-                        sd.triage_level,
-                        sd.answers_json
-                    FROM symptom_details sd
-                    WHERE sd.patient_id::text = ANY(:patient_uuids)
-                    ORDER BY sd.patient_id::text, sd.created_at DESC NULLS LAST
+                    SELECT DISTINCT ON (c.patient_uuid::text)
+                        c.patient_uuid::text AS patient_uuid,
+                        COALESCE(
+                            NULLIF(c.triage_level, ''),
+                            NULLIF(c.engine_state->>'highest_triage_level', ''),
+                            'none'
+                        ) AS latest_severity_level
+                    FROM conversations c
+                    WHERE c.patient_uuid::text = ANY(:patient_uuids)
+                      AND c.bulleted_summary IS NOT NULL
+                    ORDER BY c.patient_uuid::text, c.created_at DESC NULLS LAST
                     """
                 ),
                 {"patient_uuids": patient_uuids},
             ).mappings().all()
             latest_severity_by_patient = {
-                row["patient_uuid"]: _severity_from_detail(dict(row))
+                row["patient_uuid"]: row.get("latest_severity_level")
                 for row in severity_rows
                 if row.get("patient_uuid")
             }
