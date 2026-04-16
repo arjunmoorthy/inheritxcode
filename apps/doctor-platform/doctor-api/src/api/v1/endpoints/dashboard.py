@@ -395,11 +395,101 @@ def patient_listing_dashboard(
         default=None,
         description="Filter by one or more physician IDs (repeat param or comma-separated)",
     ),
+    severity: str | None = Query(
+        default=None,
+        description="Severity filter: all, mild, moderate, severe, urgent",
+    ),
+    last_chatbot_check_in: str | None = Query(
+        default=None,
+        description="Last chatbot check-in filter: all_time, today, this_week, this_month",
+    ),
+    last_chatbot_checkin: str | None = Query(
+        default=None,
+        description="Legacy alias for last_chatbot_check_in",
+    ),
     current_user: TokenData = Depends(require_roles("physician", "nurse", "admin")),
     db: Session = Depends(get_doctor_db_session),
     patient_db: Session = Depends(get_patient_db_session),
 ):
     try:
+        def _normalize_severity_filter(value: Optional[str]) -> Optional[str]:
+            if value is None:
+                return None
+            normalized = value.strip().lower().replace(" ", "_")
+            return {
+                "all": "all",
+                "all_severities": "all",
+                "mild": "mild",
+                "moderate": "moderate",
+                "severe": "severe",
+                "urgent": "urgent",
+            }.get(normalized)
+
+        def _normalize_latest_severity(value: Optional[str]) -> Optional[str]:
+            if value is None:
+                return None
+            normalized = value.strip().lower().replace(" ", "_")
+            severity_map = {
+                "mild": "mild",
+                "moderate": "moderate",
+                "mod": "moderate",
+                "severe": "severe",
+                "sev": "severe",
+                "urgent": "urgent",
+                "call_911": "severe",
+                "notify_care_team": "moderate",
+                "please_notify_care_team": "moderate",
+                "none": "mild",
+            }
+            return severity_map.get(normalized)
+
+        def _normalize_chatbot_window_filter(value: Optional[str]) -> Optional[str]:
+            if value is None:
+                return None
+            normalized = value.strip().lower().replace(" ", "_").replace("-", "_")
+            return {
+                "all": "all_time",
+                "all_time": "all_time",
+                "today": "today",
+                "this_week": "this_week",
+                "this_month": "this_month",
+            }.get(normalized)
+
+        def _matches_chatbot_window(last_chatbot_date: Optional[str], window: str) -> bool:
+            if window == "all_time":
+                return True
+            if not last_chatbot_date:
+                return False
+            try:
+                parsed = datetime.fromisoformat(last_chatbot_date.replace("Z", "+00:00"))
+            except ValueError:
+                return False
+            event_date = parsed.date()
+            today = datetime.utcnow().date()
+            if window == "today":
+                return event_date == today
+            if window == "this_week":
+                week_start = today - timedelta(days=today.weekday())
+                return week_start <= event_date <= today
+            if window == "this_month":
+                return event_date.year == today.year and event_date.month == today.month
+            return False
+
+        severity_filter = _normalize_severity_filter(severity)
+        if severity_filter is None and severity is not None:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Invalid severity filter. Use one of: all, mild, moderate, severe, urgent",
+            )
+
+        raw_chatbot_filter = last_chatbot_check_in or last_chatbot_checkin
+        chatbot_window_filter = _normalize_chatbot_window_filter(raw_chatbot_filter)
+        if chatbot_window_filter is None and raw_chatbot_filter is not None:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Invalid last_chatbot_check_in filter. Use one of: all_time, today, this_week, this_month",
+            )
+
         # query = (
         #     db.query(FaxPatient)
         #     .join(
@@ -593,6 +683,23 @@ def patient_listing_dashboard(
                 if getattr(p, "user", None) and getattr(p.user, "uuid", None)
                 else None
             )
+            patient_severity = (
+                _normalize_latest_severity(latest_severity_by_patient.get(patient_uuid))
+                if patient_uuid
+                else None
+            )
+            patient_last_chatbot_date = (
+                latest_chatbot_date_by_patient.get(patient_uuid) if patient_uuid else None
+            )
+
+            if severity_filter and severity_filter != "all" and patient_severity != severity_filter:
+                continue
+            if (
+                chatbot_window_filter
+                and chatbot_window_filter != "all_time"
+                and not _matches_chatbot_window(patient_last_chatbot_date, chatbot_window_filter)
+            ):
+                continue
 
             # Resolve assigned oncologist(s) from active physician-patient assignments.
             assigned_oncologist_names = []
@@ -631,7 +738,7 @@ def patient_listing_dashboard(
                     # UUID used by dashboard trends endpoint: /dashboard/patient/{patient_uuid}/trends
                     "patient_uuid": patient_uuid,
                     "last_chemo_date": latest_chemo_by_patient.get(patient_uuid) if patient_uuid else None,
-                    "last_chatbot_date": latest_chatbot_date_by_patient.get(patient_uuid) if patient_uuid else None,
+                    "last_chatbot_date": patient_last_chatbot_date,
                     "latest_severity_level": latest_severity_by_patient.get(patient_uuid) if patient_uuid else None,
                     "first_name": p.first_name,
                     "last_name": p.last_name,
