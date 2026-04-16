@@ -57,7 +57,7 @@ const FiltersSidebar: React.FC<FiltersSidebarProps> = ({
       } flex flex-col overflow-hidden h-full`}
     >
       <div 
-        className={`p-4 md:p-6 space-y-4 md:space-y-6 flex-1 min-h-0 overflow-y-auto overflow-x-hidden ${isOpen ? 'block' : 'hidden md:hidden'} ${isDark ? '[&::-webkit-scrollbar-thumb]:bg-slate-600 [&::-webkit-scrollbar-track]:bg-slate-800' : '[&::-webkit-scrollbar-thumb]:bg-slate-300 [&::-webkit-scrollbar-track]:bg-slate-100'}`}
+        className={`p-4 md:p-4 space-y-4 md:space-y-6 flex-1 min-h-0 overflow-y-auto overflow-x-hidden ${isOpen ? 'block' : 'hidden md:hidden'} ${isDark ? '[&::-webkit-scrollbar-thumb]:bg-slate-600 [&::-webkit-scrollbar-track]:bg-slate-800' : '[&::-webkit-scrollbar-thumb]:bg-slate-300 [&::-webkit-scrollbar-track]:bg-slate-100'}`}
         style={{
           scrollbarWidth: 'thin',
           scrollbarColor: isDark ? '#475569 #252320' : '#cbd5e1 #ffffff',
@@ -85,10 +85,10 @@ const FiltersSidebar: React.FC<FiltersSidebarProps> = ({
 
         {/* Sidebar Header - Desktop */}
         {!isMobile && (
-          <div className="flex items-center justify-between mb-4 pb-4 border-b border-slate-700/50">
+          <div className="flex items-center justify-between pb-4 md:pb-2 border-b border-slate-700/50">
             <div className="flex items-center gap-2">
               <Filter size={18} className={isDark ? 'text-slate-400' : 'text-slate-600'} />
-              <h3 className={`text-base font-semibold ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>
+              <h3 className={`text-base font-semibold mb-0 ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>
                 Filters
               </h3>
             </div>
@@ -110,8 +110,9 @@ const FiltersSidebar: React.FC<FiltersSidebarProps> = ({
           </div>
         )}
 
-        {/* Date Range Section */}
-        <div className={`${isDark ? 'bg-slate-900/30' : 'bg-slate-50'} rounded-lg p-3 md:p-4 space-y-3 md:space-y-4`}>
+       <div className='space-y-4 md:space-y-4'>
+         {/* Date Range Section */}
+         <div className={`${isDark ? 'bg-slate-900/30' : 'bg-slate-50'} rounded-lg p-3 md:p-4 space-y-3 md:space-y-4`}>
           <div className="flex items-center gap-2 mb-2 md:mb-3">
             <CalendarIcon size={16} className={isDark ? 'text-slate-400' : 'text-slate-600'} />
             <label className={`text-sm font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
@@ -200,7 +201,7 @@ const FiltersSidebar: React.FC<FiltersSidebarProps> = ({
               Overall Severity
             </label>
           </div>
-          <div className="px-1">
+          <div className="px-2 pb-1">
             <Slider
               value={severityRange}
               onChange={(_, newValue) => onSeverityRangeChange(newValue as number[])}
@@ -210,48 +211,59 @@ const FiltersSidebar: React.FC<FiltersSidebarProps> = ({
               valueLabelDisplay="auto"
               valueLabelFormat={(value) => value.toFixed(1)}
               marks={[
-                { value: 0, label: 'Relieved' },
-                { value: 4, label: 'Very Severe' },
+                { value: 0, label: isMobile ? 'Low' : 'Relieved' },
+                { value: 4, label: isMobile ? 'High' : 'Very Severe' },
               ]}
               sx={{
                 color: '#2563EB',
+                overflow: 'visible',
                 '& .MuiSlider-thumb': {
                   backgroundColor: '#2563EB',
-                  width: 18,
-                  height: 18,
+                  width: isMobile ? 16 : 18,
+                  height: isMobile ? 16 : 18,
                   '&:hover': {
                     boxShadow: '0 0 0 8px rgba(37, 99, 235, 0.16)',
                   },
                 },
                 '& .MuiSlider-track': {
                   backgroundColor: '#2563EB',
-                  height: 4,
+                  height: isMobile ? 3 : 4,
                 },
                 '& .MuiSlider-rail': {
                   backgroundColor: isDark ? '#334155' : '#e2e8f0',
-                  height: 4,
+                  height: isMobile ? 3 : 4,
                 },
                 '& .MuiSlider-markLabel': {
                   color: isDark ? '#94a3b8' : '#64748b',
-                  fontSize: '0.7rem',
+                  fontSize: isMobile ? '0.65rem' : '0.7rem',
                   fontWeight: 500,
+                  top: isMobile ? 24 : 30,
+                  whiteSpace: 'nowrap',
+                },
+                '& .MuiSlider-markLabel[data-index="0"]': {
+                  transform: 'translateX(0%)',
+                },
+                '& .MuiSlider-markLabel[data-index="1"]': {
+                  transform: 'translateX(-100%)',
+                  textAlign: 'right',
                 },
                 '& .MuiSlider-valueLabel': {
                   backgroundColor: '#2563EB',
-                  fontSize: '0.75rem',
+                  fontSize: isMobile ? '0.7rem' : '0.75rem',
                 },
               }}
             />
-            <div className="flex justify-between mt-2">
+            {/* <div className="flex justify-between mt-2">
               <span className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
                 Symptom Relieved
               </span>
               <span className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
                 Very Severe
               </span>
-            </div>
+            </div> */}
           </div>
         </div>
+       </div>
 
         {/* Quick Actions */}
         <div className="pt-2 border-t border-slate-700/50">

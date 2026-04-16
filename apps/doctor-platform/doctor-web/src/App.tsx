@@ -41,6 +41,28 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
     return <>{children}</>;
 };
 
+interface PublicOnlyRouteProps {
+    children: React.ReactNode;
+}
+
+const PublicOnlyRoute: React.FC<PublicOnlyRouteProps> = ({ children }) => {
+    const { isAuthenticated, isLoading } = useAuth();
+
+    if (isLoading) {
+        return (
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', background: '#f8fafc' }}>
+                Loading...
+            </div>
+        );
+    }
+
+    if (isAuthenticated) {
+        return <Navigate to="/dashboard" replace />;
+    }
+
+    return <>{children}</>;
+};
+
 const App: React.FC = () => {
     return (
         <AuthProvider>
@@ -49,10 +71,38 @@ const App: React.FC = () => {
                 <BrowserRouter basename={(import.meta.env.BASE_URL ?? '/').replace(/\/$/, '') || '/'}>
                     <Routes>
                         {/* Public Routes */}
-                        <Route path="/login" element={<LoginPage />} />
-                        <Route path="/signup" element={<SignUpPage />} />
-                        <Route path="/reset-password" element={<ResetPasswordPage />} />
-                        <Route path="/set-password" element={<SetPasswordPage />} />
+                        <Route
+                            path="/login"
+                            element={
+                                <PublicOnlyRoute>
+                                    <LoginPage />
+                                </PublicOnlyRoute>
+                            }
+                        />
+                        <Route
+                            path="/signup"
+                            element={
+                                <PublicOnlyRoute>
+                                    <SignUpPage />
+                                </PublicOnlyRoute>
+                            }
+                        />
+                        <Route
+                            path="/reset-password"
+                            element={
+                                <PublicOnlyRoute>
+                                    <ResetPasswordPage />
+                                </PublicOnlyRoute>
+                            }
+                        />
+                        <Route
+                            path="/set-password"
+                            element={
+                                <PublicOnlyRoute>
+                                    <SetPasswordPage />
+                                </PublicOnlyRoute>
+                            }
+                        />
                         <Route path="/auth/callback" element={<AuthCallback />} />
                         <Route path="/complete-profile" element={<CompleteProfile />} />
                         <Route path="/public/fax-preview/:patientUiId" element={<PublicFaxPreviewPage />} />
@@ -77,12 +127,31 @@ const App: React.FC = () => {
                         </Route>
 
                         {/* Catch all */}
-                        <Route path="*" element={<Navigate to="/login" replace />} />
+                        <Route
+                            path="*"
+                            element={
+                                <AuthAwareFallback />
+                            }
+                        />
                     </Routes>
                 </BrowserRouter>
             </UserProvider>
         </AuthProvider>
     );
+};
+
+const AuthAwareFallback: React.FC = () => {
+    const { isAuthenticated, isLoading } = useAuth();
+
+    if (isLoading) {
+        return (
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', background: '#f8fafc' }}>
+                Loading...
+            </div>
+        );
+    }
+
+    return <Navigate to={isAuthenticated ? '/dashboard' : '/login'} replace />;
 };
 
 export default App;

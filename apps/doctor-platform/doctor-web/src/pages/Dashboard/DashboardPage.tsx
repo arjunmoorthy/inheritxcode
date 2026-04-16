@@ -417,11 +417,14 @@ const mapSeverityToPriority = (severity: string | null | undefined): 'low' | 'me
                       ),
                     }}
                     sx={{
+                      width: { xs: '100%', sm: 250 },
                       '& .MuiOutlinedInput-root': {
                         borderRadius: '12px',
+                        height: '50px',
                         backgroundColor: isDark ? '#1A1917' : 'white',
                         color: isDark ? '#f1f5f9' : '#0f172a',
                         '& fieldset': { borderColor: isDark ? '#334155' : '#e2e8f0' },
+                        '&:hover fieldset': { borderColor: isDark ? '#475569' : '#cbd5e1' },
                       },
                     }}
                   />
@@ -432,7 +435,7 @@ const mapSeverityToPriority = (severity: string | null | undefined): 'low' | 'me
                   sx={{
                     minWidth: '46px',
                     width: '46px',
-                    height: '40px',
+                    height: '50px',
                     borderRadius: '12px',
                     borderColor: isDark ? '#334155' : '#e2e8f0',
                     color: isDark ? '#f1f5f9' : '#0f172a',
@@ -449,11 +452,11 @@ const mapSeverityToPriority = (severity: string | null | undefined): 'low' | 'me
             ) : (
               <div className="flex flex-row gap-4 items-end flex-wrap w-full">
                 {/* Provider Filter - Admin Only */}
-                 <div className="flex flex-col gap-1.5">
+                 <div className="flex flex-col gap-1.5 w-full sm:w-[250px]">
                     <Typography variant="caption" sx={{ fontWeight: 700, color: isDark ? '#64748b' : '#94a3b8', ml: 0.5, textTransform: 'uppercase', letterSpacing: '0.05em', fontSize: '0.65rem' }}>
                       Provider
                     </Typography>
-                    <FormControl size="small" sx={{ minWidth: 200 }}>
+                    <FormControl size="small" sx={{ width: { xs: '100%', sm: 250 } }}>
                       <Select
                         multiple
                         value={selectedPhysicianIds}
@@ -530,13 +533,13 @@ const mapSeverityToPriority = (severity: string | null | undefined): 'low' | 'me
                   </div>
 
                 {/* Search Filter */}
-                <div className="flex flex-col gap-1.5 flex-1 min-w-[300px]">
+                <div className="flex flex-col gap-1.5 w-full sm:w-[250px]">
                   <Typography variant="caption" sx={{ fontWeight: 700, color: isDark ? '#64748b' : '#94a3b8', ml: 0.5, textTransform: 'uppercase', letterSpacing: '0.05em', fontSize: '0.65rem' }}>
                     Search
                   </Typography>
                   <TextField
                     fullWidth
-                    placeholder="Search by first name, last name, or full name..."
+                    placeholder="Search by patient name..."
                     value={search}
                     onChange={handleSearchChange}
                     size="small"
@@ -548,8 +551,10 @@ const mapSeverityToPriority = (severity: string | null | undefined): 'low' | 'me
                       ),
                     }}
                     sx={{
+                      width: { xs: '100%', sm: 250 },
                       '& .MuiOutlinedInput-root': {
                         borderRadius: '12px',
+                        height: '40px',
                         backgroundColor: isDark ? '#1A1917' : 'white',
                         color: isDark ? '#f1f5f9' : '#0f172a',
                         '& fieldset': { borderColor: isDark ? '#334155' : '#e2e8f0' },
@@ -560,17 +565,18 @@ const mapSeverityToPriority = (severity: string | null | undefined): 'low' | 'me
                 </div>
 
                 {/* Symptom Type Filter */}
-                <div className="flex flex-col gap-1.5">
+                <div className="flex flex-col gap-1.5 w-full sm:w-[250px]">
                   <Typography variant="caption" sx={{ fontWeight: 700, color: isDark ? '#64748b' : '#94a3b8', ml: 0.5, textTransform: 'uppercase', letterSpacing: '0.05em', fontSize: '0.65rem' }}>
                     Symptom Type
                   </Typography>
-                  <FormControl size="small" sx={{ minWidth: 160 }}>
+                  <FormControl size="small" sx={{ width: { xs: '100%', sm: 250 } }}>
                     <Select
                       value={symptomTypeFilter}
                       onChange={handleSymptomTypeChange}
                       IconComponent={ChevronDown}
                       sx={{
                         borderRadius: '12px',
+                        height: '40px',
                         backgroundColor: isDark ? '#1A1917' : 'white',
                         color: isDark ? '#f1f5f9' : '#0f172a',
                         '& .MuiOutlinedInput-notchedOutline': { borderColor: isDark ? '#334155' : '#e2e8f0' },
@@ -586,17 +592,18 @@ const mapSeverityToPriority = (severity: string | null | undefined): 'low' | 'me
                 </div>
 
                 {/* Severity Filter */}
-                <div className="flex flex-col gap-1.5">
+                <div className="flex flex-col gap-1.5 w-full sm:w-[250px]">
                   <Typography variant="caption" sx={{ fontWeight: 700, color: isDark ? '#64748b' : '#94a3b8', ml: 0.5, textTransform: 'uppercase', letterSpacing: '0.05em', fontSize: '0.65rem' }}>
                     Severity
                   </Typography>
-                  <FormControl size="small" sx={{ minWidth: 140 }}>
+                  <FormControl size="small" sx={{ width: { xs: '100%', sm: 250 } }}>
                     <Select
                       value={severityFilter}
                       onChange={handleSeverityChange}
                       IconComponent={ChevronDown}
                       sx={{
                         borderRadius: '12px',
+                        height: '40px',
                         backgroundColor: isDark ? '#1A1917' : 'white',
                         color: isDark ? '#f1f5f9' : '#0f172a',
                         '& .MuiOutlinedInput-notchedOutline': { borderColor: isDark ? '#334155' : '#e2e8f0' },
@@ -612,17 +619,18 @@ const mapSeverityToPriority = (severity: string | null | undefined): 'low' | 'me
                 </div>
 
                 {/* Check-in Filter */}
-                <div className="flex flex-col gap-1.5">
+                <div className="flex flex-col gap-1.5 w-full sm:w-[250px]">
                   <Typography variant="caption" sx={{ fontWeight: 700, color: isDark ? '#64748b' : '#94a3b8', ml: 0.5, textTransform: 'uppercase', letterSpacing: '0.05em', fontSize: '0.65rem' }}>
                     Last Chatbot Check-in
                   </Typography>
-                  <FormControl size="small" sx={{ minWidth: 180 }}>
+                  <FormControl size="small" sx={{ width: { xs: '100%', sm: 250 } }}>
                     <Select
                       value={checkInFilter}
                       onChange={handleCheckInChange}
                       IconComponent={ChevronDown}
                       sx={{
                         borderRadius: '12px',
+                        height: '40px',
                         backgroundColor: isDark ? '#1A1917' : 'white',
                         color: isDark ? '#f1f5f9' : '#0f172a',
                         '& .MuiOutlinedInput-notchedOutline': { borderColor: isDark ? '#334155' : '#e2e8f0' },

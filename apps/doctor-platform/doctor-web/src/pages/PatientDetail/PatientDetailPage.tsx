@@ -748,25 +748,12 @@ const PatientDetailPage: React.FC = () => {
 
     const graphSvgElement = document.querySelector('[data-export-chart="patient-symptom-graph"] svg');
     const graphSvgMarkup = graphSvgElement ? graphSvgElement.outerHTML : '';
-    const graphSvgWithTempAxis = (() => {
-      if (!graphSvgMarkup) return '';
-
-      const viewBoxMatch = graphSvgMarkup.match(/viewBox="([^"]+)"/);
-      const viewBoxValues = viewBoxMatch?.[1]?.split(/\s+/).map(Number) || [];
-      const svgWidth = viewBoxValues[2] || 1000;
-      const svgHeight = viewBoxValues[3] || 400;
-      const tempLevels = [104, 102, 100, 98, 96];
-
-      const tempAxisMarkup = tempLevels
-        .map((temp, idx) => {
-          const y = (idx / (tempLevels.length - 1)) * svgHeight;
-          const label = idx === 0 ? '°F' : `${temp}`;
-          return `<text x="${svgWidth - 6}" y="${Math.max(10, y + 4)}" text-anchor="end" font-size="10" fill="#64748b">${label}</text>`;
-        })
-        .join('');
-
-      return graphSvgMarkup.replace('</svg>', `${tempAxisMarkup}</svg>`);
-    })();
+    const graphSvgForExport = graphSvgMarkup
+      ? graphSvgMarkup.replace(
+        '<svg',
+        '<svg style="display:block;width:100%;height:auto;max-width:100%;overflow:visible" preserveAspectRatio="xMidYMid meet"'
+      )
+      : '';
 
     const rowsHtml = tableData
       .map(
@@ -849,8 +836,8 @@ const PatientDetailPage: React.FC = () => {
           
           <h2>Symptom & Temperature Graph</h2>
           <p class="small"><strong>Symptoms in Graph:</strong> ${graphLegendHtml}</p>
-          ${graphSvgWithTempAxis
-        ? `<div style="border:1px solid #cbd5e1; border-radius:8px; padding:10px; background:#f8fafc;">${graphSvgWithTempAxis}</div>`
+          ${graphSvgForExport
+        ? `<div style="border:1px solid #cbd5e1; border-radius:8px; padding:10px; background:#f8fafc; overflow:visible;">${graphSvgForExport}</div>`
         : '<p class="small">Graph preview unavailable at export time.</p>'
       }
 
