@@ -538,6 +538,51 @@ def patient_listing_dashboard(
                 for row in chemo_rows
             }
 
+        latest_chatbot_date_by_patient: Dict[str, Optional[str]] = {}
+        if patient_uuids:
+            chatbot_rows = patient_db.execute(
+                text(
+                    """
+                    SELECT c.patient_uuid::text AS patient_uuid, MAX(COALESCE(c.updated_at, c.created_at)) AS last_chatbot_date
+                    FROM conversations c
+                    WHERE c.patient_uuid::text = ANY(:patient_uuids)
+                    GROUP BY c.patient_uuid::text
+                    """
+                ),
+                {"patient_uuids": patient_uuids},
+            ).mappings().all()
+            latest_chatbot_date_by_patient = {
+                row["patient_uuid"]: (
+                    row["last_chatbot_date"].isoformat()
+                    if row.get("last_chatbot_date") is not None
+                    else None
+                )
+                for row in chatbot_rows
+            }
+
+        latest_severity_by_patient: Dict[str, Optional[str]] = {}
+        if patient_uuids:
+            severity_rows = patient_db.execute(
+                text(
+                    """
+                    SELECT DISTINCT ON (sd.patient_id::text)
+                        sd.patient_id::text AS patient_uuid,
+                        sd.severity,
+                        sd.triage_level,
+                        sd.answers_json
+                    FROM symptom_details sd
+                    WHERE sd.patient_id::text = ANY(:patient_uuids)
+                    ORDER BY sd.patient_id::text, sd.created_at DESC NULLS LAST
+                    """
+                ),
+                {"patient_uuids": patient_uuids},
+            ).mappings().all()
+            latest_severity_by_patient = {
+                row["patient_uuid"]: _severity_from_detail(dict(row))
+                for row in severity_rows
+                if row.get("patient_uuid")
+            }
+
         response = []
         for p in patients:
             patient_uuid = (
@@ -583,6 +628,8 @@ def patient_listing_dashboard(
                     # UUID used by dashboard trends endpoint: /dashboard/patient/{patient_uuid}/trends
                     "patient_uuid": patient_uuid,
                     "last_chemo_date": latest_chemo_by_patient.get(patient_uuid) if patient_uuid else None,
+                    "last_chatbot_date": latest_chatbot_date_by_patient.get(patient_uuid) if patient_uuid else None,
+                    "latest_severity_level": latest_severity_by_patient.get(patient_uuid) if patient_uuid else None,
                     "first_name": p.first_name,
                     "last_name": p.last_name,
                     "gender": p.gender,

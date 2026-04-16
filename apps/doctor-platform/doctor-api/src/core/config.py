@@ -22,7 +22,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Optional, List
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic import Field, computed_field
+from pydantic import AliasChoices, Field, computed_field
 
 # Resolve .env from project root (doctor-api/), not from current working directory.
 # This way the app loads .env correctly whether run as "uvicorn main:app" from
@@ -264,21 +264,23 @@ class Settings(BaseSettings):
     # Patient Portal (welcome email / set-password link)
     # ==========================================================================
     patient_set_password_base_url: str = Field(
-        # default="https://oncolife-ai-patient-web.vercel.app/set-password?email={email}",
-        default="https://oncolife-patient.inheritxdev.in/set-password?email={email}",
+        ...,
         description="Base URL for patient set-password page (login link in welcome email). Env: PATIENT_SET_PASSWORD_BASE_URL",
     )
 
     doctor_set_password_base_url: str = Field(
-        # default="https://oncolife-ai-doctor-web-4got.vercel.app/set-password?email={email}",
-        default="https://oncolife-doctor.inheritxdev.in/set-password?email={email}",
+        ...,
         description="Base URL for doctor set-password page (login link in welcome email). Env: DOCTOR_SET_PASSWORD_BASE_URL",
     )
 
     doctor_forget_password_base_url: str = Field(
-        # default="https://oncolife-ai-doctor-web-4got.vercel.app/reset-password?token={token}",
-        default="https://oncolife-doctor.inheritxdev.in/reset-password?token={token}",
+        ...,
+        validation_alias=AliasChoices("FORGET_PASSWORD_BASE_URL", "DOCTOR_FORGET_PASSWORD_BASE_URL"),
         description="Base URL for doctor reset-password page (link in forgot password email). Env: DOCTOR_FORGET_PASSWORD_BASE_URL",
+    )
+    doctor_dashboard_base_url: str = Field(
+        default="https://api.doctor.healthai.global/",
+        description="Base URL for doctor dashboard frontend pages (fax preview, etc). Env: DOCTOR_DASHBOARD_BASE_URL",
     )
 
     # ==========================================================================

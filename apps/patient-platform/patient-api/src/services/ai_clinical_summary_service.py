@@ -29,10 +29,12 @@ DOCTOR_SUMMARY_PROMPT = (
     "response, and any associated features. Include oral intake, hydration "
     "status, functional status (ADLs), temperature, weight changes, and any "
     "early concerning signs such as decreased urine output or pain with "
-    "swallowing. Write in neutral clinical language, in 3-5 sentences, without "
-    "including recommendations, triage levels, or next steps. Ensure nothing "
-    "reported is omitted. If there are any emergent symptoms, that should be "
-    "the first symptom reported"
+    "swallowing. Do not infer or assign causality between symptoms unless "
+    "explicitly stated by the patient. Instead, describe symptoms as "
+    "co-occurring or associated when relevant. Write in neutral clinical "
+    "language, in 3-5 sentences, without including recommendations, triage "
+    "levels, or next steps. Ensure nothing reported is omitted. If there are "
+    "any emergent symptoms, that should be the first symptom reported."
 )
 
 PATIENT_SUMMARY_PROMPT = (
@@ -44,9 +46,11 @@ PATIENT_SUMMARY_PROMPT = (
     "duration, interventions tried, response, and associated features. Include "
     "oral intake, hydration status, daily activity impact (ADLs), temperature, "
     "weight changes, and early concerning signs such as decreased urine output "
-    "or pain with swallowing. Use clear and simple language in 3-5 sentences. "
-    "Do not include recommendations, triage levels, or next steps. Ensure "
-    "nothing reported is omitted."
+    "or pain with swallowing. Do not infer or assign causality between symptoms "
+    "unless explicitly stated by the patient. Instead, describe symptoms as "
+    "co-occurring or associated when relevant. Use clear and simple language in "
+    "3-5 sentences. Do not include recommendations, triage levels, or next "
+    "steps. Ensure nothing reported is omitted."
 )
 
 PATIENT_SUMMARY_REFINEMENT_PROMPT = (

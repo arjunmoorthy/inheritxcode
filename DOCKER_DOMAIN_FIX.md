@@ -5,6 +5,9 @@ The Docker setup was missing an nginx reverse proxy service to handle custom dom
 
 ## Solution
 Added an nginx reverse proxy service to the `docker-compose.yml` that routes traffic based on domain names.
+The nginx startup now auto-selects:
+- `http.conf` before certificates exist
+- `https.conf` after a shared multi-domain certificate is present
 
 ## Changes Made
 
@@ -41,14 +44,14 @@ docker compose up -d postgres patient-api doctor-api nginx
 ### Test Domain Routing
 ```bash
 # Test Patient API
-curl -H "Host: oncolife-patient-api.inheritxdev.in" http://localhost/health
+curl -H "Host: api.patient.healthai.global" http://localhost/health
 
 # Test Doctor API
-curl -H "Host: oncolife-doctor-api.inheritxdev.in" http://localhost/health
+curl -H "Host: api.doctor.healthai.global" http://localhost/health
 
-# Test with actual domain (requires DNS and SSL setup)
-curl https://oncolife-patient-api.inheritxdev.in/health
-curl https://oncolife-doctor-api.inheritxdev.in/health
+# Test with actual domains after DNS is live
+curl -I http://api.patient.healthai.global/health
+curl -I http://api.doctor.healthai.global/health
 ```
 
 ### View Logs
@@ -72,20 +75,43 @@ docker compose config
 
 | Service | Local URL | Domain URL |
 |---------|-----------|------------|
-| Patient API | http://localhost:8000 | https://oncolife-patient-api.inheritxdev.in |
-| Doctor API | http://localhost:8001 | https://oncolife-doctor-api.inheritxdev.in |
-| Patient Web | http://localhost:5173 | https://oncolife-patient.inheritxdev.in |
-| Doctor Web | http://localhost:5174 | https://oncolife-doctor.inheritxdev.in |
+| Patient API | http://localhost:8000 | https://api.patient.healthai.global |
+| Doctor API | http://localhost:8001 | https://api.doctor.healthai.global |
+| Patient Web | http://localhost:5173 | https://patient.healthai.global |
+| Doctor Web | http://localhost:5174 | https://doctor.healthai.global |
 | Nginx Proxy | http://localhost | - |
 
 ## Production Deployment
 
 For production with SSL certificates:
 
-1. Ensure SSL certificates are installed in `/etc/letsencrypt/live/`
-2. Update nginx.conf to use HTTPS redirects instead of direct proxy
-3. Configure DNS to point domains to the server IP
-4. Open ports 80 and 443 in the firewall
+1. Ensure DNS points all four domains to the EC2 public IP
+2. Create the ACME webroot directory on the host:
+```bash
+sudo mkdir -p /var/www/certbot
+```
+3. Start Docker so nginx serves HTTP and ACME challenges:
+```bash
+docker compose up -d nginx
+```
+4. Issue one shared certificate for all four names.
+If you keep `patient.healthai.global` as the first `-d`, certbot's default lineage path will be `/etc/letsencrypt/live/patient.healthai.global/`, and nginx now supports that automatically.
+If you prefer a cleaner lineage name, add `--cert-name healthai.global`.
+```bash
+sudo certbot certonly --webroot \
+  -w /var/www/certbot \
+  -d patient.healthai.global \
+  -d doctor.healthai.global \
+  -d api.patient.healthai.global \
+  -d api.doctor.healthai.global \
+  --email your-email@example.com \
+  --agree-tos \
+  --non-interactive
+```
+5. Restart nginx so it switches to the HTTPS config:
+```bash
+docker compose restart nginx
+```
 
 ## Troubleshooting
 
@@ -95,13 +121,17 @@ docker compose logs nginx
 docker compose config  # Validate configuration
 ```
 
+If the log shows `cannot load certificate`, nginx is trying to start in HTTPS mode before the shared cert exists at either `/etc/letsencrypt/live/patient.healthai.global/` or `/etc/letsencrypt/live/healthai.global/`.
+
 ### Domain not resolving
 - Check DNS settings
 - Verify `/etc/hosts` for local testing
 - Ensure nginx container is running: `docker ps | grep nginx`
 
 ### SSL certificate errors
-- Verify certificates exist: `ls -la /etc/letsencrypt/live/`
+- Verify the shared certificate exists:
+  `ls -la /etc/letsencrypt/live/patient.healthai.global/`
+  or `ls -la /etc/letsencrypt/live/healthai.global/`
 - Check certificate permissions
 - Renew certificates: `certbot renew`
 
@@ -114,7 +144,5 @@ docker compose restart doctor-api
 
 ## Notes
 
-- The nginx configuration supports both HTTP (for local testing) and HTTPS (for production)
-- For local testing without SSL, the configuration proxies directly without redirect
-- For production, uncomment the HTTPS redirect lines in nginx.conf
+- The nginx startup script automatically chooses HTTP bootstrap mode until it finds a shared SAN certificate in `/etc/letsencrypt/live/patient.healthai.global/` or `/etc/letsencrypt/live/healthai.global/`
 - All services are on the same Docker network (`oncolife-network`) for internal communication

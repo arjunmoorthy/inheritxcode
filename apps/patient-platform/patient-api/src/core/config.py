@@ -22,7 +22,7 @@ Usage:
 from functools import lru_cache
 from pathlib import Path
 from typing import List, Optional
-from pydantic import Field, field_validator, computed_field
+from pydantic import AliasChoices, Field, field_validator, computed_field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 import urllib.parse
 
@@ -372,7 +372,8 @@ class Settings(BaseSettings):
 
     # Password reset URL (patient web)
     patient_forget_password_base_url: str = Field(
-        default="https://oncolife-patient.inheritxdev.in/reset-password?token={token}",
+        ...,
+        validation_alias=AliasChoices("FORGET_PASSWORD_BASE_URL", "PATIENT_FORGET_PASSWORD_BASE_URL"),
         description="Base URL for patient reset-password page (link in forgot password email). Env: PATIENT_FORGET_PASSWORD_BASE_URL",
     )
     

@@ -526,8 +526,9 @@ async def send_patient_symptoms_fax(
         )
 
     # Build frontend dashboard URL with caller token
+    dashboard_base_url = settings.doctor_dashboard_base_url.rstrip("/")
     dashboard_url = (
-        f"https://oncolife-doctor.inheritxdev.in/public/fax-preview/{patient_uuid}"
+        f"{dashboard_base_url}/public/fax-preview/{patient_uuid}"
         f"?token={access_token}&start_date={start_date.isoformat()}&end_date={end_date.isoformat()}"
     )
 

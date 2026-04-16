@@ -31,7 +31,7 @@ from db.patient_models import Messages as MessageModel
 from routers.auth.dependencies import _get_jwks, TokenData
 from routers.chat.models import (
     WebSocketMessageIn, Message, FullChatResponse, 
-    ChatStateResponse, TodaySessionResponse
+    ChatStateResponse, TodaySessionResponse, LastQuestionForUndo
 )
 from utils.timezone_utils import utc_to_user_timezone
 from core.logging import get_logger
@@ -121,6 +121,57 @@ def convert_chat_to_user_timezone(chat, messages, user_timezone: str = "America/
             message.created_at = utc_to_user_timezone(message.created_at, user_timezone)
     
     return chat, messages
+
+
+def extract_last_question_for_undo(messages: List[Message]) -> Optional[LastQuestionForUndo]:
+    """
+    Find the latest assistant prompt that can be restored for "go back one step".
+    """
+    prompt_frontend_types = {
+        "disclaimer",
+        "emergency-check",
+        "symptom-select",
+        "single-select",
+        "multi-select",
+        "next-chemo-date",
+    }
+
+    for message in reversed(messages):
+        if message.sender != "assistant":
+            continue
+
+        structured = message.structured_data or {}
+        frontend_type = str(structured.get("frontend_type", "")).replace("_", "-")
+        has_options = bool(structured.get("options") or structured.get("options_data"))
+        is_prompt = has_options or message.message_type in {"single-select", "multi-select"} or frontend_type in prompt_frontend_types
+
+        if is_prompt:
+            return LastQuestionForUndo(
+                message_id=message.id,
+                message_type=message.message_type,
+                content=message.content,
+                structured_data=structured,
+            )
+
+    return None
+
+
+def inject_session_controls_into_latest_assistant_message(
+    messages: List[Message],
+    session_entry_action: str,
+    can_undo_last_step: bool,
+) -> None:
+    """
+    Add session control hints into the most recent assistant message payload.
+    """
+    for message in reversed(messages):
+        if message.sender != "assistant":
+            continue
+        structured = dict(message.structured_data or {})
+        structured["session_entry_action"] = session_entry_action
+        structured["can_undo_last_step"] = can_undo_last_step
+        message.structured_data = structured
+        return
 
 
 async def get_user_from_token(token: str) -> Optional[TokenData]:
@@ -234,6 +285,17 @@ def get_or_create_session(
     convert_chat_to_user_timezone(chat, pydantic_messages, timezone)
     
     logger.info(f"Session: chat={chat.uuid} is_new={is_new} messages={len(messages)}")
+
+    last_question_for_undo = None
+    if not is_new:
+        last_question_for_undo = extract_last_question_for_undo(pydantic_messages)
+    session_entry_action = "show_new_checkin" if is_new else "show_undo_last_step"
+    can_undo_last_step = bool(last_question_for_undo)
+    inject_session_controls_into_latest_assistant_message(
+        pydantic_messages,
+        session_entry_action=session_entry_action,
+        can_undo_last_step=can_undo_last_step,
+    )
     
     return TodaySessionResponse(
         chat_uuid=chat.uuid,
@@ -241,6 +303,9 @@ def get_or_create_session(
         messages=pydantic_messages,
         is_new_session=is_new,
         symptom_list=chat.symptom_list or [],
+        session_entry_action=session_entry_action,
+        can_undo_last_step=can_undo_last_step,
+        last_question_for_undo=last_question_for_undo,
     )
 
 
@@ -289,6 +354,11 @@ def force_create_new_session(
 
     pydantic_messages = [convert_message_for_frontend(Message.from_orm(first_message))]
     convert_chat_to_user_timezone(chat, pydantic_messages, timezone)
+    inject_session_controls_into_latest_assistant_message(
+        pydantic_messages,
+        session_entry_action="show_new_checkin",
+        can_undo_last_step=False,
+    )
 
     logger.info(f"New check-in created: chat={chat.uuid}")
 
@@ -298,6 +368,9 @@ def force_create_new_session(
         messages=pydantic_messages,
         is_new_session=True,
         symptom_list=chat.symptom_list or [],
+        session_entry_action="show_new_checkin",
+        can_undo_last_step=False,
+        last_question_for_undo=None,
     )
 
     # existing_chats = db.query(ChatModel).filter(
