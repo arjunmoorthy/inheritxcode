@@ -113,6 +113,8 @@ class ConversationState:
     # AI summary review fields
     ai_generated_summary: Optional[str] = None
     user_summary_edit: Optional[str] = None
+    summary_prefix_message: Optional[str] = None
+    summary_generated: bool = False
 
     def to_dict(self) -> Dict[str, Any]:
         """Serialize state to dictionary."""
@@ -149,6 +151,8 @@ class ConversationState:
             'session_fever_answer': self.session_fever_answer,
             'ai_generated_summary': self.ai_generated_summary,
             'user_summary_edit': self.user_summary_edit,
+            'summary_prefix_message': self.summary_prefix_message,
+            'summary_generated': self.summary_generated,
         }
 
     @classmethod
@@ -187,6 +191,8 @@ class ConversationState:
             session_fever_answer=data.get('session_fever_answer'),
             ai_generated_summary=data.get('ai_generated_summary'),
             user_summary_edit=data.get('user_summary_edit'),
+            summary_prefix_message=data.get('summary_prefix_message'),
+            summary_generated=data.get('summary_generated', False),
         )
 
 
@@ -688,7 +694,7 @@ class SymptomCheckerEngine:
                     # Prefer explicitly passed non-urgent guidance (from last symptom completion),
                     # otherwise fall back to temperature guidance derived from the session temp.
                     prefix_message = greeting_message or _build_temperature_guidance()
-                    return self._generate_summary(prefix_message=prefix_message)
+                    return self._show_summary_review_prompt(prefix_message=prefix_message)
 
                 candidate = remaining[0]
                 if _should_skip_symptom(candidate):
@@ -1448,6 +1454,32 @@ class SymptomCheckerEngine:
     # =========================================================================
     # PHASE 6: SUMMARY
     # =========================================================================
+    def _show_summary_review_prompt(self, prefix_message: Optional[str] = None) -> EngineResponse:
+        """
+        Show a pre-summary checkpoint so the patient can provide edits
+        before we generate the final summary.
+        """
+        self.state.phase = ConversationPhase.SUMMARY
+        self.state.summary_generated = False
+        self.state.summary_prefix_message = prefix_message
+
+        prompt_message = (
+            "✅ **All symptom questions are complete.**\n\n"
+            "Before I generate your final summary, do you want to add or update anything?\n\n"
+            "Choose **Yes** to type changes, or **No** to generate the summary now."
+        )
+        self._add_to_chat_history('ruby', prompt_message)
+
+        return EngineResponse(
+            message=prompt_message,
+            message_type='summary',
+            options=SUMMARY_REVIEW_OPTIONS,
+            is_complete=False,
+            sender='ruby',
+            avatar='📋',
+            state=self.state
+        )
+
     # Previous signature (kept for reference; now disabled):
     # def _generate_summary(self) -> EngineResponse:
     def _generate_summary(
@@ -1457,6 +1489,12 @@ class SymptomCheckerEngine:
     ) -> EngineResponse:
         """Generate the final summary of the symptom check."""
         self.state.phase = ConversationPhase.SUMMARY
+        self.state.summary_generated = True
+        effective_prefix_message = (
+            prefix_message
+            if prefix_message is not None
+            else self.state.summary_prefix_message
+        )
         
         # Build summary data
         summary_data = {
@@ -1532,11 +1570,11 @@ class SymptomCheckerEngine:
 
         # Keep the summary generation/wording the same, but for non-urgent sessions
         # we include the final temperature guidance inside the card so it isn't "lost".
-        if prefix_message and triage_level == TriageLevel.NONE:
+        if effective_prefix_message and triage_level == TriageLevel.NONE:
             summary_message = summary_message.replace(
                 "✅ **Good news!** No urgent concerns identified.\n\n",
                 "✅ **Good news!** No urgent concerns identified.\n\n"
-                f"🌡️ **Temperature guidance:** {prefix_message}\n\n"
+                f"🌡️ **Temperature guidance:** {effective_prefix_message}\n\n"
             )
         
         # Store the concise summary for later use
@@ -1545,12 +1583,7 @@ class SymptomCheckerEngine:
         self._add_to_chat_history('ruby', summary_message)
 
         summary_options = SUMMARY_REVIEW_OPTIONS if include_review_prompt else SUMMARY_ACTIONS
-        next_prompt = (
-            "Would you like to add/update anything in the summary?"
-            if include_review_prompt
-            else "What would you like to do?"
-        )
-
+        next_prompt = "Would you like to add/update anything in the summary?" if include_review_prompt else "What would you like to do?"
         summary_message = summary_message.rsplit("What would you like to do?", 1)[0] + next_prompt
 
         return EngineResponse(
@@ -1567,24 +1600,27 @@ class SymptomCheckerEngine:
 
     def _handle_summary_action(self, user_response: Any) -> EngineResponse:
         """Handle user's action selection on the summary screen."""
-        if user_response == 'yes_edit_summary':
-            self.state.phase = ConversationPhase.SUMMARY_EDIT
-            return EngineResponse(
-                message="✏️ **Edit Generated Summary**\n\n"
-                        "Please type what you want to add, remove, or correct in the generated summary.\n\n"
-                        "I will merge your edits with the summary and create a final version.",
-                message_type='text_input',
-                options=[
-                    {'label': '← Back to Summary', 'value': 'back_to_summary', 'style': 'secondary'}
-                ],
-                sender='ruby',
-                state=self.state
-            )
+        if not self.state.summary_generated:
+            if user_response == 'yes_edit_summary':
+                self.state.phase = ConversationPhase.SUMMARY_EDIT
+                return EngineResponse(
+                    message="✏️ **Add or Update Details**\n\n"
+                            "Please type anything you want to add, remove, or correct before I generate your final summary.",
+                    message_type='text_input',
+                    options=[
+                        {'label': '← Back', 'value': 'back_to_summary', 'style': 'secondary'}
+                    ],
+                    sender='ruby',
+                    state=self.state
+                )
 
-        if user_response == 'no_edit_summary':
-            response = self._generate_summary(include_review_prompt=False)
-            response.is_complete = False
-            return response
+            if user_response == 'no_edit_summary':
+                return self._generate_summary(
+                    prefix_message=self.state.summary_prefix_message,
+                    include_review_prompt=False,
+                )
+
+            return self._show_summary_review_prompt(prefix_message=self.state.summary_prefix_message)
 
         if user_response == 'add_notes':
             # Prompt user for personal notes
@@ -1652,15 +1688,18 @@ class SymptomCheckerEngine:
             )
         
         # Default: show summary again
-        return self._generate_summary()
+        return EngineResponse(
+            message="What would you like to do next?",
+            message_type='summary',
+            options=SUMMARY_ACTIONS,
+            sender='ruby',
+            state=self.state
+        )
 
     def _handle_summary_edit_input(self, user_response: Any) -> EngineResponse:
         """Capture user edits for AI summary and request a refined summary."""
         if user_response == 'back_to_summary':
-            self.state.phase = ConversationPhase.SUMMARY
-            response = self._generate_summary()
-            response.is_complete = False
-            return response
+            return self._show_summary_review_prompt(prefix_message=self.state.summary_prefix_message)
 
         edited_text = str(user_response).strip() if user_response is not None else ""
         is_valid, error_msg = validate_text_input(edited_text, min_length=3, max_length=1200)
@@ -1678,8 +1717,10 @@ class SymptomCheckerEngine:
         self.state.user_summary_edit = edited_text
         self.state.phase = ConversationPhase.SUMMARY
 
-        response = self._generate_summary(include_review_prompt=False)
-        response.is_complete = False
+        response = self._generate_summary(
+            prefix_message=self.state.summary_prefix_message,
+            include_review_prompt=False,
+        )
         response.summary_data = response.summary_data or {}
         response.summary_data["regenerate_ai_summary"] = True
         response.summary_data["user_edited_summary"] = edited_text
@@ -1688,9 +1729,14 @@ class SymptomCheckerEngine:
     def _handle_notes_input(self, user_response: Any) -> EngineResponse:
         """Handle the patient's personal notes input."""
         if user_response == 'back_to_summary':
-            # Go back to summary without saving notes
             self.state.phase = ConversationPhase.SUMMARY
-            return self._generate_summary()
+            return EngineResponse(
+                message="What would you like to do next?",
+                message_type='summary',
+                options=SUMMARY_ACTIONS,
+                sender='ruby',
+                state=self.state
+            )
         
         # Check if it's a "submit notes" action with notes data
         if isinstance(user_response, dict) and 'notes' in user_response:
@@ -1725,7 +1771,13 @@ class SymptomCheckerEngine:
         else:
             # No notes provided, return to summary
             self.state.phase = ConversationPhase.SUMMARY
-            return self._generate_summary()
+            return EngineResponse(
+                message="What would you like to do next?",
+                message_type='summary',
+                options=SUMMARY_ACTIONS,
+                sender='ruby',
+                state=self.state
+            )
 
     def _get_download_summary(self) -> Dict[str, Any]:
         """Generate summary data for PDF/download."""

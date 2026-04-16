@@ -328,9 +328,13 @@ class SymptomCheckerService:
                 return engine._show_symptom_selection()
             return engine._get_next_question(symptom)
         if phase == ConversationPhase.SUMMARY:
-            response = engine._generate_summary(include_review_prompt=False)
-            response.is_complete = False
-            return response
+            if getattr(engine.state, "summary_generated", False):
+                response = engine._generate_summary(include_review_prompt=False)
+                response.is_complete = False
+                return response
+            return engine._show_summary_review_prompt(
+                prefix_message=getattr(engine.state, "summary_prefix_message", None)
+            )
         return engine._show_symptom_selection()
 
     def delete_chat(self, chat_uuid: UUID, patient_uuid: UUID):
