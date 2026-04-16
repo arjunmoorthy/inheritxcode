@@ -560,6 +560,13 @@ class SymptomCheckerService:
         self.db.commit()
 
         # 6. Create and save the assistant message
+        current_phase = engine_response.state.phase.value if engine_response.state else None
+        allow_undo = (
+            not bool(engine_response.is_complete)
+            and current_phase not in {"summary", "summary_edit", "adding_notes", "completed", "emergency"}
+            and engine_response.message_type not in {"summary", "text_input", "download"}
+        )
+
         structured = {
             "options": [opt['label'] for opt in engine_response.options] if engine_response.options else None,
             "options_data": engine_response.options,
@@ -572,7 +579,7 @@ class SymptomCheckerService:
             "avatar": getattr(engine_response, "avatar", None),
             "timestamp": getattr(engine_response, "timestamp", None),
             "session_entry_action": "show_undo_last_step",
-            "can_undo_last_step": not bool(engine_response.is_complete),
+            "can_undo_last_step": allow_undo,
         }
         if engine_response.message_type == "next_chemo_date":
             structured["show_date_picker"] = True
