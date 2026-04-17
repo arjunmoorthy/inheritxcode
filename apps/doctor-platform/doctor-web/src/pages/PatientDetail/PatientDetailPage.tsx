@@ -967,6 +967,32 @@ const PatientDetailPage: React.FC = () => {
     return { dates: sortedDates, symptoms: withTemperature };
   }, [timelineData, selectedSymptoms, severityRange]);
 
+  const chartMinDate = useMemo(() => {
+    if (graphData.dates.length > 0) return graphData.dates[0];
+    return timelineData?.start_date || '';
+  }, [graphData.dates, timelineData?.start_date]);
+
+  const chartMaxDate = useMemo(() => {
+    if (graphData.dates.length > 0) return graphData.dates[graphData.dates.length - 1];
+    return timelineData?.end_date || '';
+  }, [graphData.dates, timelineData?.end_date]);
+
+  const handleStartDateChange = (newStartDate: string) => {
+    setStartDate(newStartDate);
+    setEndDate((prevEndDate) => {
+      return prevEndDate < newStartDate ? newStartDate : prevEndDate;
+    });
+  };
+
+  const handleEndDateChange = (newEndDate: string) => {
+    setEndDate(newEndDate);
+    setStartDate((prevStartDate) => {
+      return prevStartDate > newEndDate ? newEndDate : prevStartDate;
+    });
+  };
+
+
+
   useEffect(() => {
     if (!patientDetails) return;
 
@@ -1071,8 +1097,8 @@ const PatientDetailPage: React.FC = () => {
             selectedSymptoms={selectedSymptoms}
             symptomOptions={symptomOptions}
             severityRange={severityRange}
-            onStartDateChange={setStartDate}
-            onEndDateChange={setEndDate}
+            onStartDateChange={handleStartDateChange}
+            onEndDateChange={handleEndDateChange}
             onSymptomToggle={handleSymptomToggle}
             onSeverityRangeChange={setSeverityRange}
             onResetFilters={handleResetFilters}

@@ -6,10 +6,13 @@ import { getPatientUuid } from '../utils/patientUuid';
 export const chatService = {
   getTodaySession: async () => {
     const patientUuid = getPatientUuid();
-    if (!patientUuid) throw new Error('Not authenticated. Please sign in.');
     const timezone = getUserTimezone();
+    const params = new URLSearchParams({ timezone });
+    if (patientUuid) {
+      params.set('patient_uuid', patientUuid);
+    }
     const response = await apiClient.get(
-      `${API_CONFIG.ENDPOINTS.CHAT.SESSION_TODAY}?patient_uuid=${encodeURIComponent(patientUuid)}&timezone=${encodeURIComponent(timezone)}`
+      `${API_CONFIG.ENDPOINTS.CHAT.SESSION_TODAY}?${params.toString()}`
     );
     return { success: true, status: response.status, data: response.data };
   },
@@ -25,10 +28,13 @@ export const chatService = {
 
   startNewSession: async () => {
     const patientUuid = getPatientUuid();
-    if (!patientUuid) throw new Error('Not authenticated. Please sign in.');
     const timezone = getUserTimezone();
+    const params = new URLSearchParams({ timezone });
+    if (patientUuid) {
+      params.set('patient_uuid', patientUuid);
+    }
     const response = await apiClient.post(
-      `${API_CONFIG.ENDPOINTS.CHAT.SESSION_NEW}?patient_uuid=${encodeURIComponent(patientUuid)}&timezone=${encodeURIComponent(timezone)}`
+      `${API_CONFIG.ENDPOINTS.CHAT.SESSION_NEW}?${params.toString()}`
     );
     return response.data;
   },

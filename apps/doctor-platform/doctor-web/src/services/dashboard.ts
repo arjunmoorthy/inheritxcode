@@ -283,11 +283,17 @@ const transformPatientRankingToSummary = (ranking: PatientRanking): PatientSumma
 // Fetch patient listing from dashboard endpoint (search is passed as API query param)
 const fetchPatientListingDashboard = async (
   search?: string | null,
-  physicianIds?: (string | number)[] | null
+  physicianIds?: (string | number)[] | null,
+  severityFilter: string = 'all',
+  lastChatbotCheckIn: string = 'all_time'
 ): Promise<PatientListingApiResponse> => {
   const searchTrimmed = typeof search === 'string' ? search.trim() : '';
   const params = new URLSearchParams();
   if (searchTrimmed) params.set('search', searchTrimmed);
+  params.set('severity', severityFilter || 'all');
+  params.set('last_chatbot_check_in', lastChatbotCheckIn || 'all_time');
+  // Backward-compatible alias supported by backend
+  params.set('last_chatbot_checkin', lastChatbotCheckIn || 'all_time');
   
   if (physicianIds && physicianIds.length > 0) {
     physicianIds.forEach(id => {
@@ -369,10 +375,17 @@ const fetchPatientSummaries = async (
   page: number = 1, 
   search: string = '', 
   filter: string = 'all',
-  physicianIds?: (string | number)[] | null
+  physicianIds?: (string | number)[] | null,
+  severityFilter: string = 'all',
+  lastChatbotCheckIn: string = 'all_time'
 ): Promise<DashboardResponse> => {
   try {
-    const listingResponse = await fetchPatientListingDashboard(search, physicianIds);
+    const listingResponse = await fetchPatientListingDashboard(
+      search,
+      physicianIds,
+      severityFilter,
+      lastChatbotCheckIn
+    );
     const apiData = listingResponse?.data || [];
     let patients = apiData.map(transformListingToSummary);
     
@@ -536,11 +549,13 @@ export const usePatientSummaries = (
   page: number = 1, 
   search: string = '', 
   filter: string = 'all',
-  physicianIds?: (string | number)[] | null
+  physicianIds?: (string | number)[] | null,
+  severityFilter: string = 'all',
+  lastChatbotCheckIn: string = 'all_time'
 ) => {
   return useQuery({
-    queryKey: ['patientSummaries', page, search, filter, physicianIds],
-    queryFn: () => fetchPatientSummaries(page, search, filter, physicianIds),
+    queryKey: ['patientSummaries', page, search, filter, physicianIds, severityFilter, lastChatbotCheckIn],
+    queryFn: () => fetchPatientSummaries(page, search, filter, physicianIds, severityFilter, lastChatbotCheckIn),
     placeholderData: keepPreviousData,
   });
 };

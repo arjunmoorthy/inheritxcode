@@ -285,6 +285,9 @@ const addStaffV1 = async (payload: AddStaffV1Payload): Promise<{ message?: strin
 export interface UpdateStaffProfilePayload {
   full_name: string;
   phone: string;
+  clinic_name?: string;
+  clinic_address?: string;
+  clinic_fax?: string;
 }
 
 /** PUT /api/v1/staff/staff/{staff_id} - Update staff full_name and phone */

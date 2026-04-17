@@ -63,6 +63,7 @@ export interface ChatSession {
   conversation_state: string;
   messages: Message[];
   is_new_session: boolean;
+  can_undo_last_step?: boolean;
   // symptom_list: string[];  // Add symptom list from backend
   symptom_names?: string[];  // Add symptom names from backend
 }

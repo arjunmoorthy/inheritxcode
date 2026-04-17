@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Mail, Phone, Building, MapPin, Printer, User, Edit, Save, X, CheckCircle } from 'lucide-react';
-import { Button, Input } from '@/components/ui';
+import { Button, Input, Select } from '@/components/ui';
 import { useUser } from '../../contexts/UserContext';
 import { useThemeMode } from '@oncolife/ui-components';
 import { useCurrentStaffProfile, useUpdateStaffProfile } from '../../services/staff';
+import { useClinics, type ClinicItem } from '../../services/clinics';
 
 // Validation Schema
 const profileSchema = z.object({
@@ -50,6 +51,8 @@ const ProfilePage: React.FC = () => {
         handleSubmit,
         formState: { errors, isSubmitting },
         reset,
+        setValue,
+        control,
     } = useForm<ProfileFormValues>({
         resolver: zodResolver(profileSchema),
         defaultValues: profileFormDefaults,
@@ -112,6 +115,9 @@ const ProfilePage: React.FC = () => {
                     payload: {
                         full_name: `${values.first_name} ${values.last_name}`.trim(),
                         phone: values.phone || '',
+                        clinic_name: canEditClinic ? values.clinic_name : undefined,
+                        clinic_address: canEditClinic ? values.clinic_address : undefined,
+                        clinic_fax: canEditClinic ? values.clinic_fax : undefined,
                     },
                 });
             }
@@ -148,6 +154,13 @@ const ProfilePage: React.FC = () => {
         }
         return 'DR';
     };
+
+    const userRole = profile?.role?.toLowerCase();
+    const canEditClinic = userRole === 'admin' || userRole === 'doctor' || userRole === 'physician';
+
+    const { data: clinicsData, isLoading: isLoadingClinics } = useClinics(isEditing && canEditClinic);
+    const clinics: ClinicItem[] = Array.isArray(clinicsData) ? clinicsData : [];
+    const clinicOptions = clinics.map(c => ({ value: c.name, label: c.name }));
 
     const getUserName = () => {
         if (profile) {
@@ -236,12 +249,40 @@ const ProfilePage: React.FC = () => {
                                 </div>
                                 <h3 className={`text-xl font-bold leading-none ${isDark ? 'text-white' : 'text-slate-900'}`}>Clinic Information</h3>
                             </div>
-                            <p className={`text-sm mb-4 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Read-only. Sourced from your account.</p>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <Input label="Clinic" placeholder="Metro Cancer Treatment Center" icon={<Building size={18} />} disabled {...register('clinic_name')} />
+                            <p className={`text-sm mb-4 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                                {canEditClinic ? 'Manage your clinic details below.' : 'Read-only. Sourced from your account.'}
+                            </p>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+                                {isEditing && canEditClinic ? (
+                                    <Controller
+                                        name="clinic_name"
+                                        control={control}
+                                        render={({ field }) => (
+                                            <Select
+                                                label="Clinic"
+                                                options={clinicOptions}
+                                                value={clinicOptions.find(opt => opt.value === field.value) || null}
+                                                isLoading={isLoadingClinics}
+                                                onChange={(val: any) => {
+                                                    const name = val?.value || '';
+                                                    field.onChange(name);
+                                                    const selectedClinic = clinics.find(c => c.name === name);
+                                                    if (selectedClinic) {
+                                                        setValue('clinic_address', selectedClinic.address || '', { shouldDirty: true });
+                                                        setValue('clinic_fax', selectedClinic.fax || '', { shouldDirty: true });
+                                                    }
+                                                }}
+                                                placeholder="Select Clinic"
+                                                error={errors.clinic_name?.message}
+                                            />
+                                        )}
+                                    />
+                                ) : (
+                                    <Input label="Clinic" placeholder="Metro Cancer Treatment Center" icon={<Building size={18} />} disabled {...register('clinic_name')} />
+                                )}
                                 {/* <Input label="Department" placeholder="Patient Navigation Services" icon={<Building size={18} />} disabled {...register('clinic_department')} /> */}
-                                <Input label="Address" placeholder="1234 Medical Plaza, Suite 500, Chicago, IL 60601" icon={<MapPin size={18} />} disabled {...register('clinic_address')} />
-                                <Input label="Fax" type="tel" placeholder="(555) 234-5679" icon={<Printer size={18} />} disabled {...register('clinic_fax')} />
+                                <Input label="Address" placeholder="Enter Address" icon={<MapPin size={18} />} disabled={!isEditing || !canEditClinic} {...register('clinic_address')} />
+                                <Input label="Fax" type="tel" placeholder="Enter Fax" icon={<Printer size={18} />} disabled={!isEditing || !canEditClinic} {...register('clinic_fax')} />
                             </div>
                         </div>
                     </form>
