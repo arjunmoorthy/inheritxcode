@@ -110,6 +110,12 @@ def inject_session_controls_into_latest_assistant_message(
         message.structured_data = structured
         return
 
+
+def _is_session_active(conversation_state: Optional[str]) -> bool:
+    """Undo stays enabled until the chat reaches a completed terminal state."""
+    state = (conversation_state or "").strip().lower()
+    return state not in {"completed", "emergency"}
+
 # ===============================================================================
 # WebSocket Authentication and Authorization Helper
 # ===============================================================================
@@ -220,7 +226,7 @@ def get_or_create_session(
     if not is_new:
         last_question_for_undo = extract_last_question_for_undo(pydantic_messages)
     session_entry_action = "show_new_checkin" if is_new else "show_undo_last_step"
-    can_undo_last_step = bool(last_question_for_undo)
+    can_undo_last_step = _is_session_active(getattr(chat, "conversation_state", None))
     inject_session_controls_into_latest_assistant_message(
         pydantic_messages,
         session_entry_action=session_entry_action,
@@ -281,7 +287,7 @@ def force_create_new_session(
     inject_session_controls_into_latest_assistant_message(
         pydantic_messages,
         session_entry_action="show_new_checkin",
-        can_undo_last_step=False,
+        can_undo_last_step=True,
     )
 
     return TodaySessionResponse(
@@ -291,7 +297,7 @@ def force_create_new_session(
         is_new_session=True,
         symptom_list=chat.symptom_list or [],
         session_entry_action="show_new_checkin",
-        can_undo_last_step=False,
+        can_undo_last_step=True,
         last_question_for_undo=None,
     )
     
