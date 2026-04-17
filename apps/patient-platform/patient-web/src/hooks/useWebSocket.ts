@@ -40,7 +40,10 @@ export const useWebSocket = (
       return;
     }
 
-    const base = API_CONFIG.WS_BASE || API_CONFIG.BASE_URL;
+    // BASE_URL may include /api/v1; strip it here because apiVersion is appended later.
+    const base = (API_CONFIG.WS_BASE || API_CONFIG.BASE_URL || '')
+      .replace(/\/api\/v\d+\/?$/i, '')
+      .replace(/\/$/, '');
     const apiVersion = API_CONFIG.API_VERSION || '/api/v1';
     let wsBase: string;
     if (/^wss?:\/\//i.test(base)) {
@@ -136,7 +139,7 @@ export const useWebSocket = (
 
   const sendMessage = useCallback((
     content: string,
-    message_type: 'text' | 'button_response' | 'multi_select_response' | 'feeling_response',
+    message_type: string,
     structured_data?: Record<string, unknown>
   ) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {

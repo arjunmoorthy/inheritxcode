@@ -248,7 +248,7 @@
 
 /* Custom scrollbar */
 .symptom-messages-container::-webkit-scrollbar {
-  width: 10px;
+  width: 25px;
 }
 
 .symptom-messages-container::-webkit-scrollbar-track {

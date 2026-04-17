@@ -115,7 +115,7 @@ const DashboardPage: React.FC = () => {
   const [search, setSearch] = useState('');
   const [symptomTypeFilter, setSymptomTypeFilter] = useState('all');
   const [severityFilter, setSeverityFilter] = useState('all');
-  const [checkInFilter, setCheckInFilter] = useState('all');
+  const [checkInFilter, setCheckInFilter] = useState('all_time');
   const [isAddPatientModalOpen, setIsAddPatientModalOpen] = useState(false);
   const [isSummaryModalOpen, setIsSummaryModalOpen] = useState(false);
   const [selectedPatientForSummary, setSelectedPatientForSummary] = useState<{ uuid: string; name: string } | null>(null);
@@ -147,7 +147,14 @@ const DashboardPage: React.FC = () => {
     return () => clearTimeout(timer);
   }, [search]);
 
-  const { data, isLoading, error } = usePatientSummaries(1, debouncedSearch, 'all', selectedPhysicianIds);
+  const { data, isLoading, error } = usePatientSummaries(
+    1,
+    debouncedSearch,
+    'all',
+    selectedPhysicianIds,
+    severityFilter,
+    checkInFilter
+  );
   const { data: doctors = [] } = useStaffListDoctors();
   const addPatientMutation = useAddManualPatient();
 
@@ -297,14 +304,14 @@ const mapSeverityToPriority = (severity: string | null | undefined): 'low' | 'me
     }
 
     // Check-in filter (simplified - can be enhanced with actual date logic)
-    if (checkInFilter !== 'all' && patient.lastUpdated) {
+    if (checkInFilter !== 'all_time' && patient.lastUpdated) {
       const lastCheckIn = new Date(patient.lastUpdated);
       const now = new Date();
       const daysDiff = Math.floor((now.getTime() - lastCheckIn.getTime()) / (1000 * 60 * 60 * 24));
 
       if (checkInFilter === 'today' && daysDiff !== 0) return false;
-      if (checkInFilter === 'week' && daysDiff > 7) return false;
-      if (checkInFilter === 'month' && daysDiff > 30) return false;
+      if (checkInFilter === 'this_week' && daysDiff > 7) return false;
+      if (checkInFilter === 'this_month' && daysDiff > 30) return false;
     }
 
     return true;
@@ -408,6 +415,8 @@ const mapSeverityToPriority = (severity: string | null | undefined): 'low' | 'me
                     placeholder="Search patients..."
                     value={search}
                     onChange={handleSearchChange}
+                    autoComplete="off"
+                    name="patient-search-mobile"
                     size="small"
                     InputProps={{
                       startAdornment: (
@@ -425,6 +434,13 @@ const mapSeverityToPriority = (severity: string | null | undefined): 'low' | 'me
                         color: isDark ? '#f1f5f9' : '#0f172a',
                         '& fieldset': { borderColor: isDark ? '#334155' : '#e2e8f0' },
                         '&:hover fieldset': { borderColor: isDark ? '#475569' : '#cbd5e1' },
+                        '& input:-webkit-autofill, & input:-webkit-autofill:hover, & input:-webkit-autofill:focus': {
+                          WebkitBoxShadow: `0 0 0 100px ${isDark ? '#1A1917' : 'white'} inset`,
+                          WebkitTextFillColor: isDark ? '#f1f5f9' : '#0f172a',
+                          caretColor: isDark ? '#f1f5f9' : '#0f172a',
+                          borderRadius: '12px',
+                          transition: 'background-color 9999s ease-out 0s',
+                        },
                       },
                     }}
                   />
@@ -542,6 +558,8 @@ const mapSeverityToPriority = (severity: string | null | undefined): 'low' | 'me
                     placeholder="Search by patient name..."
                     value={search}
                     onChange={handleSearchChange}
+                    autoComplete="off"
+                    name="patient-search-desktop"
                     size="small"
                     InputProps={{
                       startAdornment: (
@@ -559,6 +577,13 @@ const mapSeverityToPriority = (severity: string | null | undefined): 'low' | 'me
                         color: isDark ? '#f1f5f9' : '#0f172a',
                         '& fieldset': { borderColor: isDark ? '#334155' : '#e2e8f0' },
                         '&:hover fieldset': { borderColor: isDark ? '#475569' : '#cbd5e1' },
+                        '& input:-webkit-autofill, & input:-webkit-autofill:hover, & input:-webkit-autofill:focus': {
+                          WebkitBoxShadow: `0 0 0 100px ${isDark ? '#1A1917' : 'white'} inset`,
+                          WebkitTextFillColor: isDark ? '#f1f5f9' : '#0f172a',
+                          caretColor: isDark ? '#f1f5f9' : '#0f172a',
+                          borderRadius: '12px',
+                          transition: 'background-color 9999s ease-out 0s',
+                        },
                       },
                     }}
                   />
@@ -636,10 +661,10 @@ const mapSeverityToPriority = (severity: string | null | undefined): 'low' | 'me
                         '& .MuiOutlinedInput-notchedOutline': { borderColor: isDark ? '#334155' : '#e2e8f0' },
                       }}
                     >
-                      <MenuItem value="all">All Time</MenuItem>
+                      <MenuItem value="all_time">All Time</MenuItem>
                       <MenuItem value="today">Today</MenuItem>
-                      <MenuItem value="week">This Week</MenuItem>
-                      <MenuItem value="month">This Month</MenuItem>
+                      <MenuItem value="this_week">This Week</MenuItem>
+                      <MenuItem value="this_month">This Month</MenuItem>
                     </Select>
                   </FormControl>
                 </div>
@@ -759,10 +784,10 @@ const mapSeverityToPriority = (severity: string | null | undefined): 'low' | 'me
                   '& .MuiOutlinedInput-notchedOutline': { borderColor: isDark ? '#334155' : '#e2e8f0' },
                 }}
               >
-                <MenuItem value="all">All Time</MenuItem>
+                <MenuItem value="all_time">All Time</MenuItem>
                 <MenuItem value="today">Today</MenuItem>
-                <MenuItem value="week">This Week</MenuItem>
-                <MenuItem value="month">This Month</MenuItem>
+                <MenuItem value="this_week">This Week</MenuItem>
+                <MenuItem value="this_month">This Month</MenuItem>
               </Select>
             </FormControl>
           </div>

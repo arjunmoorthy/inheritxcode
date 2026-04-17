@@ -43,6 +43,59 @@ function extractSummaryGenerationFlags(payload: unknown): {
   return out;
 }
 
+/** Read can_undo_last_step flag from a WebSocket payload (root or structured_data). */
+function extractCanUndoLastStep(payload: unknown): boolean | undefined {
+  if (!payload || typeof payload !== 'object') return undefined;
+  const o = payload as Record<string, unknown>;
+
+  if (typeof o.can_undo_last_step === 'boolean') return o.can_undo_last_step;
+  if (typeof o.canUndoLastStep === 'boolean') return o.canUndoLastStep;
+
+  const sd = o.structured_data;
+  if (sd && typeof sd === 'object' && !Array.isArray(sd)) {
+    const s = sd as Record<string, unknown>;
+    if (typeof s.can_undo_last_step === 'boolean') return s.can_undo_last_step;
+    if (typeof s.canUndoLastStep === 'boolean') return s.canUndoLastStep;
+  }
+
+  const cs = o.chat_state;
+  if (cs && typeof cs === 'object' && !Array.isArray(cs)) {
+    const c = cs as Record<string, unknown>;
+    if (typeof c.can_undo_last_step === 'boolean') return c.can_undo_last_step;
+    if (typeof c.canUndoLastStep === 'boolean') return c.canUndoLastStep;
+  }
+
+  return undefined;
+}
+
+function resolveCanUndoFromSession(sessionData: unknown): boolean {
+  if (!sessionData || typeof sessionData !== 'object') return false;
+  const sessionObj = sessionData as Record<string, unknown>;
+  const conversationState =
+    typeof sessionObj.conversation_state === 'string' ? sessionObj.conversation_state : undefined;
+  if (conversationState === 'COMPLETED' || conversationState === 'EMERGENCY') {
+    return false;
+  }
+
+  const fromSession = extractCanUndoLastStep(sessionData);
+  if (fromSession !== undefined) return fromSession;
+
+  const sessionMessages = sessionObj.messages;
+  if (!Array.isArray(sessionMessages) || sessionMessages.length === 0) return false;
+
+  const lastMessage = sessionMessages[sessionMessages.length - 1];
+  if (lastMessage && typeof lastMessage === 'object') {
+    const lm = lastMessage as Record<string, unknown>;
+    const sd = lm.structured_data;
+    if (sd && typeof sd === 'object' && !Array.isArray(sd)) {
+      const s = sd as Record<string, unknown>;
+      if (s.is_complete === true) return false;
+    }
+  }
+  const fromLastMessage = extractCanUndoLastStep(lastMessage);
+  return fromLastMessage === true;
+}
+
 // Send icon SVG
 const SendIcon: React.FC = () => (
   <svg viewBox="0 0 24 24" fill="currentColor">
@@ -66,10 +119,12 @@ const SymptomChatPage: React.FC = () => {
   const [isThinking, setIsThinking] = useState(false);
   const [summaryGenInProgress, setSummaryGenInProgress] = useState(false);
   const [summaryGenCompleted, setSummaryGenCompleted] = useState(false);
+  const [canUndoNewCheckIn, setCanUndoNewCheckIn] = useState(false);
   const [textInput, setTextInput] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const lastMessageRef = useRef<HTMLDivElement>(null);
+  const awaitingUndoResponseRef = useRef(false);
 
   // Handle incoming WebSocket messages
   const handleNewMessage = useCallback((wsMessage: any) => {
@@ -86,23 +141,62 @@ const SymptomChatPage: React.FC = () => {
     if (genFlags.inProgress === true) {
       setSummaryGenCompleted(false);
     }
+    const canUndoFlag = extractCanUndoLastStep(wsMessage);
+    if (canUndoFlag === true) {
+      setCanUndoNewCheckIn(true);
+    } else if (canUndoFlag === false) {
+      setCanUndoNewCheckIn(false);
+    } else if (wsMessage?.id !== undefined || wsMessage?.type === 'connection_established') {
+      // Strict behavior: show Undo only when backend explicitly sends can_undo_last_step=true.
+      // If flag is false OR missing for a chat message or connection sync, default to New Check-in.
+      setCanUndoNewCheckIn(false);
+    }
 
     setMessages(prevMessages => {
       // Handle regular message
       if (wsMessage.id) {
         setIsThinking(false);
-        
+
         // Check if this is a completion message
         if (wsMessage.structured_data?.is_complete) {
-          setChatSession(prev => prev ? { 
-            ...prev, 
-            conversation_state: wsMessage.structured_data?.triage_level === 'call_911' ? 'EMERGENCY' : 'COMPLETED' 
+          setChatSession(prev => prev ? {
+            ...prev,
+            conversation_state: wsMessage.structured_data?.triage_level === 'call_911' ? 'EMERGENCY' : 'COMPLETED'
           } : null);
+          setCanUndoNewCheckIn(false);
+        }
+
+        if (awaitingUndoResponseRef.current) {
+          awaitingUndoResponseRef.current = false;
+        }
+
+        // 1. Initial filter: remove any message with identical ID or optimistic marker
+        let filtered = prevMessages.filter(m => 
+          String(m.id) !== String(wsMessage.id) && 
+          String(m.id) !== '-1'
+        );
+
+        // 2. Strict Content Deduplication:
+        // If the last message in history is from the assistant and has identical content/type,
+        // we treat this as a replacement (e.g., after an undo or a sync glitch).
+        if (filtered.length > 0) {
+          const lastMsg = filtered[filtered.length - 1];
+          const isIdenticalAssistant = 
+            lastMsg.sender === 'assistant' && 
+            wsMessage.sender === 'assistant' && 
+            lastMsg.content === wsMessage.content &&
+            (lastMsg.message_type === wsMessage.message_type || 
+             lastMsg.structured_data?.frontend_type === wsMessage.structured_data?.frontend_type);
+
+          if (isIdenticalAssistant) {
+            // Replace the last message with the new one (likely has updated tracking/undo flags)
+            return [...filtered.slice(0, -1), wsMessage];
+          }
         }
         
-        return [...prevMessages.filter(m => m.id !== -1 && m.id !== wsMessage.id), wsMessage];
+        return [...filtered, wsMessage];
       }
-      
+
       return prevMessages;
     });
   }, []);
@@ -148,6 +242,8 @@ const SymptomChatPage: React.FC = () => {
       setMessages(Array.isArray(sessionData.messages) ? sessionData.messages : []);
       setSummaryGenInProgress(false);
       setSummaryGenCompleted(false);
+      setCanUndoNewCheckIn(resolveCanUndoFromSession(sessionData));
+      awaitingUndoResponseRef.current = false;
       setLoading(false);
     } catch (err) {
       setError('Failed to load chat session');
@@ -170,6 +266,8 @@ const SymptomChatPage: React.FC = () => {
       setMessages(Array.isArray(sessionData.messages) ? sessionData.messages : []);
       setSummaryGenInProgress(false);
       setSummaryGenCompleted(false);
+      setCanUndoNewCheckIn(resolveCanUndoFromSession(sessionData));
+      awaitingUndoResponseRef.current = false;
     } catch (err) {
       setError('Failed to start a new chat session');
       console.error('Failed to start a new chat session:', err);
@@ -197,6 +295,7 @@ const SymptomChatPage: React.FC = () => {
     
     setMessages(prev => [...prev, userMessage]);
     setIsThinking(true);
+    setCanUndoNewCheckIn(false);
     sendMessage(content, messageType, structuredData);
   };
 
@@ -231,6 +330,36 @@ const SymptomChatPage: React.FC = () => {
       sendUserMessage(textInput.trim(), 'text');
       setTextInput('');
     }
+  };
+
+  // Send exact undo payload: { type: "user_message", message_type: "undo_last_step", content: "undo" }
+  const handleUndoCheckIn = () => {
+    if (!chatSession || !isConnected || awaitingUndoResponseRef.current || isThinking || !canUndoNewCheckIn) return;
+
+    awaitingUndoResponseRef.current = true;
+    setIsThinking(true);
+    
+    // Optimistically remove the last turn (Last Assistant Q + User A) from local state.
+    // This MUST match the backend behavior in symptom_checker_service.py (process_message_stream).
+    setMessages(prev => {
+      const current = prev.filter(m => String(m.id) !== '-1');
+      if (current.length === 0) return current;
+
+      // Identify the last turn indices
+      const lastIdx = current.length - 1;
+      let toRemoveIndices = [lastIdx];
+
+      // If last is assistant, we also remove the user message that came immediately before it
+      if (current[lastIdx].sender === 'assistant' && lastIdx > 0 && current[lastIdx - 1].sender === 'user') {
+        toRemoveIndices.push(lastIdx - 1);
+      }
+
+      // Truncate EVERYTHING after the earliest removed index to be 100% sure no stale data remains
+      const firstToRemove = Math.min(...toRemoveIndices);
+      return current.slice(0, firstToRemove);
+    });
+
+    sendMessage('undo', 'undo_last_step');
   };
 
   // Determine if we should show text input
@@ -290,12 +419,12 @@ const SymptomChatPage: React.FC = () => {
         .replace(/\n{3,}/g, '\n\n');
       summaryText += `[${time}] ${sender}:\n${content}\n\n`;
     });
-    
+
     // Add footer
     summaryText += `${'-'.repeat(50)}\n`;
     summaryText += `Generated by OncoLife Symptom Checker\n`;
     summaryText += `This is not a medical diagnosis. Please consult your healthcare provider.\n`;
-    
+
     // Create and trigger download
     const blob = new Blob([summaryText], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
@@ -312,14 +441,14 @@ const SymptomChatPage: React.FC = () => {
   const shouldShowInteractive = (message: Message, index: number): boolean => {
     if (message.sender !== 'assistant') return false;
     if (isThinking) return false;
-    
+
     // Only show for the last assistant message if no user response after
     for (let i = index + 1; i < messages.length; i++) {
       if (messages[i].sender === 'user') {
         return false;
       }
     }
-    
+
     return true;
   };
 
@@ -412,8 +541,8 @@ const SymptomChatPage: React.FC = () => {
       {/* Messages */}
       <div ref={messagesContainerRef} className="symptom-messages-container">
         {messages.map((message, index) => (
-          <div 
-            key={`${message.id}-${index}`} 
+          <div
+            key={`${message.id}-${index}`}
             ref={index === messages.length - 1 && !isThinking ? lastMessageRef : null}
             className={`message-bubble-wrapper ${message.sender === 'user' ? 'user' : 'assistant'}`}
           >
@@ -457,8 +586,8 @@ const SymptomChatPage: React.FC = () => {
               onChange={(e) => setTextInput(e.target.value)}
               disabled={!isConnected || isThinking}
             />
-            <button 
-              type="submit" 
+            <button
+              type="submit"
               className="send-btn"
               disabled={!textInput.trim() || !isConnected || isThinking}
             >
@@ -507,13 +636,13 @@ const SymptomChatPage: React.FC = () => {
       )}
 
       {/* Floating Action Button for New Check-in */}
-      <button 
+      <button
         className={`new-chat-fab ${shouldShowTextInput() ? 'with-input' : ''}`}
-        onClick={handleStartNewConversation}
-        title="Start New Check-in"
+        onClick={canUndoNewCheckIn ? handleUndoCheckIn : handleStartNewConversation}
+        title={canUndoNewCheckIn ? 'Undo last step' : 'Start New Check-in'}
       >
-        <PlusIcon />
-        <span className="new-chat-text">New Check-in</span>
+        {!canUndoNewCheckIn && <PlusIcon />}
+        <span className="new-chat-text">{canUndoNewCheckIn ? 'Go back' : 'New Check-in'}</span>
       </button>
     </div>
   );
