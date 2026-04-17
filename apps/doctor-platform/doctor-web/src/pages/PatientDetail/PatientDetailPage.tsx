@@ -978,43 +978,20 @@ const PatientDetailPage: React.FC = () => {
   }, [graphData.dates, timelineData?.end_date]);
 
   const handleStartDateChange = (newStartDate: string) => {
-    if (!chartMinDate || !chartMaxDate) {
-      setStartDate(newStartDate);
-      return;
-    }
-    const clampedStart = clampDate(newStartDate, chartMinDate, chartMaxDate);
-    setStartDate(clampedStart);
+    setStartDate(newStartDate);
     setEndDate((prevEndDate) => {
-      const clampedEnd = clampDate(prevEndDate, chartMinDate, chartMaxDate);
-      return clampedEnd < clampedStart ? clampedStart : clampedEnd;
+      return prevEndDate < newStartDate ? newStartDate : prevEndDate;
     });
   };
 
   const handleEndDateChange = (newEndDate: string) => {
-    if (!chartMinDate || !chartMaxDate) {
-      setEndDate(newEndDate);
-      return;
-    }
-    const clampedEnd = clampDate(newEndDate, chartMinDate, chartMaxDate);
-    setEndDate(clampedEnd);
+    setEndDate(newEndDate);
     setStartDate((prevStartDate) => {
-      const clampedStart = clampDate(prevStartDate, chartMinDate, chartMaxDate);
-      return clampedStart > clampedEnd ? clampedEnd : clampedStart;
+      return prevStartDate > newEndDate ? newEndDate : prevStartDate;
     });
   };
 
-  useEffect(() => {
-    if (!chartMinDate || !chartMaxDate) return;
 
-    setStartDate((prevStartDate) => {
-      const nextStart = clampDate(prevStartDate, chartMinDate, chartMaxDate);
-      return nextStart > endDate ? endDate : nextStart;
-    });
-    setEndDate((prevEndDate) => {
-      const nextEnd = clampDate(prevEndDate, chartMinDate, chartMaxDate);
-      return nextEnd < startDate ? startDate : nextEnd;
-    });
-  }, [chartMinDate, chartMaxDate]);
 
   useEffect(() => {
     if (!patientDetails) return;
@@ -1120,8 +1097,6 @@ const PatientDetailPage: React.FC = () => {
             selectedSymptoms={selectedSymptoms}
             symptomOptions={symptomOptions}
             severityRange={severityRange}
-            minAvailableDate={chartMinDate}
-            maxAvailableDate={chartMaxDate}
             onStartDateChange={handleStartDateChange}
             onEndDateChange={handleEndDateChange}
             onSymptomToggle={handleSymptomToggle}
