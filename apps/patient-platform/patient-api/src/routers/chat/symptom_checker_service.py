@@ -430,7 +430,8 @@ class SymptomCheckerService:
                     structured_data={
                         "frontend_type": "text",
                         "session_entry_action": "show_undo_last_step",
-                        "can_undo_last_step": False,
+                        # Keep undo control visible for active sessions until completion.
+                        "can_undo_last_step": True,
                     },
                 )
                 self.db.add(no_undo_msg)
@@ -479,7 +480,8 @@ class SymptomCheckerService:
                 "avatar": getattr(engine_response, "avatar", None),
                 "timestamp": getattr(engine_response, "timestamp", None),
                 "session_entry_action": "show_undo_last_step",
-                "can_undo_last_step": bool(undo_stack),
+                # Keep undo control enabled throughout active flow; disable only on completion.
+                "can_undo_last_step": not bool(engine_response.is_complete),
             }
             if engine_response.message_type == "next_chemo_date":
                 structured["show_date_picker"] = True
@@ -565,11 +567,9 @@ class SymptomCheckerService:
 
         # 6. Create and save the assistant message
         current_phase = engine_response.state.phase.value if engine_response.state else None
-        allow_undo = (
-            not bool(engine_response.is_complete)
-            and current_phase not in {"summary", "summary_edit", "adding_notes", "completed", "emergency"}
-            and engine_response.message_type not in {"summary", "text_input", "download"}
-        )
+        # Product behavior: keep undo available during the full active chat,
+        # and turn it off only when the final summary is generated/session completes.
+        allow_undo = not bool(engine_response.is_complete)
 
         structured = {
             "options": [opt['label'] for opt in engine_response.options] if engine_response.options else None,

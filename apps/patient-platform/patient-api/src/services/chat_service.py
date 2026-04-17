@@ -446,7 +446,7 @@ class ChatService:
                     structured_data={
                         "frontend_type": "text",
                         "session_entry_action": "show_undo_last_step",
-                        "can_undo_last_step": False,
+                        "can_undo_last_step": True,
                     },
                 )
                 self.db.add(no_undo_msg)
@@ -496,7 +496,7 @@ class ChatService:
                 "sender": engine_response.sender,
                 "phase": engine_response.state.phase.value if engine_response.state else None,
                 "session_entry_action": "show_undo_last_step",
-                "can_undo_last_step": bool(undo_stack),
+                "can_undo_last_step": not bool(engine_response.is_complete),
             }
             if engine_response.message_type == "next_chemo_date":
                 structured["show_date_picker"] = True
@@ -708,12 +708,7 @@ class ChatService:
         if engine_response.message_type == "summary" and getattr(chat, "patient_narrative_summary", None):
             ai_generated_summary = chat.patient_narrative_summary
 
-        current_phase = engine_response.state.phase.value if engine_response.state else None
-        allow_undo = (
-            not bool(engine_response.is_complete)
-            and current_phase not in {"summary", "summary_edit", "adding_notes", "completed", "emergency"}
-            and engine_response.message_type not in {"summary", "text_input", "download"}
-        )
+        allow_undo = not bool(engine_response.is_complete)
 
         structured = {
             "options": [opt['label'] for opt in engine_response.options] if engine_response.options else None,
@@ -729,7 +724,7 @@ class ChatService:
                 engine_response.message_type == "summary" and ai_generated_summary
             ),
             "sender": engine_response.sender,
-            "phase": current_phase,
+            "phase": engine_response.state.phase.value if engine_response.state else None,
             "session_entry_action": "show_undo_last_step",
             "can_undo_last_step": allow_undo,
         }
