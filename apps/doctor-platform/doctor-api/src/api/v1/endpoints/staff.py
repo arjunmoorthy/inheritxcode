@@ -26,7 +26,7 @@ from api.deps import get_current_user, get_doctor_db_session, TokenData
 from services import StaffService
 from db.repositories import UserRepository, StaffRepository, ClinicRepository
 from core.logging import get_logger
-from db.models import Staff, PhysicianNurseAssignment, Clinic
+from db.models import Staff, PhysicianNurseAssignment, Clinic, StaffClinic
 from core.schemas import APIResponse, ErrorResponse
 from utils.security import generate_random_password, hash_password
 from helpers.email import send_welcome_email_staff
@@ -190,6 +190,51 @@ class SelfProfileResponse(BaseModel):
     is_profile_completed: bool
     is_active: bool
     clinic: Optional[ClinicResponse]
+
+
+class SelfProfileUpdateRequest(BaseModel):
+    first_name: Optional[str] = Field(None, min_length=1, max_length=100)
+    last_name: Optional[str] = Field(None, min_length=1, max_length=100)
+    email: Optional[EmailStr] = None
+    phone: Optional[str] = Field(None, min_length=1, max_length=20)
+    clinic_id: Optional[int] = Field(None, ge=1)
+
+
+def _build_self_profile_response(staff: Staff) -> SelfProfileResponse:
+    primary_clinic_assoc = next(
+        (
+            assoc for assoc in staff.clinic_associations
+            if assoc.is_primary and assoc.is_active
+        ),
+        None,
+    )
+    clinic = primary_clinic_assoc.clinic if primary_clinic_assoc else None
+
+    return SelfProfileResponse(
+        id=staff.id,
+        uuid=staff.uuid,
+        user_id=staff.user_id,
+        email=staff.email,
+        first_name=staff.first_name,
+        last_name=staff.last_name,
+        full_name=staff.full_name,
+        role=staff.role,
+        phone=staff.phone,
+        is_profile_completed=staff.is_profile_completed,
+        is_active=staff.is_active,
+        clinic=(
+            ClinicResponse(
+                id=clinic.id,
+                uuid=clinic.uuid,
+                name=clinic.name,
+                address=clinic.address,
+                phone=clinic.phone,
+                fax=clinic.fax,
+                department=clinic.department,
+            )
+            if clinic else None
+        ),
+    )
 
 
 # =============================================================================
@@ -572,43 +617,140 @@ def get_my_profile(
     if not staff:
         raise HTTPException(status_code=404, detail="Staff profile not found")
 
-    primary_clinic_assoc = next(
-        (
-            assoc for assoc in staff.clinic_associations
-            if assoc.is_primary and assoc.is_active
-        ),
-        None,
-    )
-    clinic = primary_clinic_assoc.clinic if primary_clinic_assoc else None
-
     return APIResponse(
         success=True,
         message="Profile fetched successfully",
-        data=SelfProfileResponse(
-            id=staff.id,
-            uuid=staff.uuid,
-            user_id=staff.user_id,
-            email=staff.email,
-            first_name=staff.first_name,
-            last_name=staff.last_name,
-            full_name=staff.full_name,
-            role=staff.role,
-            phone=staff.phone,
-            is_profile_completed=staff.is_profile_completed,
-            is_active=staff.is_active,
-            clinic=(
-                ClinicResponse(
-                    id=clinic.id,
-                    uuid=clinic.uuid,
-                    name=clinic.name,
-                    address=clinic.address,
-                    phone=clinic.phone,
-                    fax=clinic.fax,
-                    department=clinic.department,
+        data=_build_self_profile_response(staff),
+    )
+
+
+@router.patch(
+    "/profile",
+    response_model=APIResponse[SelfProfileResponse],
+    summary="Update my profile",
+)
+def update_my_profile(
+    payload: SelfProfileUpdateRequest,
+    db: Session = Depends(get_doctor_db_session),
+    current_user=Depends(require_roles("admin", "physician", "nurse")),
+):
+    staff = (
+        db.query(Staff)
+        .filter(
+            Staff.user_id == current_user.id,
+            Staff.is_active == True,
+        )
+        .first()
+    )
+    if not staff:
+        raise HTTPException(status_code=404, detail="Staff profile not found")
+
+    updates = payload.model_dump(exclude_unset=True)
+    if not updates:
+        return APIResponse(
+            success=True,
+            message="No changes submitted; returning current profile.",
+            data=_build_self_profile_response(staff),
+        )
+
+    if "email" in updates:
+        normalized_email = str(updates["email"]).strip().lower()
+        email_conflict = (
+            db.query(Staff)
+            .filter(
+                Staff.email == normalized_email,
+                Staff.id != staff.id,
+            )
+            .first()
+        )
+        if email_conflict:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Email is already in use",
+            )
+        if not staff.user:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="User account not linked to staff",
+            )
+        staff.email = normalized_email
+        staff.user.email = normalized_email
+
+    if "first_name" in updates:
+        if not staff.user:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="User account not linked to staff",
+            )
+        staff.user.first_name = updates["first_name"].strip()
+
+    if "last_name" in updates:
+        if not staff.user:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="User account not linked to staff",
+            )
+        staff.user.last_name = updates["last_name"].strip()
+
+    if "phone" in updates:
+        staff.phone = updates["phone"].strip()
+
+    if "clinic_id" in updates:
+        if getattr(current_user, "role", None) not in {"admin", "physician"}:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Only admin and physician can update clinic",
+            )
+
+        clinic = db.query(Clinic).filter(Clinic.id == updates["clinic_id"]).first()
+        if not clinic:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Clinic not found",
+            )
+
+        if not staff.user:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="User account not linked to staff",
+            )
+
+        # Keep users.clinic_id and primary staff-clinic association aligned.
+        staff.user.clinic_id = clinic.id
+        active_associations = [
+            assoc for assoc in staff.clinic_associations
+            if assoc.is_active
+        ]
+
+        existing_assoc = next(
+            (assoc for assoc in active_associations if assoc.clinic_id == clinic.id),
+            None,
+        )
+
+        if existing_assoc:
+            for assoc in active_associations:
+                assoc.is_primary = assoc.id == existing_assoc.id
+        else:
+            for assoc in active_associations:
+                assoc.is_primary = False
+            db.add(
+                StaffClinic(
+                    staff_id=staff.id,
+                    clinic_id=clinic.id,
+                    is_primary=True,
+                    is_active=True,
                 )
-                if clinic else None
-            ),
-        ),
+            )
+
+    db.commit()
+    db.refresh(staff)
+    if staff.user:
+        db.refresh(staff.user)
+
+    return APIResponse(
+        success=True,
+        message="Profile updated successfully",
+        data=_build_self_profile_response(staff),
     )
 
 
