@@ -264,7 +264,9 @@ class ChatService:
         previous_state_data: Dict[str, Any],
     ) -> Dict[str, Any]:
         updated_state = deepcopy(next_state_data or {})
-        undo_stack = list(updated_state.get("undo_stack") or [])
+        # Carry forward existing history from the prior persisted state.
+        # `next_state_data` comes from engine.to_dict() and does not contain undo_stack.
+        undo_stack = list((previous_state_data or {}).get("undo_stack") or [])
         undo_stack.append(self._snapshot_state_for_undo(previous_state_data))
         updated_state["undo_stack"] = undo_stack[-50:]
         return updated_state
@@ -458,17 +460,33 @@ class ChatService:
             restored_state_dict = deepcopy(undo_stack.pop())
             restored_state_dict["undo_stack"] = undo_stack
 
+            # Undo one previous step only (do not clear full chat):
+            # remove the latest assistant prompt and its preceding user input.
             recent = self.db.query(MessageModel).filter(
                 MessageModel.chat_uuid == chat_uuid
             ).order_by(
                 MessageModel.created_at.desc(),
-                MessageModel.id.desc()
-            ).limit(2).all()
-            if len(recent) >= 2 and recent[0].sender == "assistant" and recent[1].sender == "user":
-                self.db.delete(recent[0])
-                self.db.delete(recent[1])
-            elif recent:
-                self.db.delete(recent[0])
+                MessageModel.id.desc(),
+            ).limit(20).all()
+            latest_assistant = next((m for m in recent if m.sender == "assistant"), None)
+            if latest_assistant:
+                self.db.delete(latest_assistant)
+                previous_user = next(
+                    (
+                        m for m in recent
+                        if m.sender == "user"
+                        and (
+                            m.created_at < latest_assistant.created_at
+                            or (
+                                m.created_at == latest_assistant.created_at
+                                and m.id < latest_assistant.id
+                            )
+                        )
+                    ),
+                    None,
+                )
+                if previous_user:
+                    self.db.delete(previous_user)
 
             restored_state = ConversationState.from_dict(restored_state_dict)
             engine = SymptomCheckerEngine(state=restored_state)
@@ -502,6 +520,19 @@ class ChatService:
                 structured["show_date_picker"] = True
                 structured["input_type"] = "date_picker"
 
+            # Prevent duplicate restored question in thread after undo.
+            duplicate_prompt = self.db.query(MessageModel).filter(
+                MessageModel.chat_uuid == chat_uuid,
+                MessageModel.sender == "assistant",
+                MessageModel.message_type == self._map_message_type(engine_response.message_type),
+                MessageModel.content == engine_response.message,
+            ).order_by(
+                MessageModel.created_at.desc(),
+                MessageModel.id.desc(),
+            ).first()
+            if duplicate_prompt:
+                self.db.delete(duplicate_prompt)
+
             assistant_msg = MessageModel(
                 chat_uuid=chat_uuid,
                 sender="assistant",
@@ -533,7 +564,6 @@ class ChatService:
         
         # 2. Load or create the engine with saved state
         engine_state_data = getattr(chat, 'engine_state', None) or {}
-        previous_state_snapshot = self._snapshot_state_for_undo(engine_state_data)
         if engine_state_data:
             state = ConversationState.from_dict(engine_state_data)
             engine = SymptomCheckerEngine(state=state)
@@ -572,7 +602,7 @@ class ChatService:
         if engine_response.state:
             chat.engine_state = self._append_undo_snapshot(
                 next_state_data=engine_response.state.to_dict(),
-                previous_state_data=previous_state_snapshot,
+                previous_state_data=engine_state_data,
             )
             chat.symptom_list = engine_response.state.selected_symptoms
 
