@@ -399,6 +399,22 @@ export const useUpdatePatientProfile = () => {
   });
 };
 
+const deletePatient = async (patientUuid: string): Promise<void> => {
+  await apiClient.delete(API_CONFIG.ENDPOINTS.PATIENTS.BY_UUID(patientUuid));
+};
+
+export const useDeletePatient = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: deletePatient,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['patientSummaries'] });
+      queryClient.invalidateQueries({ queryKey: ['patients'] });
+    },
+  });
+};
+
 // =============================================================================
 // Mutation Hooks (for future use when backend supports these)
 // =============================================================================

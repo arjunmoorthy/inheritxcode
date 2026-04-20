@@ -67,8 +67,8 @@ const App: React.FC = () => {
     return (
         <AuthProvider>
             <UserProvider>
-                <SessionTimeoutManager />
                 <BrowserRouter basename={(import.meta.env.BASE_URL ?? '/').replace(/\/$/, '') || '/'}>
+                    <AuthenticatedSessionManager />
                     <Routes>
                         {/* Public Routes */}
                         <Route
@@ -152,6 +152,12 @@ const AuthAwareFallback: React.FC = () => {
     }
 
     return <Navigate to={isAuthenticated ? '/dashboard' : '/login'} replace />;
+};
+
+const AuthenticatedSessionManager: React.FC = () => {
+    const { isAuthenticated } = useAuth();
+    if (!isAuthenticated) return null;
+    return <SessionTimeoutManager />;
 };
 
 export default App;

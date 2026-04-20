@@ -12,6 +12,7 @@ export interface ProfileData {
   email: string;
   phone?: string;
   role?: string;
+  clinic_id?: number;
   clinic_name?: string;
   clinic_department?: string;
   department?: string;
@@ -32,10 +33,13 @@ export interface StoredUserProfile {
   full_name?: string;
   role?: string;
   phone?: string;
+  clinic_id?: number;
   clinic_name?: string;
   clinic_department?: string;
+  department?: string;
   clinic_address?: string;
   clinic_fax?: string;
+  clinic_uuid?: string;
   clinic?: { id?: number; uuid?: string; name?: string; address?: string; phone?: string | null; department?: string };
   auth_provider?: string;
   is_active?: boolean;
@@ -88,6 +92,7 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
       full_name: data.full_name ?? current.full_name ?? (data.first_name != null && data.last_name != null ? `${data.first_name} ${data.last_name}`.trim() : current.full_name),
       role: data.role ?? current.role,
       phone: data.phone ?? current.phone,
+      clinic_id: data.clinic_id ?? current.clinic_id,
       clinic_name: data.clinic_name ?? current.clinic_name,
       clinic_department: data.clinic_department ?? data.department ?? current.clinic_department ?? current.department,
       department: data.clinic_department ?? data.department ?? current.department,
@@ -105,6 +110,7 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
       email: merged.email || '',
       phone: merged.phone,
       role: merged.role,
+      clinic_id: merged.clinic_id,
       clinic_name: merged.clinic_name,
       clinic_department: merged.clinic_department ?? merged.department,
       department: merged.department ?? merged.clinic_department,
@@ -132,6 +138,7 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
             email: parsed.email || '',
             phone: parsed.phone,
             role: parsed.role,
+            clinic_id: parsed.clinic_id ?? c?.id,
             clinic_name: parsed.clinic_name ?? c?.name ?? '',
             clinic_department: parsed.clinic_department ?? parsed.department ?? c?.department ?? '',
             department: parsed.department ?? parsed.clinic_department ?? c?.department ?? '',

@@ -41,6 +41,11 @@ import CardContent from '@mui/material/CardContent';
 import Skeleton from '@mui/material/Skeleton';
 import Snackbar from '@mui/material/Snackbar';
 import Alert from '@mui/material/Alert';
+import Dialog from '@mui/material/Dialog';
+import DialogTitle from '@mui/material/DialogTitle';
+import DialogContent from '@mui/material/DialogContent';
+import DialogContentText from '@mui/material/DialogContentText';
+import DialogActions from '@mui/material/DialogActions';
 import Checkbox from '@mui/material/Checkbox';
 import ListItemText from '@mui/material/ListItemText';
 import Box from '@mui/material/Box';
@@ -59,10 +64,11 @@ import {
   MessageCircle,
   Pill,
   SlidersHorizontal,
-  ChevronDown
+  ChevronDown,
+  Trash2
 } from 'lucide-react';
 import { usePatientSummaries, type PatientSummary } from '../../services/dashboard';
-import { useAddManualPatient, type AddManualPatientPayload } from '../../services/patients';
+import { useAddManualPatient, useDeletePatient, type AddManualPatientPayload } from '../../services/patients';
 import { useThemeMode } from '@oncolife/ui-components';
 import { useAuth } from '../../contexts/AuthContext';
 import { useStaffListDoctors } from '../../services/staff';
@@ -127,6 +133,8 @@ const DashboardPage: React.FC = () => {
     message: '',
     severity: 'success',
   });
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [selectedPatientForDelete, setSelectedPatientForDelete] = useState<{ uuid: string; name: string } | null>(null);
 
   // Debounce search: wait 400ms after typing stops; clear triggers API immediately
   // Set default physician from user profile if not admin
@@ -157,6 +165,7 @@ const DashboardPage: React.FC = () => {
   );
   const { data: doctors = [] } = useStaffListDoctors();
   const addPatientMutation = useAddManualPatient();
+  const deletePatientMutation = useDeletePatient();
 
   const handleOpenSummary = (e: React.MouseEvent, patient: PatientSummary) => {
     e.stopPropagation();
@@ -165,6 +174,36 @@ const DashboardPage: React.FC = () => {
       name: patient.patientName
     });
     setIsSummaryModalOpen(true);
+  };
+
+  const handleOpenTreatments = (e: React.MouseEvent, patient: PatientSummary) => {
+    e.stopPropagation();
+    setSelectedPatientForDelete({
+      uuid: patient.patientUuid || patient.id,
+      name: patient.patientName
+    });
+    setIsDeleteModalOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!selectedPatientForDelete) return;
+
+    try {
+      await deletePatientMutation.mutateAsync(selectedPatientForDelete.uuid);
+      setSnackbar({
+        open: true,
+        message: 'Patient deleted successfully.',
+        severity: 'success',
+      });
+      setIsDeleteModalOpen(false);
+      setSelectedPatientForDelete(null);
+    } catch (err) {
+      setSnackbar({
+        open: true,
+        message: 'Failed to delete patient. Please try again.',
+        severity: 'error',
+      });
+    }
   };
 
   // Helper functions - defined before use
@@ -1009,6 +1048,16 @@ const mapSeverityToPriority = (severity: string | null | undefined): 'low' | 'me
                           <FileText size={16} />
                           <span>Summaries</span>
                         </button>
+                        <button
+                          onClick={(e) => handleOpenTreatments(e, patient)}
+                          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-all duration-200 border ${isDark
+                            ? 'border-slate-700 text-slate-300 hover:bg-slate-800 hover:text-white'
+                            : 'border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                            }`}
+                        >
+                          <Trash2 size={16} />
+                          <span>Delete</span>
+                        </button>
                       </div>
                     </div>
                   </div>
@@ -1051,7 +1100,7 @@ const mapSeverityToPriority = (severity: string | null | undefined): 'low' | 'me
         open={snackbar.open}
         autoHideDuration={6000}
         onClose={() => setSnackbar((s) => ({ ...s, open: false }))}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
       >
         <Alert
           onClose={() => setSnackbar((s) => ({ ...s, open: false }))}
@@ -1062,6 +1111,79 @@ const mapSeverityToPriority = (severity: string | null | undefined): 'low' | 'me
           {snackbar.message}
         </Alert>
       </Snackbar>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog
+        open={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        PaperProps={{
+          sx: {
+            borderRadius: '16px',
+            backgroundColor: isDark ? '#1A1917' : 'white',
+            backgroundImage: 'none',
+            maxWidth: '400px',
+            width: '100%',
+          }
+        }}
+      >
+        <DialogTitle sx={{ 
+          pb: 1, 
+          pt: 3, 
+          px: 3,
+          fontWeight: 700, 
+          color: isDark ? '#f1f5f9' : '#0f172a',
+          fontFamily: 'serif',
+          fontSize: '1.5rem'
+        }}>
+          Delete Patient
+        </DialogTitle>
+        <DialogContent sx={{ px: 3, pb: 2 }}>
+          <DialogContentText sx={{ color: isDark ? '#94a3b8' : '#64748b', fontSize: '0.95rem', lineHeight: 1.6 }}>
+            Are you sure you want to delete <strong>{selectedPatientForDelete?.name}</strong>? This action cannot be undone and all associated data will be removed.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions sx={{ p: 3, pt: 1, gap: 1.5 }}>
+          <Button 
+            onClick={() => setIsDeleteModalOpen(false)}
+            sx={{ 
+              borderRadius: '10px',
+              px: 3,
+              py: 1,
+              textTransform: 'none',
+              fontWeight: 600,
+              color: isDark ? '#94a3b8' : '#64748b',
+              '&:hover': {
+                backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)',
+              }
+            }}
+          >
+            No
+          </Button>
+          <Button 
+            onClick={handleConfirmDelete}
+            variant="contained"
+            color="error"
+            disabled={deletePatientMutation.isPending}
+            sx={{ 
+              borderRadius: '10px',
+              px: 3,
+              py: 1,
+              textTransform: 'none',
+              fontWeight: 600,
+              backgroundColor: '#ef4444',
+              '&:hover': {
+                backgroundColor: '#dc2626',
+              },
+              boxShadow: 'none',
+              '&:hover:not(:disabled)': {
+                boxShadow: '0 4px 12px rgba(239, 68, 68, 0.25)',
+              }
+            }}
+          >
+            {deletePatientMutation.isPending ? 'Deleting...' : 'Yes, Delete'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </div>
   );
 };
