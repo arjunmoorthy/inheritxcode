@@ -110,6 +110,7 @@ export interface CurrentStaffProfile {
   role: string;
   email: string;
   phone: string;
+  clinic_id: number;
   clinic_name: string;
   clinic_department: string;
   clinic_address: string;
@@ -281,22 +282,21 @@ const addStaffV1 = async (payload: AddStaffV1Payload): Promise<{ message?: strin
   return response.data;
 };
 
-/** Payload for PUT /api/v1/staff/staff/{staff_id} - update full_name and phone */
+/** Payload for PATCH /api/v1/staff/profile - update profile info */
 export interface UpdateStaffProfilePayload {
-  full_name: string;
+  first_name: string;
+  last_name: string;
+  email: string;
   phone: string;
-  clinic_name?: string;
-  clinic_address?: string;
-  clinic_fax?: string;
+  clinic_id: number;
 }
 
-/** PUT /api/v1/staff/staff/{staff_id} - Update staff full_name and phone */
+/** PATCH /api/v1/staff/profile - Update current staff profile */
 const updateStaffProfile = async (
-  staffId: number,
   payload: UpdateStaffProfilePayload
 ): Promise<unknown> => {
-  const response = await apiClient.put<unknown>(
-    API_CONFIG.ENDPOINTS.STAFF.BY_STAFF_ID(staffId),
+  const response = await apiClient.patch<unknown>(
+    API_CONFIG.ENDPOINTS.STAFF.PROFILE,
     payload
   );
   return response.data;
@@ -360,6 +360,7 @@ const getCurrentStaffProfile = async (): Promise<CurrentStaffProfile | null> => 
     role: payload?.role ?? payload?.staff?.role ?? '',
     email: payload?.email ?? payload?.user?.email ?? '',
     phone: payload?.phone ?? payload?.staff?.phone ?? '',
+    clinic_id: payload?.clinic_id ?? clinic?.id ?? 0,
     clinic_name: payload?.clinic_name ?? clinic?.name ?? '',
     clinic_department: payload?.clinic_department ?? payload?.department ?? clinic?.department ?? '',
     clinic_address: payload?.clinic_address ?? clinic?.address ?? '',
@@ -404,12 +405,12 @@ export const useAddStaffV1 = () => {
   });
 };
 
-/** Update current staff profile (full_name, phone) via PUT /api/v1/staff/staff/{staff_id} */
+/** Update current staff profile via PATCH /api/v1/staff/profile */
 export const useUpdateStaffProfile = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ staffId, payload }: { staffId: number; payload: UpdateStaffProfilePayload }) =>
-      updateStaffProfile(staffId, payload),
+    mutationFn: (payload: UpdateStaffProfilePayload) =>
+      updateStaffProfile(payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['staff'] });
     },

@@ -8,12 +8,12 @@ import { useTheme, useMediaQuery, Drawer, IconButton, CircularProgress } from '@
 import styled, { css } from 'styled-components';
 import { useThemeMode } from '@oncolife/ui-components';
 import { useEducationPdfs, openEducationPdf } from '../../services/education';
-import { 
-  BookOpen, 
-  FileText, 
-  Heart, 
-  Pill, 
-  Apple, 
+import {
+  BookOpen,
+  FileText,
+  Heart,
+  Pill,
+  Apple,
   Activity,
   ChevronRight,
   Download,
@@ -43,7 +43,7 @@ const colors = {
   foreground: '#3D3A35',
   muted: '#8A847A',
   border: '#E8E4DD',
-  
+
   // Severity colors
   mild: '#22C55E',
   mildBg: '#DCFCE7',
@@ -53,7 +53,7 @@ const colors = {
   moderateText: '#92400E',
   severe: '#DC2626',
   severeBg: '#FEE2E2',
-  
+
   // Category colors
   symptom: '#00897B',
   nutrition: '#10B981',
@@ -67,6 +67,7 @@ const colors = {
 const PageContainer = styled.div<{ $isDark?: boolean }>`
   display: flex;
   flex: 1;
+  height: 100%;
   overflow: hidden;
   background: transparent;
   transition: background-color 0.3s ease;
@@ -75,10 +76,23 @@ const PageContainer = styled.div<{ $isDark?: boolean }>`
 const MainContent = styled.div`
   flex: 1;
   padding: 1.5rem;
-  overflow-y: auto;
+  overflow-y: scroll; /* Force scrollbar for visibility */
   
   @media (min-width: 600px) {
     padding: 2rem;
+  }
+
+  &::-webkit-scrollbar {
+    width: 40px !important;
+    height: 12px; 
+  }
+  &::-webkit-scrollbar-track {
+    background: var(--app-bg) !important;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: var(--app-border) !important;
+    border-radius: 25px !important;
+    border: 10px solid var(--app-bg) !important;
   }
 `;
 
@@ -401,6 +415,19 @@ const Sidebar = styled.aside<{ $isDark?: boolean }>`
   @media (min-width: 1024px) {
     display: block;
   }
+
+  &::-webkit-scrollbar {
+    width: 40px !important;
+    height: 100px !important;
+  }
+  &::-webkit-scrollbar-track {
+    background: var(--app-bg) !important;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: var(--app-border) !important;
+    border-radius: 25px !important;
+    border: 10px solid var(--app-bg) !important;
+  }
 `;
 
 const SidebarSection = styled.div`
@@ -694,10 +721,10 @@ const EducationPage: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState('All Categories');
   const [symptoms, setSymptoms] = useState<Symptom[]>(initialSymptoms);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  
+
   // Fetch real education data from API
   const { data: educationData, isLoading } = useEducationPdfs();
-  
+
   // Transform API data into UI format
   const apiResources = useMemo<Resource[]>(() => {
     if (!educationData) return [];
@@ -721,7 +748,7 @@ const EducationPage: React.FC = () => {
       title: handbook.title,
       description: handbook.description || 'Essential education handbook for treatment support.',
       category: 'Handbook',
-      readTime: 12 + (index % 4), 
+      readTime: 12 + (index % 4),
       priority: 'High',
       color: colors.purple,
       isNew: false,
@@ -732,27 +759,27 @@ const EducationPage: React.FC = () => {
 
     return [...symptomResources, ...handbookResources];
   }, [educationData]);
-  
+
   // Use API data if available, otherwise fall back to static resources
   const displayResources = apiResources.length > 0 ? apiResources : resources;
 
   const filteredResources = displayResources.filter(resource => {
     const matchesSearch = resource.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          resource.description.toLowerCase().includes(searchQuery.toLowerCase());
-    
+      resource.description.toLowerCase().includes(searchQuery.toLowerCase());
+
     let matchesCategory = false;
     if (selectedCategory === 'All Categories') {
       matchesCategory = true;
     } else if (selectedCategory === 'Current Symptoms') {
       const symptomNames = symptoms.map(s => s.name.toLowerCase());
-      matchesCategory = symptomNames.some(symptom => 
+      matchesCategory = symptomNames.some(symptom =>
         resource.title.toLowerCase().includes(symptom) ||
         resource.description.toLowerCase().includes(symptom)
       );
     } else {
       matchesCategory = resource.category === selectedCategory;
     }
-    
+
     return matchesSearch && matchesCategory;
   });
 
@@ -780,7 +807,7 @@ const EducationPage: React.FC = () => {
           <Zap />
           Current Symptoms
         </SidebarTitle>
-        
+
         {symptoms.map(symptom => (
           <SymptomRow key={symptom.name}>
             <SymptomInfo>
@@ -840,15 +867,14 @@ const EducationPage: React.FC = () => {
   );
 
   return (
-    <div className={`min-h-screen transition-colors duration-300 ${isDark ? 'bg-[#1A1917]' : 'bg-[#FAF8F5]'}`}>
+    <div className={`h-screen flex flex-col overflow-hidden transition-colors duration-300 ${isDark ? 'bg-[#1A1917]' : 'bg-[#FAF8F5]'}`}>
       {/* Dark Mode Toggle */}
       <button
         onClick={toggleTheme}
-        className={`fixed top-4 right-4 z-50 p-3 rounded-full transition-all duration-200 ${
-          isDark 
-            ? 'bg-[#2A2725] text-white hover:bg-[#3A3835] border border-slate-700 shadow-lg' 
+        className={`fixed top-4 right-4 z-50 p-3 rounded-full transition-all duration-200 ${isDark
+            ? 'bg-[#2A2725] text-white hover:bg-[#3A3835] border border-slate-700 shadow-lg'
             : 'bg-white text-slate-700 hover:bg-slate-50 border border-slate-200 shadow-lg'
-        }`}
+          }`}
         aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
       >
         {isDark ? <Sun size={20} /> : <Moon size={20} />}
@@ -880,11 +906,11 @@ const EducationPage: React.FC = () => {
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
               </SearchInputWrapper>
-              
+
               <FilterButton $isDark={isDark}>
                 <Filter />
               </FilterButton>
-              
+
               <SelectWrapper $isDark={isDark}>
                 <select value={selectedCategory} onChange={(e) => setSelectedCategory(e.target.value)}>
                   {categories.map(cat => (
@@ -906,9 +932,9 @@ const EducationPage: React.FC = () => {
                   <CardTitle $isDark={isDark}>{resource.title}</CardTitle>
                   {resource.isNew && <NewBadge>New</NewBadge>}
                 </CardTitleRow>
-                
+
                 <CardDescription $isDark={isDark}>{resource.description}</CardDescription>
-                
+
                 <CardMeta $isDark={isDark}>
                   <MetaBadge $isDark={isDark}>{resource.symptomName || resource.category}</MetaBadge>
                   <MetaItem $isDark={isDark}>
@@ -920,7 +946,7 @@ const EducationPage: React.FC = () => {
                     </MetaItem>
                   )}
                 </CardMeta>
-                
+
                 <CardActions>
                   <ReadButton onClick={() => resource.pdfUrl && openEducationPdf(resource.pdfUrl)}>
                     <BookOpen /> {resource.pdfUrl ? 'Read PDF' : 'Read Now'}
@@ -953,6 +979,18 @@ const EducationPage: React.FC = () => {
               width: 300,
               backgroundColor: isDark ? '#2A2725' : 'rgba(250, 248, 245, 0.98)',
               p: 2,
+              '&::-webkit-scrollbar': {
+                width: '40px !important',
+                height: '100px !important',
+              },
+              '&::-webkit-scrollbar-track': {
+                background: 'var(--app-bg)',
+              },
+              '&::-webkit-scrollbar-thumb': {
+                background: 'var(--app-border)',
+                borderRadius: '25px',
+                border: '10px solid var(--app-bg)',
+              },
             }
           }}
         >

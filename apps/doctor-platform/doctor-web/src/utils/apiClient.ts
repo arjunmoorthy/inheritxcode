@@ -114,10 +114,13 @@ apiClient.interceptors.response.use(
   (error: AxiosError) => {
     // Handle 401 Unauthorized or 403 Forbidden
     if (error.response?.status === 401 || error.response?.status === 403) {
-      tokenManager.clearAllStorage();
+      // Avoid redirect loops if we're already on the login page
+      const isLoginPage = window.location.pathname.includes('/login');
       
-      // Direct redirect to login for 401/403
-      window.location.replace('/login');
+      if (!isLoginPage) {
+        tokenManager.clearAllStorage();
+        window.location.replace('/login');
+      }
     }
     return Promise.reject(error);
   }

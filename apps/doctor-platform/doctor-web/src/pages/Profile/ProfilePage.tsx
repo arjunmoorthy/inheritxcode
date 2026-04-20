@@ -16,6 +16,7 @@ const profileSchema = z.object({
     role: z.string().min(1, 'Role is required'),
     email: z.string().email('Please enter a valid email address'),
     phone: z.string().min(1, 'Phone number is required'),
+    clinic_id: z.number().min(1, 'Clinic is required'),
     clinic_name: z.string().min(1, 'Clinic name is required'),
     clinic_department: z.string().optional(),
     clinic_address: z.string().min(1, 'Clinic address is required'),
@@ -40,6 +41,7 @@ const ProfilePage: React.FC = () => {
         role: profile?.role || 'Oncology Patient Navigator',
         email: profile?.email || '',
         phone: profile?.phone || '',
+        clinic_id: Number(profile?.clinic_id) || 0,
         clinic_name: profile?.clinic_name || '',
         clinic_department: profile?.clinic_department || '',
         clinic_address: profile?.clinic_address || '',
@@ -67,6 +69,7 @@ const ProfilePage: React.FC = () => {
             role: profile.role ?? 'Oncology Patient Navigator',
             email: profile.email ?? '',
             phone: profile.phone ?? '',
+            clinic_id: Number(profile.clinic_id) || 0,
             clinic_name: profile.clinic_name ?? '',
             clinic_department: profile.clinic_department ?? '',
             clinic_address: profile.clinic_address ?? '',
@@ -88,6 +91,7 @@ const ProfilePage: React.FC = () => {
             role: apiProfile.role,
             email: apiProfile.email,
             phone: apiProfile.phone,
+            clinic_id: apiProfile.clinic_id,
             clinic_name: apiProfile.clinic_name,
             clinic_department: apiProfile.clinic_department,
             clinic_address: apiProfile.clinic_address,
@@ -99,6 +103,7 @@ const ProfilePage: React.FC = () => {
             role: apiProfile.role || 'Oncology Patient Navigator',
             email: apiProfile.email,
             phone: apiProfile.phone,
+            clinic_id: Number(apiProfile.clinic_id),
             clinic_name: apiProfile.clinic_name,
             clinic_department: apiProfile.clinic_department,
             clinic_address: apiProfile.clinic_address,
@@ -108,25 +113,21 @@ const ProfilePage: React.FC = () => {
 
     const onSubmit = async (values: ProfileFormValues) => {
         try {
-            const staffId = profile?.staff_id ?? (typeof profile?.id === 'number' ? profile.id : null);
-            if (staffId != null) {
-                await updateStaffProfileMutation.mutateAsync({
-                    staffId,
-                    payload: {
-                        full_name: `${values.first_name} ${values.last_name}`.trim(),
-                        phone: values.phone || '',
-                        clinic_name: canEditClinic ? values.clinic_name : undefined,
-                        clinic_address: canEditClinic ? values.clinic_address : undefined,
-                        clinic_fax: canEditClinic ? values.clinic_fax : undefined,
-                    },
-                });
-            }
+            await updateStaffProfileMutation.mutateAsync({
+                first_name: values.first_name,
+                last_name: values.last_name,
+                email: values.email,
+                phone: values.phone,
+                clinic_id: values.clinic_id,
+            });
+
             updateProfile({
                 first_name: values.first_name,
                 last_name: values.last_name,
                 role: values.role,
                 email: values.email,
                 phone: values.phone,
+                clinic_id: values.clinic_id,
                 clinic_name: values.clinic_name,
                 clinic_department: values.clinic_department,
                 clinic_address: values.clinic_address,
@@ -160,7 +161,7 @@ const ProfilePage: React.FC = () => {
 
     const { data: clinicsData, isLoading: isLoadingClinics } = useClinics(isEditing && canEditClinic);
     const clinics: ClinicItem[] = Array.isArray(clinicsData) ? clinicsData : [];
-    const clinicOptions = clinics.map(c => ({ value: c.name, label: c.name }));
+    const clinicOptions = clinics.map(c => ({ value: String(c.id), label: c.name }));
 
     const getUserName = () => {
         if (profile) {
@@ -255,25 +256,27 @@ const ProfilePage: React.FC = () => {
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
                                 {isEditing && canEditClinic ? (
                                     <Controller
-                                        name="clinic_name"
+                                        name="clinic_id"
                                         control={control}
                                         render={({ field }) => (
                                             <Select
                                                 label="Clinic"
                                                 options={clinicOptions}
-                                                value={clinicOptions.find(opt => opt.value === field.value) || null}
+                                                value={clinicOptions.find(opt => Number(opt.value) === Number(field.value)) || null}
                                                 isLoading={isLoadingClinics}
                                                 onChange={(val: any) => {
-                                                    const name = val?.value || '';
-                                                    field.onChange(name);
-                                                    const selectedClinic = clinics.find(c => c.name === name);
+                                                    const clinicId = Number(val?.value || 0);
+                                                    const selectedClinic = clinics.find(c => c.id === clinicId);
+
+                                                    field.onChange(clinicId);
                                                     if (selectedClinic) {
+                                                        setValue('clinic_name', selectedClinic.name, { shouldDirty: true });
                                                         setValue('clinic_address', selectedClinic.address || '', { shouldDirty: true });
                                                         setValue('clinic_fax', selectedClinic.fax || '', { shouldDirty: true });
                                                     }
                                                 }}
                                                 placeholder="Select Clinic"
-                                                error={errors.clinic_name?.message}
+                                                error={errors.clinic_id?.message || errors.clinic_name?.message}
                                             />
                                         )}
                                     />
