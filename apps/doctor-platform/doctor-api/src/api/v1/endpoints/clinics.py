@@ -38,6 +38,7 @@ router = APIRouter()
 
 class ClinicResponse(BaseModel):
     """Clinic information response."""
+    id: int | None = None
     uuid: str
     clinic_name: str
     clinic_address: Optional[str] = None
@@ -79,6 +80,7 @@ class MessageResponse(BaseModel):
 def _to_clinic_response(clinic) -> ClinicResponse:
     """Map Clinic model fields to API response schema."""
     return ClinicResponse(
+        id=clinic.id,
         uuid=str(clinic.uuid),
         clinic_name=clinic.name,
         clinic_address=clinic.address,
