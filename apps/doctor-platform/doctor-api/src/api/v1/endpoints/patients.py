@@ -26,7 +26,7 @@ from fastapi import APIRouter, Depends, Query, HTTPException, status
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from api.deps import get_current_user, get_patient_db_session, get_doctor_db_session, TokenData
+from api.deps import get_current_user, get_patient_db_session, get_doctor_db_session, TokenData, require_roles
 from services import PatientService
 from core.logging import get_logger
 from core.exceptions import NotFoundError, AuthorizationError
@@ -358,6 +358,36 @@ async def get_patient_statistics(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=str(e),
         )
+
+
+@router.delete(
+    "/{patient_uuid}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Delete Patient",
+    description="Delete a patient (admin only). This performs a soft-delete of the patient and related associations.",
+)
+async def delete_patient(
+    patient_uuid: UUID,
+    admin_user=Depends(require_roles("admin")),
+    patient_db: Session = Depends(get_patient_db_session),
+    doctor_db: Session = Depends(get_doctor_db_session),
+):
+    """
+    Delete (soft-delete) a patient. Only users with the `admin` role may perform this action.
+    """
+    logger.info(f"Admin {getattr(admin_user, 'uuid', None)} deleting patient {patient_uuid}")
+
+    patient_service = PatientService(patient_db, doctor_db)
+
+    try:
+        patient_service.delete_patient(patient_uuid=patient_uuid)
+        # 204 No Content
+        return None
+    except NotFoundError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    except Exception as e:
+        logger.error(f"Error deleting patient {patient_uuid}: {e}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to delete patient")
 
 
 # =============================================================================

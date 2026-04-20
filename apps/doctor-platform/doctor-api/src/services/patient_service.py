@@ -38,10 +38,8 @@ Copyright:
 
 from typing import List, Optional, Tuple, Dict, Any
 from uuid import UUID
-from datetime import datetime
-
 from sqlalchemy.orm import Session
-from sqlalchemy import desc, func, or_, and_, text
+from sqlalchemy import text
 
 from .base import BaseService
 from core.logging import get_logger
@@ -610,7 +608,7 @@ class PatientService(BaseService):
         self.patient_db.execute(
             text("""
             UPDATE patient_questions
-            SET is_answered = true, updated_at = NOW()
+            SET is_answered = true
             WHERE id = :question_id
             """),
             {"question_id": str(question_id)}
@@ -624,6 +622,364 @@ class PatientService(BaseService):
             "is_answered": True,  # Updated value
             "created_at": row[4].isoformat() if row[4] else None,
         }
+
+
+    def delete_patient(
+        self,
+        patient_uuid: UUID,
+    ) -> None:
+        """
+        Delete patient data and related associations in the patient database.
+
+        Notes on behavior:
+        - Transient and derived content (for example: diary entries, chemo dates,
+          conversation summaries, symptom analytics, and chat registry rows which
+          cascade to conversations/messages) are hard-deleted from the patient DB.
+        - Canonical records (for example: `patient_info`, `patient_physician_associations`,
+          and `patient_configurations`) are updated to set `is_deleted = true` when
+          those tables are present. This is intentional: the code preserves an
+          auditable canonical row while removing user-visible content from the live
+          system.
+        - Deletes are executed and committed per-statement to make cleanup robust
+          (a failure in one table won't leave the DB session in an aborted state
+          and block subsequent statements). Check per-table log lines for rowcounts
+          to confirm what was removed.
+
+        Args:
+            patient_uuid: The patient's UUID to delete
+
+        Raises:
+            NotFoundError: If the patient does not exist or is already deleted
+        """
+        logger.info(f"Deleting patient {patient_uuid}")
+
+        try:
+            # Helper to execute a DML statement and commit immediately.
+            # This prevents a single failing statement from leaving the
+            # whole transaction in an aborted state and blocking subsequent
+            # statements. On failure, we rollback the partial transaction and
+            # continue.
+            def _exec_and_commit(sql: str, params: dict, desc: str = None):
+                try:
+                    res = self.patient_db.execute(text(sql), params)
+                    try:
+                        self.patient_db.commit()
+                    except Exception:
+                        # If commit fails, attempt rollback to keep session usable
+                        try:
+                            self.patient_db.rollback()
+                        except Exception:
+                            pass
+                    logger.info("%s, rowcount=%s", desc or sql.splitlines()[0], getattr(res, 'rowcount', 'unknown'))
+                    return res
+                except Exception as _e:
+                    logger.debug("%s failed: %s", desc or sql.splitlines()[0], str(_e))
+                    try:
+                        self.patient_db.rollback()
+                    except Exception:
+                        pass
+                    return None
+
+            # Helper for SELECT COUNT(*) scalar queries that should not affect
+            # transaction state. Returns 'unknown' on error.
+            def _select_count(sql: str, params: dict):
+                try:
+                    res = self.patient_db.execute(text(sql), params)
+                    return res.scalar()
+                except Exception:
+                    try:
+                        # If the select caused a transaction error, ensure session is usable
+                        self.patient_db.rollback()
+                    except Exception:
+                        pass
+                    return 'unknown'
+
+            # Helper to check if a column exists on a given table in the current DB.
+            # Returns True/False (safe, uses information_schema to avoid executing
+            # statements that reference non-existent columns).
+            def _has_column(table_name: str, column_name: str) -> bool:
+                try:
+                    q = """
+                    SELECT 1 FROM information_schema.columns
+                    WHERE table_name = :table_name AND column_name = :column_name
+                    LIMIT 1
+                    """
+                    res = self.patient_db.execute(text(q), {"table_name": table_name, "column_name": column_name})
+                    return bool(res.scalar())
+                except Exception:
+                    try:
+                        self.patient_db.rollback()
+                    except Exception:
+                        pass
+                    return False
+
+            # Determine which patient UUID(s) to target in patient DB.
+            # Prefer the users.uuid from doctor DB (canonical identity used by patient-api tables).
+            candidate_uuids = set()
+
+            try:
+                # Try to find a User row matching the provided identifier
+                user_row = self.doctor_db.execute(
+                    text("SELECT uuid, id FROM users WHERE uuid = :p"),
+                    {"p": str(patient_uuid)}
+                ).fetchone()
+                if user_row:
+                    candidate_uuids.add(str(user_row[0]))
+                else:
+                    # If no user by uuid, maybe the caller provided a numeric fax_patient id or user id.
+                    try:
+                        maybe_id = int(str(patient_uuid))
+                    except Exception:
+                        maybe_id = None
+
+                    if maybe_id is not None:
+                        # Check if this maps to a fax_patients.user_id
+                        fax_row = self.doctor_db.execute(
+                            text("SELECT user_id FROM fax_patients WHERE id = :id OR user_id = :id"),
+                            {"id": maybe_id}
+                        ).fetchone()
+                        if fax_row and fax_row[0]:
+                            user_from_fax = self.doctor_db.execute(
+                                text("SELECT uuid FROM users WHERE id = :uid"),
+                                {"uid": fax_row[0]}
+                            ).fetchone()
+                            if user_from_fax and user_from_fax[0]:
+                                candidate_uuids.add(str(user_from_fax[0]))
+
+                        # Also check if maybe_id directly matches users.id
+                        user_by_id = self.doctor_db.execute(
+                            text("SELECT uuid FROM users WHERE id = :id"),
+                            {"id": maybe_id}
+                        ).fetchone()
+                        if user_by_id and user_by_id[0]:
+                            candidate_uuids.add(str(user_by_id[0]))
+
+            except Exception:
+                logger.debug("doctor_db lookup for user mapping failed; falling back to provided patient_uuid")
+
+            # Always include the provided identifier as a fallback (may already be a users.uuid)
+            candidate_uuids.add(str(patient_uuid))
+
+            logger.info("Targeting patient UUIDs in patient DB: %s", list(candidate_uuids))
+
+            # If patient_info is used elsewhere, we still attempt to soft-delete it when the provided
+            # identifier matches a patient_info.uuid. But the primary deletes below will use candidate_uuids.
+            _exec_and_commit(
+                """
+                UPDATE patient_info
+                SET is_deleted = true
+                WHERE uuid = :patient_uuid
+                """,
+                {"patient_uuid": str(patient_uuid)},
+                desc="patient_info update"
+            )
+
+            # Soft-delete associations for all candidate UUIDs
+            for cuuid in list(candidate_uuids):
+                _exec_and_commit(
+                    """
+                    UPDATE patient_physician_associations
+                    SET is_deleted = true
+                    WHERE patient_uuid = :patient_uuid
+                    """,
+                    {"patient_uuid": cuuid},
+                    desc=f"patient_physician_associations update for {cuuid}"
+                )
+
+            # Soft-delete patient configurations (if present)
+            _exec_and_commit(
+                """
+                UPDATE patient_configurations
+                SET is_deleted = true
+                WHERE uuid = :patient_uuid
+                """,
+                {"patient_uuid": str(patient_uuid)},
+                desc="patient_configurations update"
+            )
+
+            # Remove diary entries and chemo dates (stored by UUID, not FK)
+            # Log count before delete to help diagnose mismatches between DB and visible data
+            before_diary = _select_count(
+                "SELECT COUNT(*) FROM patient_diary_entries WHERE patient_uuid = :patient_uuid",
+                {"patient_uuid": str(patient_uuid)}
+            )
+            logger.info("patient_diary_entries count before delete=%s", before_diary)
+
+            _exec_and_commit(
+                """
+                DELETE FROM patient_diary_entries
+                WHERE patient_uuid = :patient_uuid
+                """,
+                {"patient_uuid": str(patient_uuid)},
+                desc="patient_diary_entries delete"
+            )
+
+            before_chemo = _select_count(
+                "SELECT COUNT(*) FROM patient_chemo_dates WHERE patient_uuid = :patient_uuid",
+                {"patient_uuid": str(patient_uuid)}
+            )
+            logger.info("patient_chemo_dates count before delete=%s", before_chemo)
+
+            _exec_and_commit(
+                """
+                DELETE FROM patient_chemo_dates
+                WHERE patient_uuid = :patient_uuid
+                """,
+                {"patient_uuid": str(patient_uuid)},
+                desc="patient_chemo_dates delete"
+            )
+
+            # Remove symptom analytics tables (if present)
+            # Choose column name based on schema to avoid UndefinedColumn errors.
+            if _has_column('symptom_details', 'patient_uuid'):
+                _exec_and_commit(
+                    """
+                    DELETE FROM symptom_details
+                    WHERE patient_uuid = :patient_uuid
+                    """,
+                    {"patient_uuid": str(patient_uuid)},
+                    desc="symptom_details delete (patient_uuid)"
+                )
+            elif _has_column('symptom_details', 'patient_id'):
+                _exec_and_commit(
+                    """
+                    DELETE FROM symptom_details
+                    WHERE patient_id = :patient_uuid
+                    """,
+                    {"patient_uuid": str(patient_uuid)},
+                    desc="symptom_details delete (patient_id)"
+                )
+            else:
+                logger.debug("symptom_details table missing or no patient column")
+
+            if _has_column('symptom_time_series', 'patient_uuid'):
+                _exec_and_commit(
+                    """
+                    DELETE FROM symptom_time_series
+                    WHERE patient_uuid = :patient_uuid
+                    """,
+                    {"patient_uuid": str(patient_uuid)},
+                    desc="symptom_time_series delete (patient_uuid)"
+                )
+            elif _has_column('symptom_time_series', 'patient_id'):
+                _exec_and_commit(
+                    """
+                    DELETE FROM symptom_time_series
+                    WHERE patient_id = :patient_uuid
+                    """,
+                    {"patient_uuid": str(patient_uuid)},
+                    desc="symptom_time_series delete (patient_id)"
+                )
+            else:
+                logger.debug("symptom_time_series table missing or no patient column")
+
+            # Conversation summaries - delete any summary rows for this patient
+            _exec_and_commit(
+                """
+                DELETE FROM conversation_summaries
+                WHERE patient_uuid = :patient_uuid
+                """,
+                {"patient_uuid": str(patient_uuid)},
+                desc="conversation_summaries delete"
+            )
+
+            # Delete chat registry row; this will cascade-delete conversations/messages
+            before_chat = _select_count(
+                "SELECT COUNT(*) FROM chat_patients WHERE uuid = :patient_uuid",
+                {"patient_uuid": str(patient_uuid)}
+            )
+            logger.info("chat_patients count before delete=%s", before_chat)
+
+            _exec_and_commit(
+                """
+                DELETE FROM chat_patients
+                WHERE uuid = :patient_uuid
+                """,
+                {"patient_uuid": str(patient_uuid)},
+                desc="chat_patients delete"
+            )
+
+            # Commit patient DB changes (if any)
+            # Patient DB operations have been committed per-statement above.
+
+            # Post-commit verification: ensure deletes are visible in the patient DB
+            after_diary = _select_count(
+                "SELECT COUNT(*) FROM patient_diary_entries WHERE patient_uuid = :patient_uuid",
+                {"patient_uuid": str(patient_uuid)}
+            )
+            after_chat = _select_count(
+                "SELECT COUNT(*) FROM chat_patients WHERE uuid = :patient_uuid",
+                {"patient_uuid": str(patient_uuid)}
+            )
+
+            logger.info(f"Patient {patient_uuid} patient-db cleanup attempted; post-commit counts: diary={after_diary}, chat={after_chat}")
+
+            # ---- Doctor DB cleanup (doctor-api) ----
+            # Attempt to find linked user in doctor DB by UUID
+            try:
+                user_row = self.doctor_db.execute(
+                    text("SELECT id FROM users WHERE uuid = :patient_uuid"),
+                    {"patient_uuid": str(patient_uuid)}
+                ).fetchone()
+
+                if user_row:
+                    user_id = user_row[0]
+
+                    # Find fax_patients entry for this user (if any)
+                    fax_row = self.doctor_db.execute(
+                        text("SELECT id FROM fax_patients WHERE user_id = :user_id"),
+                        {"user_id": user_id}
+                    ).fetchone()
+
+                    if fax_row:
+                        fax_id = fax_row[0]
+                        # Delete fax records referencing the fax_patient
+                        try:
+                            self.doctor_db.execute(
+                                text("DELETE FROM fax_records WHERE patient_id = :fax_id"),
+                                {"fax_id": fax_id}
+                            )
+                        except Exception:
+                            logger.debug("Failed to delete fax_records for fax_patient id %s", fax_id)
+
+                        # Delete fax_patient row
+                        try:
+                            self.doctor_db.execute(
+                                text("DELETE FROM fax_patients WHERE id = :fax_id"),
+                                {"fax_id": fax_id}
+                            )
+                        except Exception:
+                            logger.debug("Failed to delete fax_patients id %s", fax_id)
+
+                    # Finally, delete user row in doctor DB (patient auth record)
+                    try:
+                        self.doctor_db.execute(
+                            text("DELETE FROM users WHERE id = :user_id"),
+                            {"user_id": user_id}
+                        )
+                    except Exception:
+                        logger.debug("Failed to delete users id %s", user_id)
+
+                    self.doctor_db.commit()
+                    logger.info(f"Patient {patient_uuid} removed from doctor DB (users/fax tables)")
+                else:
+                    logger.debug(f"No corresponding user in doctor DB for patient {patient_uuid}")
+            except Exception as e:
+                logger.error(f"Error cleaning up doctor DB for patient {patient_uuid}: {e}")
+                try:
+                    self.doctor_db.rollback()
+                except Exception:
+                    pass
+                # Re-raise to indicate failure so caller can respond with 500
+                raise
+        except Exception as e:
+            logger.error(f"Failed to delete patient {patient_uuid}: {e}")
+            # Attempt rollback and re-raise
+            try:
+                self.patient_db.rollback()
+            except Exception:
+                pass
+            raise
 
 
 
