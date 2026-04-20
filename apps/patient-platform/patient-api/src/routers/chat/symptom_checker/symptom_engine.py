@@ -1465,7 +1465,7 @@ class SymptomCheckerEngine:
 
         prompt_message = (
             "✅ **All symptom questions are complete.**\n\n"
-            "Before I generate your final summary, do you want to add or update anything?\n\n"
+            "Do you want to add or update anything?\n\n"
             "Choose **Yes** to type changes, or **No** to generate the summary now."
         )
         self._add_to_chat_history('ruby', prompt_message)
@@ -1607,9 +1607,7 @@ class SymptomCheckerEngine:
                     message="✏️ **Add or Update Details**\n\n"
                             "Please type anything you want to add, remove, or correct before I generate your final summary.",
                     message_type='text_input',
-                    options=[
-                        {'label': '← Back', 'value': 'back_to_summary', 'style': 'secondary'}
-                    ],
+                    options=[],
                     sender='ruby',
                     state=self.state
                 )
