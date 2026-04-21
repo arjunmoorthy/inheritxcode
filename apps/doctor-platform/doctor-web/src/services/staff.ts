@@ -291,6 +291,13 @@ export interface UpdateStaffProfilePayload {
   clinic_id: number;
 }
 
+/** Payload for PUT /staff/staff/{id} */
+export interface UpdateStaffByIdPayload {
+  full_name: string;
+  phone: string;
+}
+
+
 /** PATCH /api/v1/staff/profile - Update current staff profile */
 const updateStaffProfile = async (
   payload: UpdateStaffProfilePayload
@@ -301,6 +308,19 @@ const updateStaffProfile = async (
   );
   return response.data;
 };
+
+/** PUT /api/v1/staff/staff/{id} - Update another staff member by ID */
+const updateStaffById = async (
+  staffId: number,
+  payload: UpdateStaffByIdPayload
+): Promise<unknown> => {
+  const response = await apiClient.put<unknown>(
+    API_CONFIG.ENDPOINTS.STAFF.BY_STAFF_ID(staffId),
+    payload
+  );
+  return response.data;
+};
+
 
 // =============================================================================
 // React Query Hooks
@@ -416,3 +436,16 @@ export const useUpdateStaffProfile = () => {
     },
   });
 };
+
+/** Update another staff member via PUT /api/v1/staff/staff/{id} */
+export const useUpdateStaffById = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ staffId, payload }: { staffId: number; payload: UpdateStaffByIdPayload }) =>
+      updateStaffById(staffId, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['staff'] });
+    },
+  });
+};
+
