@@ -1270,7 +1270,7 @@ SYMPTOMS['CON-210'] = SymptomDef(
         ),
         Question(
             id='discomfort',
-            text='Rate your discomfort:',
+            text='Rate your constipation:',
             input_type=InputType.CHOICE,
             options=opts_from_dicts(SEVERITY_OPTIONS)
         ),
@@ -2054,7 +2054,7 @@ SYMPTOMS['MSO-208'] = SymptomDef(
         ),
         Question(
             id='discomfort',
-            text='Rate your discomfort:',
+            text='Rate your Mouth Sores:',
             input_type=InputType.CHOICE,
             options=opts_from_dicts(SEVERITY_OPTIONS)
         )
@@ -2491,7 +2491,7 @@ SYMPTOMS['APP-209'] = SymptomDef(
         ),
         Question(
             id='discomfort',
-            text='Rate your discomfort:',
+            text='Rate your appetite:',
             input_type=InputType.CHOICE,
             options=opts_from_dicts(SEVERITY_OPTIONS)
         )

@@ -1546,7 +1546,6 @@ class SymptomCheckerEngine:
                 "---\n\n"
                 "⚠️ **Please call your care team** - I’m in the OncoLife study, and my check-in recommended a brief update on my progress\n\n"
                 "📔 **Saved to your summaries** automatically for your records.\n\n"
-                "💬 **Want to add anything?** You can add personal notes.\n\n"
                 "What would you like to do?"
             )
             triage_level = TriageLevel.NOTIFY_CARE_TEAM
@@ -1563,7 +1562,6 @@ class SymptomCheckerEngine:
                 "---\n\n"
                 "✅ **Good news!** No urgent concerns identified.\n\n"
                 "📔 **Saved to your summaries** automatically for your records.\n\n"
-                "💬 **Want to add anything?** You can add personal notes.\n\n"
                 "What would you like to do?"
             )
             triage_level = TriageLevel.NONE
