@@ -619,10 +619,23 @@ class ChatService:
             
             summary_data = engine_response.summary_data or {}
             should_refine_ai_summary = bool(summary_data.get("regenerate_ai_summary"))
+            # Emit progress flag for summary generation flows.
+            # Also emit when we detect an emergent triage (CALL_911) so the FE
+            # can show the emergency modal/progress indicator immediately
+            # while backend summary generation runs.
             should_emit_summary_progress_flag = (
-                engine_response.message_type == "summary"
-                and engine_response.triage_level != TriageLevel.CALL_911
-                and (engine_response.is_complete or should_refine_ai_summary)
+                (
+                    engine_response.message_type == "summary"
+                    and (engine_response.is_complete or should_refine_ai_summary)
+                )
+                or (
+                    engine_response.triage_level == TriageLevel.CALL_911
+                    and (
+                        engine_response.is_complete
+                        or should_refine_ai_summary
+                        or engine_response.message_type == "triage_result"
+                    )
+                )
             )
 
             if should_emit_summary_progress_flag:
