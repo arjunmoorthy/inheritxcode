@@ -770,6 +770,34 @@ def patient_listing_dashboard(
                 }
             )
 
+        # Ensure triage-priority ordering: call_911 first, then notify_care_team, then none,
+        # while keeping the rest of the list intact. Preserve recency within each group.
+        priority_map = {
+            "call_911": 0,
+            "notify_care_team": 1,
+            "none": 2,
+        }
+
+        def _sort_key(item):
+            lvl = (item.get("latest_severity_level") or "").lower()
+            pr = priority_map.get(lvl, 3)
+            created = item.get("created_at")
+            ts = 0.0
+            if isinstance(created, datetime):
+                try:
+                    ts = created.timestamp()
+                except Exception:
+                    ts = 0.0
+            else:
+                try:
+                    ts = datetime.fromisoformat(str(created)).timestamp()
+                except Exception:
+                    ts = 0.0
+            # sort by priority (asc) then created_at desc (hence -ts)
+            return (pr, -ts)
+
+        response.sort(key=_sort_key)
+
         return {
             "status": "success",
             "count": len(response),
