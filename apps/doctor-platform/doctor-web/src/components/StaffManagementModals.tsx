@@ -8,7 +8,7 @@ import type { SelectOption } from '@/components/ui';
 import { useUser } from '../contexts/UserContext';
 import { useThemeMode } from '@oncolife/ui-components';
 import { Snackbar, Alert } from '@mui/material';
-import { useAddStaffV1, useStaffListDoctors, useUpdateStaffProfile, useAllStaff, useCurrentStaffProfile } from '../services/staff';
+import { useAddStaffV1, useStaffListDoctors, useUpdateStaffById, useAllStaff, useCurrentStaffProfile } from '../services/staff';
 import { useClinics, useCreateClinic, useUpdateClinic, type ClinicItem } from '../services/clinics';
 import { useStaffManagement } from '../contexts/StaffManagementContext';
 
@@ -66,7 +66,7 @@ const StaffManagementModals: React.FC = () => {
 
     // Mutations/Services
     const addStaffMutation = useAddStaffV1();
-    const updateStaffProfileMutation = useUpdateStaffProfile();
+    const updateStaffByIdMutation = useUpdateStaffById();
     const createClinicMutation = useCreateClinic();
     const updateClinicMutation = useUpdateClinic();
     const { data: allStaffData = [], isLoading: isLoadingAllStaff } = useAllStaff(showUpdateStaffModal);
@@ -206,7 +206,7 @@ const StaffManagementModals: React.FC = () => {
         const staffId = editingStaff?.staffId ?? (editingStaff?.id && /^\d+$/.test(String(editingStaff.id)) ? Number(editingStaff.id) : null);
         if (staffId == null) return;
         try {
-            await updateStaffProfileMutation.mutateAsync({
+            await updateStaffByIdMutation.mutateAsync({
                 staffId,
                 payload: {
                     full_name: values.fullName.trim(),
@@ -645,7 +645,7 @@ const StaffManagementModals: React.FC = () => {
                         <Input label="Phone *" type="tel" placeholder="(555) 000-0000" icon={<Phone size={18} />} error={staffErrors.phone?.message} {...registerStaff('phone')} />
                         <ModalFooter className="pt-2">
                             <Button type="button" variant="outline" onClick={() => setEditingStaff(null)}>Back</Button>
-                            <Button type="submit" variant="primary" loading={isSubmittingStaff || updateStaffProfileMutation.isPending}>Save changes</Button>
+                            <Button type="submit" variant="primary" loading={isSubmittingStaff || updateStaffByIdMutation.isPending}>Save changes</Button>
                         </ModalFooter>
                     </form>
                 )}
