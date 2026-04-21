@@ -94,6 +94,9 @@ const StaffManagementModals: React.FC = () => {
     const roleOptions = [
         { value: 'Doctor', label: 'Doctor' },
         { value: 'Nurse', label: 'Nurse' },
+        { value: 'Navigator', label: 'Navigator' },
+        { value: 'Research coordinator', label: 'Research coordinator' },
+        { value: 'Medical Assistant', label: 'Medical Assistant' },
     ];
     const clinicOptions: SelectOption[] = (clinics || []).map((clinic) => ({
         value: clinic.id ?? '',
