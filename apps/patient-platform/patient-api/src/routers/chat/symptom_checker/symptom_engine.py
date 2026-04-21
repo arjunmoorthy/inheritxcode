@@ -110,6 +110,9 @@ class ConversationState:
     session_oral_intake_answer: Optional[str] = None
     # Cross-symptom fever yes/no: derived from temperature when available or reused if asked once.
     session_fever_answer: Optional[bool] = None
+    # Cross-symptom weight loss: reuse "lost >3 pounds in last week?" between
+    # No Appetite (APP-209) and Mouth Sores (MSO-208) when selected together.
+    session_weight_loss_answer: Optional[bool] = None
     # AI summary review fields
     ai_generated_summary: Optional[str] = None
     user_summary_edit: Optional[str] = None
@@ -149,6 +152,7 @@ class ConversationState:
             'session_adl_answer': self.session_adl_answer,
             'session_oral_intake_answer': self.session_oral_intake_answer,
             'session_fever_answer': self.session_fever_answer,
+            'session_weight_loss_answer': self.session_weight_loss_answer,
             'ai_generated_summary': self.ai_generated_summary,
             'user_summary_edit': self.user_summary_edit,
             'summary_prefix_message': self.summary_prefix_message,
@@ -189,6 +193,7 @@ class ConversationState:
             session_adl_answer=data.get('session_adl_answer'),
             session_oral_intake_answer=data.get('session_oral_intake_answer'),
             session_fever_answer=data.get('session_fever_answer'),
+            session_weight_loss_answer=data.get('session_weight_loss_answer'),
             ai_generated_summary=data.get('ai_generated_summary'),
             user_summary_edit=data.get('user_summary_edit'),
             summary_prefix_message=data.get('summary_prefix_message'),
@@ -734,6 +739,19 @@ class SymptomCheckerEngine:
         if next_symptom_id == 'VOM-204' and self.state.session_vomiting_answer is None:
             self.state.session_vomiting_answer = True
 
+        # Case-specific UX fix: when transitioning from No Appetite to Mouth Sores,
+        # explicitly announce the next symptom so subsequent questions are clear.
+        if (
+            next_symptom_id == 'MSO-208'
+            and 'APP-209' in self.state.completed_symptoms
+        ):
+            mouth_sores_transition = "Let's talk about Mouth Sores now."
+            if greeting_message:
+                if "Mouth Sores" not in greeting_message:
+                    greeting_message = f"{greeting_message}\n\n{mouth_sores_transition}"
+            else:
+                greeting_message = mouth_sores_transition
+
         return self._get_next_question(symptom, greeting_message)
 
     def _is_dehydration_question(self, question_id: str) -> bool:
@@ -789,6 +807,13 @@ class SymptomCheckerEngine:
     def _is_fever_yesno_question(self, question_id: str) -> bool:
         """Check if question asks fever as yes/no."""
         return question_id in ('fever', 'fever_check')
+
+    def _is_weight_loss_question(self, question_id: str, symptom_id: Optional[str]) -> bool:
+        """
+        Shared weight-loss yes/no question asked in APP-209 and MSO-208.
+        Reuse only within these two symptoms.
+        """
+        return question_id == 'weight_loss' and symptom_id in ('APP-209', 'MSO-208')
 
     def _get_next_question(self, symptom: SymptomDef, prefix_message: Optional[str] = None) -> EngineResponse:
         """Get the next applicable question for the current symptom."""
@@ -948,6 +973,20 @@ class SymptomCheckerEngine:
                     f"{self.state.session_fever_answer}"
                 )
                 self.state.answers[question.id] = self.state.session_fever_answer
+                self.state.current_question_index += 1
+                continue
+
+            # Cross-symptom weight-loss reuse for APP-209 <-> MSO-208.
+            if (
+                self._is_weight_loss_question(question.id, self.state.current_symptom_id)
+                and self.state.session_weight_loss_answer is not None
+                and (question.condition is None or question.condition(self.state.answers))
+            ):
+                logger.info(
+                    f"Reusing weight-loss answer for question {question.id}: "
+                    f"{self.state.session_weight_loss_answer}"
+                )
+                self.state.answers[question.id] = self.state.session_weight_loss_answer
                 self.state.current_question_index += 1
                 continue
             
@@ -1187,6 +1226,8 @@ class SymptomCheckerEngine:
                     self.state.session_oral_intake_answer = str(user_response)
                 if self._is_fever_yesno_question(question.id):
                     self.state.session_fever_answer = bool(user_response)
+                if self._is_weight_loss_question(question.id, self.state.current_symptom_id):
+                    self.state.session_weight_loss_answer = bool(user_response)
                 logger.info(f"Stored answer for {question.id}: {user_response}")
 
         self.state.current_question_index += 1
@@ -1256,6 +1297,8 @@ class SymptomCheckerEngine:
                     self.state.session_oral_intake_answer = str(user_response)
                 if self._is_fever_yesno_question(question.id):
                     self.state.session_fever_answer = bool(user_response)
+                if self._is_weight_loss_question(question.id, self.state.current_symptom_id):
+                    self.state.session_weight_loss_answer = bool(user_response)
                 logger.info(f"Stored follow-up answer for {question.id}: {user_response}")
 
         self.state.current_question_index += 1
