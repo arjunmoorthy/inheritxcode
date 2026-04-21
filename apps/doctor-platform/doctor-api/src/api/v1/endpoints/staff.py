@@ -162,7 +162,19 @@ class DoctorListResponse(BaseModel):
 
 class AddStaffRequest(BaseModel):
     """Request to add a new staff member (doctor or nurse)."""
-    role: Literal["doctor", "nurse"] = Field(..., description="Role: doctor or nurse")
+    role: Literal[
+        "doctor",
+        "nurse",
+        "navigator",
+        "research_coordinator",
+        "medical_assistant",
+    ] = Field(
+        ...,
+        description=(
+            "Role: 'doctor', or one of the nurse-like roles: 'nurse', "
+            "'navigator', 'research_coordinator', 'medical_assistant'"
+        ),
+    )
     full_name: str = Field(..., min_length=1, max_length=200, description="Full name (stored as first_name, last_name in user and staff)")
     email: EmailStr = Field(..., description="Email (stored in user and staff)")
     phone: str = Field(..., min_length=1, max_length=20, description="Phone (stored in staff)")
@@ -480,7 +492,17 @@ def add_staff_simple(
     last_name = parts[1] if len(parts) > 1 else None
 
     # 🎭 Role mapping
-    db_role = "physician" if request.role == "doctor" else "nurse"
+    # Store the exact provided role in the DB (physician for 'doctor',
+    # otherwise store the literal role like 'nurse', 'navigator', etc.).
+    db_role = "physician" if request.role == "doctor" else request.role
+
+    # Nurse-like roles that require doctor_ids and physician-nurse assignment
+    NURSE_LIKE_ROLES = {
+        "nurse",
+        "navigator",
+        "research_coordinator",
+        "medical_assistant",
+    }
 
     # 🏥 Clinic lookup by ID
     clinic = clinic_repo.get_by_id(request.clinic_id)
@@ -491,10 +513,14 @@ def add_staff_simple(
         )
 
     # 🔒 Validation: doctor_ids rules
-    if db_role == "nurse" and not request.doctor_ids:
+    # db_role is 'physician' for doctors; other roles may be nurse-like
+    if request.role in NURSE_LIKE_ROLES and not request.doctor_ids:
         raise HTTPException(
             status_code=400,
-            detail="doctor_ids are required when role is nurse",
+            detail=(
+                "doctor_ids are required for nurse-like roles "
+                "(nurse, navigator, research_coordinator, medical_assistant)"
+            ),
         )
 
     try:
@@ -535,7 +561,7 @@ def add_staff_simple(
             clinic_id=clinic.id,
             is_primary=True,
         )      
-        if db_role == "nurse":
+        if request.role in NURSE_LIKE_ROLES:
             doctors = (
                 db.query(Staff)
                 .filter(
