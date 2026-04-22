@@ -629,7 +629,16 @@ def add_staff_simple(
 )
 def get_my_profile(
     db: Session = Depends(get_doctor_db_session),
-    current_user=Depends(require_roles("admin", "physician", "nurse")),
+    current_user=Depends(
+        require_roles(
+            "admin",
+            "physician",
+            "nurse",
+            "research_coordinator",
+            "navigator",
+            "medical_assistant",
+        )
+    ),
 ):
     staff = (
         db.query(Staff)
@@ -658,7 +667,16 @@ def get_my_profile(
 def update_my_profile(
     payload: SelfProfileUpdateRequest,
     db: Session = Depends(get_doctor_db_session),
-    current_user=Depends(require_roles("admin", "physician", "nurse")),
+    current_user=Depends(
+        require_roles(
+            "admin",
+            "physician",
+            "nurse",
+            "research_coordinator",
+            "navigator",
+            "medical_assistant",
+        )
+    ),
 ):
     staff = (
         db.query(Staff)
@@ -787,7 +805,16 @@ def update_my_profile(
 )
 def list_doctors(
     db: Session = Depends(get_doctor_db_session),
-    current_user: TokenData = Depends(require_roles("physician", "nurse", "admin")),
+    current_user: TokenData = Depends(
+        require_roles(
+            "physician",
+            "nurse",
+            "research_coordinator",
+            "navigator",
+            "medical_assistant",
+            "admin",
+        )
+    ),
 ):
     doctors = (
         db.query(Staff)

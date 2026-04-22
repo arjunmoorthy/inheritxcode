@@ -105,7 +105,16 @@ class AddManualPatientRequest(BaseModel):
 @router.post("/patients", status_code=201)
 async def add_manual_patient(
     request: AddManualPatientRequest,
-    current_user: TokenData = Depends(require_roles("physician", "nurse", "admin")),
+    current_user: TokenData = Depends(
+        require_roles(
+            "physician",
+            "nurse",
+            "research_coordinator",
+            "navigator",
+            "medical_assistant",
+            "admin",
+        )
+    ),
     db: Session = Depends(get_doctor_db_session),
 ):
     """
@@ -449,7 +458,16 @@ async def _submit_sinch_fax(
 @router.post("/outgoing", status_code=status.HTTP_201_CREATED)
 async def send_outgoing_fax(
     payload: OutgoingFaxRequest,
-    current_user: TokenData = Depends(require_roles("physician", "nurse", "admin")),
+    current_user: TokenData = Depends(
+        require_roles(
+            "physician",
+            "nurse",
+            "research_coordinator",
+            "navigator",
+            "medical_assistant",
+            "admin",
+        )
+    ),
 ):
     """
     Send an outgoing fax through Sinch Fax API.
@@ -473,7 +491,16 @@ async def send_patient_symptoms_fax(
     patient_uuid: uuid.UUID,
     payload: OutgoingPatientSymptomsFaxRequest,
     request: Request,
-    current_user: User = Depends(require_roles("physician", "nurse", "admin")),
+    current_user: User = Depends(
+        require_roles(
+            "physician",
+            "nurse",
+            "research_coordinator",
+            "navigator",
+            "medical_assistant",
+            "admin",
+        )
+    ),
     db: Session = Depends(get_doctor_db_session),
     patient_db: Session = Depends(get_patient_db_session),
 ):
