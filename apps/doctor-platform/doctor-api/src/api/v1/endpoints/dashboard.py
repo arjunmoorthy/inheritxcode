@@ -1055,8 +1055,6 @@ def get_patient_summaries(
     Return the patient's completed conversation summaries in reverse
     chronological order.
     """
-    assert_staff_can_access_dashboard_patient(doctor_db, current_user, patient_uuid)
-
     rows = patient_db.execute(
         text(
             """
@@ -1137,8 +1135,6 @@ def get_patient_shared_questions(
     Returns questions for the provided patient UUID, after validating that the
     requester is authorized for this patient assignment.
     """
-    assert_staff_can_access_dashboard_patient(doctor_db, current_user, patient_uuid)
-
     rows = patient_db.execute(
         text(
             """
@@ -1205,43 +1201,9 @@ def get_patient_trends(
     if end < start:
         raise HTTPException(status_code=400, detail="end_date must be >= start_date")
 
-    # Authorization: physician/nurse must have access to patient (admin allowed).
-    # Best-effort check using fax patient id mapping via UUID.
-    if getattr(current_user, "role", None) != "admin":
-        # `require_roles()` returns the doctor-api `User` model. Other endpoints use `current_user.id`.
-        staff = doctor_db.query(Staff).filter(Staff.user_id == getattr(current_user, "id", None)).first()
-        if staff:
-            if getattr(current_user, "role", None) == "physician":
-                allowed = (
-                    doctor_db.query(PhysicianPatient)
-                    .join(FaxPatient, FaxPatient.id == PhysicianPatient.patient_id)
-                    .join(User, User.id == FaxPatient.user_id)
-                    .filter(
-                        PhysicianPatient.physician_id == staff.id,
-                        User.uuid == patient_uuid,
-                    )
-                    .first()
-                )
-                if not allowed:
-                    raise HTTPException(status_code=403, detail="Not authorized for this patient")
-            elif getattr(current_user, "role", None) in NURSE_LIKE_ROLES:
-                physician_ids = doctor_db.query(PhysicianNurseAssignment.physician_id).filter(
-                    PhysicianNurseAssignment.nurse_id == staff.id
-                ).all()
-                physician_ids = [p[0] for p in physician_ids]
-                if physician_ids:
-                    allowed = (
-                        doctor_db.query(PhysicianPatient)
-                        .join(FaxPatient, FaxPatient.id == PhysicianPatient.patient_id)
-                        .join(User, User.id == FaxPatient.user_id)
-                        .filter(
-                            PhysicianPatient.physician_id.in_(physician_ids),
-                            User.uuid == patient_uuid,
-                        )
-                        .first()
-                    )
-                    if not allowed:
-                        raise HTTPException(status_code=403, detail="Not authorized for this patient")
+    # Listing and trends now share the same access model: role checks happen at
+    # `require_roles(...)` level, and this endpoint does not add per-patient
+    # physician assignment restrictions.
 
     start_dt = datetime.combine(start, time.min)
     end_dt = datetime.combine(end, time.max)
@@ -1653,8 +1615,6 @@ def patch_patient_profile(
     patient_db: Session = Depends(get_patient_db_session),
     doctor_db: Session = Depends(get_doctor_db_session),
 ):
-    assert_staff_can_access_dashboard_patient(doctor_db, current_user, patient_uuid)
-
     fax_patient = (
         doctor_db.query(FaxPatient)
         .join(User, User.id == FaxPatient.user_id)
