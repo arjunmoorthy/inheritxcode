@@ -19,6 +19,6 @@ celery_app.autodiscover_tasks(["services"])
 celery_app.conf.beat_schedule = {
     "send-patient-alerts-daily": {
         "task": "services.tasks.send_daily_patient_alerts",
-        "schedule": crontab(minute="*/5"),  # Every 5 minutes for testing, change to crontab(hour=0, minute=0) for daily at midnight
+        "schedule": crontab(hour=7, minute=58),  # Every 5 minutes for testing, change to crontab(hour=0, minute=0) for daily at midnight
     },
 }
