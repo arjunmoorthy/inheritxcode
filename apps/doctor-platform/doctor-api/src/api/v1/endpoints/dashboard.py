@@ -59,6 +59,7 @@ from db.models.staff import PhysicianNurseAssignment, PhysicianPatient, Staff
 logger = get_logger(__name__)
 
 router = APIRouter()
+NURSE_LIKE_ROLES = {"nurse", "research_coordinator", "navigator", "medical_assistant"}
 
 
 # # =============================================================================
@@ -407,7 +408,16 @@ def patient_listing_dashboard(
         default=None,
         description="Legacy alias for last_chatbot_check_in",
     ),
-    current_user: TokenData = Depends(require_roles("physician", "nurse", "admin")),
+    current_user: TokenData = Depends(
+        require_roles(
+            "physician",
+            "nurse",
+            "research_coordinator",
+            "navigator",
+            "medical_assistant",
+            "admin",
+        )
+    ),
     db: Session = Depends(get_doctor_db_session),
     patient_db: Session = Depends(get_patient_db_session),
 ):
@@ -514,7 +524,7 @@ def patient_listing_dashboard(
         allowed_physician_ids: Optional[list[int]]
         if current_user.role == "physician":
             allowed_physician_ids = [staff.id]
-        elif current_user.role == "nurse":
+        elif current_user.role in NURSE_LIKE_ROLES:
             nurse_physician_ids = db.query(
                 PhysicianNurseAssignment.physician_id
             ).filter(
@@ -1063,7 +1073,16 @@ def _to_provider_voice(summary: Optional[str]) -> Optional[str]:
 def get_patient_summaries(
     patient_uuid: UUID,
     limit: int = Query(10, ge=1, le=100),
-    current_user: User = Depends(require_roles("physician", "nurse", "admin")),
+    current_user: User = Depends(
+        require_roles(
+            "physician",
+            "nurse",
+            "research_coordinator",
+            "navigator",
+            "medical_assistant",
+            "admin",
+        )
+    ),
     patient_db: Session = Depends(get_patient_db_session),
     doctor_db: Session = Depends(get_doctor_db_session),
 ):
@@ -1136,7 +1155,16 @@ def get_patient_summaries(
 def get_patient_shared_questions(
     patient_uuid: UUID,
     limit: int = Query(50, ge=1, le=200),
-    current_user: User = Depends(require_roles("physician", "nurse", "admin")),
+    current_user: User = Depends(
+        require_roles(
+            "physician",
+            "nurse",
+            "research_coordinator",
+            "navigator",
+            "medical_assistant",
+            "admin",
+        )
+    ),
     patient_db: Session = Depends(get_patient_db_session),
     doctor_db: Session = Depends(get_doctor_db_session),
 ):
@@ -1186,7 +1214,16 @@ def get_patient_trends(
     patient_uuid: UUID,
     start_date: Optional[date] = Query(default=None, description="Start date (YYYY-MM-DD)"),
     end_date: Optional[date] = Query(default=None, description="End date (YYYY-MM-DD)"),
-    current_user=Depends(require_roles("physician", "nurse", "admin")),
+    current_user=Depends(
+        require_roles(
+            "physician",
+            "nurse",
+            "research_coordinator",
+            "navigator",
+            "medical_assistant",
+            "admin",
+        )
+    ),
     patient_db: Session = Depends(get_patient_db_session),
     doctor_db: Session = Depends(get_doctor_db_session),
 ):
@@ -1222,7 +1259,7 @@ def get_patient_trends(
                 )
                 if not allowed:
                     raise HTTPException(status_code=403, detail="Not authorized for this patient")
-            elif getattr(current_user, "role", None) == "nurse":
+            elif getattr(current_user, "role", None) in NURSE_LIKE_ROLES:
                 physician_ids = doctor_db.query(PhysicianNurseAssignment.physician_id).filter(
                     PhysicianNurseAssignment.nurse_id == staff.id
                 ).all()
@@ -1470,7 +1507,7 @@ def assert_staff_can_access_dashboard_patient(
             )
         return
 
-    if role == "nurse":
+    if role in NURSE_LIKE_ROLES:
         physician_ids = [
             p[0]
             for p in doctor_db.query(PhysicianNurseAssignment.physician_id)
@@ -1638,7 +1675,16 @@ def _sync_patient_info_demographics(
 def patch_patient_profile(
     patient_uuid: UUID,
     body: PatientProfileUpdateRequest,
-    current_user: User = Depends(require_roles("physician", "nurse", "admin")),
+    current_user: User = Depends(
+        require_roles(
+            "physician",
+            "nurse",
+            "research_coordinator",
+            "navigator",
+            "medical_assistant",
+            "admin",
+        )
+    ),
     patient_db: Session = Depends(get_patient_db_session),
     doctor_db: Session = Depends(get_doctor_db_session),
 ):
