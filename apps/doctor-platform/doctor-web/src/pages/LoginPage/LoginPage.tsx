@@ -412,16 +412,16 @@ const LoginPage: React.FC = () => {
 
                   <div className="mt-8 animate-fade-in">
                     {/* HIPAA Notice */}
-                    <div className="flex items-center justify-center gap-2 mb-4">
+                    {/* <div className="flex items-center justify-center gap-2 mb-4">
                       <Shield size={16} className="text-teal-400" />
                       <span className={`text-xs font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
                         Secure, HIPAA-compliant access
                       </span>
-                    </div>
+                    </div> */}
                     {/* {showDemoButton && ( */}
                       <>
                         {/* Local Development Mode Card */}
-                        <div className={`rounded-2xl border-2 p-5 transition-all duration-300 ${isDark
+                        {/* <div className={`rounded-2xl border-2 p-5 transition-all duration-300 ${isDark
                           ? 'bg-emerald-900/20 border-emerald-700/40'
                           : 'bg-emerald-50 border-emerald-200'
                           }`}>
@@ -442,7 +442,7 @@ const LoginPage: React.FC = () => {
                             <Rocket size={16} className="shrink-0" />
                             <span>Quick Dev Login (No Password)</span>
                           </button>
-                        </div>
+                        </div> */}
                       </>
                     {/* )} */}
                     {/* Copyright Notice */}
