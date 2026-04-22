@@ -68,3 +68,34 @@ async def send_reset_password_email(email: str, reset_link: str):
 
     fm = FastMail(_get_mail_conf())
     await fm.send_message(message)
+
+
+async def send_email(to: str, subject: str, patient_name: str):
+    """Generic email sending helper."""
+
+    html = f"""
+    <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+        <p>Dear {patient_name},</p>
+
+        <p>
+        We are committed to supporting you through every step of your treatment.
+        Your feedback in these daily check-ins helps your team understand your recovery
+        and allows us to provide the right guidance exactly when you need it.
+        </p>
+
+        <p>
+        Please take a moment to log your symptoms for today. Your entries help us
+        ensure your treatment plan remains safe and effective.
+        </p>
+    </div>
+    """
+
+    message = MessageSchema(
+        subject=subject,
+        recipients=[to],
+        body=html,
+        subtype="html",
+    )
+
+    fm = FastMail(_get_mail_conf())
+    await fm.send_message(message)
