@@ -821,8 +821,17 @@ def _eval_diarrhea_followup(answers: Dict[str, Any]) -> LogicResult:
     dehy_keys = ['dark_urine', 'less_urine', 'thirsty', 'lightheaded']
     
     # Check vitals
-    if 'vitals_known' in dehy and answers.get('vitals_input'):
-        vitals = parse_vitals_from_text(answers['vitals_input'])
+    hr_input = answers.get('vitals_hr_input')
+    bp_input = answers.get('vitals_bp_input')
+    vitals_input = answers.get('vitals_input')  # backward compatibility for existing payloads
+    if 'vitals_known' in dehy and (hr_input or bp_input or vitals_input):
+        vitals_text = vitals_input or ', '.join(
+            part for part in [
+                f'HR: {hr_input}' if hr_input else '',
+                f'BP: {bp_input}' if bp_input else ''
+            ] if part
+        )
+        vitals = parse_vitals_from_text(vitals_text)
         if vitals['hr_high'] or vitals['bp_low']:
             return LogicResult(action='branch', branch_to_symptom_id='DEH-201')
     
@@ -843,10 +852,11 @@ SYMPTOMS['DIA-205'] = SymptomDef(
         ),
         Question(
             id='trend',
-            text='Is it worsening or the same?',
+            text='Is it worsening, the same, or improving?',
             input_type=InputType.CHOICE,
             options=[
-                create_option('Worsening/Same', 'bad'),
+                create_option('Worsening', 'bad'),
+                create_option('Same', 'bad'),
                 create_option('Improving', 'good')
             ],
             condition=lambda a: float(a.get('preface', 0) or 0) >= 3
@@ -919,8 +929,14 @@ SYMPTOMS['DIA-205'] = SymptomDef(
             options=opts_from_dicts(DEHYDRATION_SIGNS_OPTIONS)
         ),
         Question(
-            id='vitals_input',
-            text='Please enter your Heart Rate and/or Blood Pressure (e.g., HR: 95, BP: 110/70):',
+            id='vitals_hr_input',
+            text='Please enter your Heart Rate (e.g., 95):',
+            input_type=InputType.TEXT,
+            condition=lambda a: 'vitals_known' in (a.get('dehydration_signs') or [])
+        ),
+        Question(
+            id='vitals_bp_input',
+            text='Please enter your Blood Pressure (e.g., 110/70):',
             input_type=InputType.TEXT,
             condition=lambda a: 'vitals_known' in (a.get('dehydration_signs') or [])
         ),
