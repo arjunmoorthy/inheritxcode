@@ -36,6 +36,19 @@ services:
     networks:
       - oncolife-network
 
+  redis:
+    image: redis:7-alpine
+    container_name: oncolife-redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - oncolife-network
+
   # ===========================================================================
   # BACKEND APIS (Internal - no direct external access)
   # ===========================================================================
@@ -54,6 +67,7 @@ services:
       - LOG_LEVEL=DEBUG
       - LOG_FORMAT=text
       - LOCAL_DEV_MODE=true
+      - PYTHONPATH=/app
       # # Patient Database
       # - PATIENT_DB_HOST=postgres
       # - PATIENT_DB_PORT=5432
@@ -93,12 +107,17 @@ services:
       - AI_CLINICAL_SUMMARY_ENABLED=true
       - GEMINI_MODEL=gemini-2.5-flash
       - GEMINI_TIMEOUT_SECONDS=120
+      # Celery / Redis
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
       # CORS
       - CORS_ORIGINS=http://localhost:3000,http://localhost:5173,http://127.0.0.1:5173,http://127.0.0.1:3000,https://patient.healthai.global,https://api.patient.healthai.global
     ports:
       - "8000:8000"
     depends_on:
       postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     volumes:
       - ./apps/patient-platform/patient-api/src:/app:cached
@@ -107,11 +126,100 @@ services:
       - ./apps/patient-platform/patient-api/alembic.ini:/app/alembic.ini:cached
       - ./apps/patient-platform/patient-api/scripts:/app/scripts:cached
     command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+    working_dir: /app
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
       timeout: 10s
       retries: 3
+    networks:
+      - oncolife-network
+
+  patient-celery-worker:
+    build:
+      context: ./apps/patient-platform/patient-api
+      dockerfile: Dockerfile
+    container_name: oncolife-patient-celery-worker
+    env_file:
+      - ./apps/patient-platform/patient-api/.env
+    environment:
+      - ENVIRONMENT=development
+      - DEBUG=true
+      - LOG_LEVEL=DEBUG
+      - LOG_FORMAT=text
+      - LOCAL_DEV_MODE=true
+      # Doctor Database (primary) - LIVE RDS
+      - DOCTOR_DB_HOST=oncolife-uat.c1om2gk4ycxn.us-east-2.rds.amazonaws.com
+      - DOCTOR_DB_PORT=5432
+      - DOCTOR_DB_USER=oncoife-doctor
+      - DOCTOR_DB_PASSWORD=1FeusXaVR6JMP272Fgbb
+      - DOCTOR_DB_NAME=oncolife-doctor-db
+      # Patient Database (read-only) - LIVE RDS
+      - PATIENT_DB_HOST=oncolife-uat.c1om2gk4ycxn.us-east-2.rds.amazonaws.com
+      - PATIENT_DB_PORT=5432
+      - PATIENT_DB_USER=oncolife-patient
+      - PATIENT_DB_PASSWORD=f1HV9hz823qcmeVap2i4
+      - PATIENT_DB_NAME=oncolife-patient-db
+      - PYTHONPATH=/app
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    depends_on:
+      redis:
+        condition: service_healthy
+      patient-api:
+        condition: service_healthy
+    volumes:
+      - ./apps/patient-platform/patient-api/src:/app:cached
+      - ./apps/patient-platform/patient-api/static:/app/static:cached
+      - ./apps/patient-platform/patient-api/alembic:/app/alembic:cached
+      - ./apps/patient-platform/patient-api/alembic.ini:/app/alembic.ini:cached
+      - ./apps/patient-platform/patient-api/scripts:/app/scripts:cached
+    command: celery -A services.celery_service.celery_app worker --loglevel=info
+    working_dir: /app
+    networks:
+      - oncolife-network
+
+  patient-celery-beat:
+    build:
+      context: ./apps/patient-platform/patient-api
+      dockerfile: Dockerfile
+    container_name: oncolife-patient-celery-beat
+    env_file:
+      - ./apps/patient-platform/patient-api/.env
+    environment:
+      - ENVIRONMENT=development
+      - DEBUG=true
+      - LOG_LEVEL=DEBUG
+      - LOG_FORMAT=text
+      - LOCAL_DEV_MODE=true
+      # Doctor Database (primary) - LIVE RDS
+      - DOCTOR_DB_HOST=oncolife-uat.c1om2gk4ycxn.us-east-2.rds.amazonaws.com
+      - DOCTOR_DB_PORT=5432
+      - DOCTOR_DB_USER=oncoife-doctor
+      - DOCTOR_DB_PASSWORD=1FeusXaVR6JMP272Fgbb
+      - DOCTOR_DB_NAME=oncolife-doctor-db
+      # Patient Database (read-only) - LIVE RDS
+      - PATIENT_DB_HOST=oncolife-uat.c1om2gk4ycxn.us-east-2.rds.amazonaws.com
+      - PATIENT_DB_PORT=5432
+      - PATIENT_DB_USER=oncolife-patient
+      - PATIENT_DB_PASSWORD=f1HV9hz823qcmeVap2i4
+      - PATIENT_DB_NAME=oncolife-patient-db
+      - PYTHONPATH=/app
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    depends_on:
+      redis:
+        condition: service_healthy
+      patient-api:
+        condition: service_healthy
+    volumes:
+      - ./apps/patient-platform/patient-api/src:/app:cached
+      - ./apps/patient-platform/patient-api/static:/app/static:cached
+      - ./apps/patient-platform/patient-api/alembic:/app/alembic:cached
+      - ./apps/patient-platform/patient-api/alembic.ini:/app/alembic.ini:cached
+      - ./apps/patient-platform/patient-api/scripts:/app/scripts:cached
+    command: celery -A services.celery_service.celery_app beat --loglevel=info --schedule /tmp/celerybeat-schedule
+    working_dir: /app
     networks:
       - oncolife-network
 
