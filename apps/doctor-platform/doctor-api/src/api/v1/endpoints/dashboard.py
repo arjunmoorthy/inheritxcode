@@ -510,37 +510,6 @@ def patient_listing_dashboard(
 
         query = db.query(FaxPatient)
 
-        staff = db.query(Staff).filter(
-            Staff.user_id == current_user.id
-        ).first()
-
-        if not staff and current_user.role != "admin":
-            raise HTTPException(
-                status_code=404,
-                detail="Staff not found"
-            )
-
-        # Resolve role-based allowed physician ids first.
-        allowed_physician_ids: Optional[list[int]]
-        if current_user.role == "physician":
-            allowed_physician_ids = [staff.id]
-        elif current_user.role in NURSE_LIKE_ROLES:
-            nurse_physician_ids = db.query(
-                PhysicianNurseAssignment.physician_id
-            ).filter(
-                PhysicianNurseAssignment.nurse_id == staff.id
-            ).all()
-            allowed_physician_ids = [p[0] for p in nurse_physician_ids]
-            if not allowed_physician_ids:
-                return {"status": "success", "count": 0, "data": []}
-        elif current_user.role == "admin":
-            allowed_physician_ids = None
-        else:
-            raise HTTPException(
-                status_code=403,
-                detail="Not authorized to view patients"
-            )
-
         requested_physician_ids: list[int] = []
         if physician_ids:
             for raw in physician_ids:
@@ -561,13 +530,9 @@ def patient_listing_dashboard(
         if requested_physician_ids:
             requested_physician_ids = list(dict.fromkeys(requested_physician_ids))
 
-        # ✅ FINAL LOGIC (Always assign)
-        if requested_physician_ids:
-            # override
-            effective_physician_ids = requested_physician_ids
-        else:
-            # fallback
-            effective_physician_ids = allowed_physician_ids
+        # Return all patients by default regardless of requester role.
+        # Apply physician filtering only when explicitly requested.
+        effective_physician_ids = requested_physician_ids if requested_physician_ids else None
 
         if effective_physician_ids is not None:
             if not effective_physician_ids:
