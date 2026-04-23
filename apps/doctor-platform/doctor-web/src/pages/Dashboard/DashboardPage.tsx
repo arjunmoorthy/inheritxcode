@@ -177,6 +177,7 @@ const DashboardPage: React.FC = () => {
   };
 
   const handleOpenTreatments = (e: React.MouseEvent, patient: PatientSummary) => {
+    if (user?.role !== 'admin') return;
     e.stopPropagation();
     setSelectedPatientForDelete({
       uuid: patient.patientUuid || patient.id,
@@ -1041,16 +1042,18 @@ const mapSeverityToPriority = (severity: string | null | undefined): 'low' | 'me
                           <FileText size={16} />
                           <span>Summaries</span>
                         </button>
-                        <button
-                          onClick={(e) => handleOpenTreatments(e, patient)}
-                          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-all duration-200 border ${isDark
-                            ? 'border-slate-700 text-slate-300 hover:bg-slate-800 hover:text-white'
-                            : 'border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-                            }`}
-                        >
-                          <Trash2 size={16} />
-                          <span>Delete</span>
-                        </button>
+                        {user?.role === 'admin' && (
+                          <button
+                            onClick={(e) => handleOpenTreatments(e, patient)}
+                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-all duration-200 border ${isDark
+                              ? 'border-slate-700 text-slate-300 hover:bg-slate-800 hover:text-white'
+                              : 'border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                              }`}
+                          >
+                            <Trash2 size={16} />
+                            <span>Delete</span>
+                          </button>
+                        )}
                       </div>
                     </div>
                   </div>
