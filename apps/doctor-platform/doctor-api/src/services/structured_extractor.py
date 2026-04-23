@@ -822,13 +822,64 @@ def extract_structured_fields(extracted_data: list[dict]) -> dict:
     # -----------------------------------------------------
     # Phone
     # -----------------------------------------------------
+    # def extract_phone():
+    #     phone_keywords = ["phone", "contact", "mobile", "tel"]
+
+    #     # ✅ First pass: labeled lines
+    #     for i, line in enumerate(lines):
+    #         clean = line.lower()
+
+    #         if "fax" in clean:
+    #             continue
+
+    #         if any(keyword in clean for keyword in phone_keywords):
+    #             # Try same line
+    #             match = re.search(r"\b\d{3}[-.\s]?\d{3}[-.\s]?\d{4}\b", line)
+    #             if match:
+    #                 return match.group()
+
+    #             # ✅ Try next line (handles broken OCR)
+    #             if i + 1 < len(lines):
+    #                 next_line = lines[i + 1]
+    #                 match = re.search(r"\b\d{3}[-.\s]?\d{3}[-.\s]?\d{4}\b", next_line)
+    #                 if match:
+    #                     return match.group()
+
+    #     # 🔁 Fallback
+    #     for line in lines:
+    #         clean = line.lower()
+
+    #         if any(x in clean for x in ["fax", "mrn", "date", "page"]):
+    #             continue
+
+    #         match = re.search(r"\b\d{3}[-.\s]?\d{3}[-.\s]?\d{4}\b", line)
+    #         if match:
+    #             return match.group()
+
+    #     return None
+
     def extract_phone():
-        for line in lines:
-            match = re.search(
-                r"\b\d{3}[-.\s]?\d{3}[-.\s]?\d{4}\b", line
-            )
-            if match:
-                return match.group()
+        for i, line in enumerate(lines):
+            clean = line.lower()
+
+            # ❌ Skip fax lines
+            if "fax" in clean:
+                continue
+
+            # ✅ Focus on "phone number" (your main format)
+            if "phone number" in clean or "phone" in clean:
+                # Same line
+                match = re.search(r"\b\d{3}[-.\s]?\d{3}[-.\s]?\d{4}\b", line)
+                if match:
+                    return match.group()
+
+                # Next line (OCR split case)
+                if i + 1 < len(lines):
+                    next_line = lines[i + 1]
+                    match = re.search(r"\b\d{3}[-.\s]?\d{3}[-.\s]?\d{4}\b", next_line)
+                    if match:
+                        return match.group()
+
         return None
     
     def clean_oncologist(text):
