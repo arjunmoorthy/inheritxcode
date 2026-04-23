@@ -42,9 +42,9 @@ const patientSchema = z.object({
   firstName: z.string().min(1, 'First name is required').max(50, 'First name is too long'),
   lastName: z.string().min(1, 'Last name is required').max(50, 'Last name is too long'),
   email: z.string().email('Please enter a valid email address'),
-  phone: z.string().optional(),
+  phone: z.string().regex(/^\d*$/, 'Phone number must contain only numbers').optional(),
   mrn: z.string().optional(),
-  dateOfBirth: z.string().optional(),
+  dateOfBirth: z.string().refine((val) => !val || dayjs(val).isBefore(dayjs().add(1, 'day')), 'Date of birth cannot be in the future').optional(),
   gender: z.string().optional(),
   location: z.string().optional(),
   diagnosis: z.string().min(1, 'Diagnosis is required'),
@@ -382,10 +382,22 @@ export const PatientFormModal: React.FC<PatientFormModalProps> = ({
                 <Input {...field} label="Email *" type="email" placeholder="patient@email.com" icon={<Mail size={18} />} error={errors.email?.message} fullWidth />
               )} />
               <Controller name="phone" control={control} render={({ field }) => (
-                <Input {...field} label="Phone" type="tel" placeholder="(555) 123-4567" icon={<Phone size={18} />} fullWidth />
+                <Input
+                  {...field}
+                  label="Phone"
+                  type="tel"
+                  placeholder="1234567890"
+                  icon={<Phone size={18} />}
+                  error={errors.phone?.message}
+                  fullWidth
+                  onChange={(e) => {
+                    const value = e.target.value.replace(/\D/g, '');
+                    field.onChange(value);
+                  }}
+                />
               )} />
               <Controller name="mrn" control={control} render={({ field }) => (
-                <Input {...field} label="MRN" placeholder="e.g., MRN123456" icon={<User size={18} />} fullWidth />
+                <Input {...field} label="MRN" placeholder="e.g., MRN123456" icon={<User size={18} />} error={errors.mrn?.message} fullWidth />
               )} />
               <Controller name="dateOfBirth" control={control} render={({ field }) => (
                 <div className="w-full mb-5">
@@ -400,6 +412,7 @@ export const PatientFormModal: React.FC<PatientFormModalProps> = ({
                     value={field.value ? dayjs(field.value) : null}
                     onChange={(newValue) => field.onChange(newValue && newValue.isValid() ? newValue.format('YYYY-MM-DD') : '')}
                     format="MM/DD/YYYY"
+                    disableFuture
                     slotProps={{
                       popper: {
                         sx: { zIndex: 100000 },
@@ -447,6 +460,7 @@ export const PatientFormModal: React.FC<PatientFormModalProps> = ({
                       field.onChange(opt?.value as string || '');
                     }}
                     placeholder="Select gender"
+                    error={errors.gender?.message}
                     fullWidth
                   />
                 );
@@ -468,6 +482,7 @@ export const PatientFormModal: React.FC<PatientFormModalProps> = ({
                       field.onChange(opt?.value as string || '');
                     }}
                     placeholder={isLoadingClinics ? 'Loading clinics...' : 'Select location'}
+                    error={errors.location?.message}
                     fullWidth
                   />
                 );
@@ -552,13 +567,13 @@ export const PatientFormModal: React.FC<PatientFormModalProps> = ({
                 );
               }} />
               <Controller name="regimenName" control={control} render={({ field }) => (
-                <Input {...field} label="Regimen Name" placeholder="e.g., Carboplatin + Pemetrexed" icon={<Pill size={18} />} fullWidth />
+                <Input {...field} label="Regimen Name" placeholder="e.g., Carboplatin + Pemetrexed" icon={<Pill size={18} />} error={errors.regimenName?.message} fullWidth />
               )} />
               <Controller name="regimenCode" control={control} render={({ field }) => (
-                <Input {...field} label="Regimen Code" placeholder="e.g., PEMBRO-CARBO-PEM" icon={<Pill size={18} />} fullWidth />
+                <Input {...field} label="Regimen Code" placeholder="e.g., PEMBRO-CARBO-PEM" icon={<Pill size={18} />} error={errors.regimenCode?.message} fullWidth />
               )} />
               <Controller name="regimenStage" control={control} render={({ field }) => (
-                <Input {...field} label="Regimen Stage" placeholder="e.g., Stage IV" icon={<Stethoscope size={18} />} fullWidth />
+                <Input {...field} label="Regimen Stage" placeholder="e.g., Stage IV" icon={<Stethoscope size={18} />} error={errors.regimenStage?.message} fullWidth />
               )} />
               <Controller name="dayOfChemo" control={control} render={({ field }) => {
                 const selectedOption = dayOfChemoOptions.find(opt => opt.value === field.value);
@@ -568,7 +583,7 @@ export const PatientFormModal: React.FC<PatientFormModalProps> = ({
                       const opt = Array.isArray(v) ? v[0] : v;
                       field.onChange(opt?.value as string || '');
                     }}
-                    placeholder="Select day" fullWidth />
+                    placeholder="Select day" error={errors.dayOfChemo?.message} fullWidth />
                 );
               }} />
               <Controller name="treatmentStartDate" control={control} render={({ field }) => (

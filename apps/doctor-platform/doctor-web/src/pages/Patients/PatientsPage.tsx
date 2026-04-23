@@ -468,14 +468,51 @@ const PatientsPage: React.FC = () => {
             sx={{
               borderTop: `1px solid ${isDark ? '#334155' : colors.border}`,
               bgcolor: isDark ? '#1A1917' : colors.background,
-              color: isDark ? '#f1f5f9' : '#0f172a',
-              '& .MuiTablePagination-selectLabel, & .MuiTablePagination-displayedRows': {
+              color: isDark ? '#cbd5e1' : '#475569',
+              '& .MuiTablePagination-toolbar': {
+                minHeight: '52px',
+                justifyContent: 'end',
+                alignItems: 'center',
+                paddingRight: '24px',
+                gap: '12px',
+              },
+              '& .MuiTablePagination-spacer': {
+                display: 'none',
+              },
+              '& .MuiTablePagination-selectLabel': {
+                color: isDark ? '#94a3b8' : '#64748b',
+                fontSize: '0.875rem',
+                fontWeight: 500,
+                margin: 0,
+              },
+              '& .MuiTablePagination-displayedRows': {
+                color: isDark ? '#cbd5e1' : '#475569',
+                fontSize: '0.875rem',
+                fontWeight: 600,
+                margin: 0,
+                marginLeft: '12px',
+              },
+              '& .MuiTablePagination-select': {
                 color: isDark ? '#f1f5f9' : '#0f172a',
+                fontSize: '0.875rem',
+                fontWeight: 600,
+                borderRadius: '8px',
+                paddingTop: '4px',
+                paddingBottom: '4px',
+              },
+              '& .MuiTablePagination-actions': {
+                margin: 0,
               },
               '& .MuiIconButton-root': {
                 color: isDark ? '#cbd5e1' : '#475569',
+                padding: '6px',
+                marginLeft: '4px',
                 '&:hover': {
-                  bgcolor: isDark ? '#2A2725' : '#f1f5f9',
+                  bgcolor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.04)',
+                },
+                '&.Mui-disabled': {
+                  color: isDark ? '#475569' : '#cbd5e1',
+                  opacity: 0.5,
                 },
               },
             }}
