@@ -51,7 +51,7 @@ export const ChatSummariesModal: React.FC<ChatSummariesModalProps> = ({
 
     if (value === 'notify_care_team') {
       return {
-        label: 'Moderate',
+        label: 'Call Care Team',
         bg: isDark ? 'rgba(249, 115, 22, 0.22)' : 'rgba(249, 115, 22, 0.12)',
         color: isDark ? '#fdba74' : '#9a3412',
       };

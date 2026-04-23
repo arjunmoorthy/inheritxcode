@@ -215,14 +215,15 @@ export const EntriesList = styled.div`
 `;
 
 // Single summary entry card - Lovable style with left border
-export const EntryCard = styled.div<{ $isDark?: boolean; $severity?: 'mild' | 'moderate' | 'severe' | 'urgent' }>`
+export const EntryCard = styled.div<{ $isDark?: boolean; $severity?: 'mild' | 'moderate' | 'severe' | 'urgent' | 'call care team' }>`
   background: ${props => props.$isDark ? '#2A2725' : colors.paper};
   border: 1px solid ${props => props.$isDark ? '#3A3835' : colors.border};
   border-left: 4px solid ${props => {
     switch (props.$severity) {
       case 'urgent':
       case 'severe': return colors.severe;
-      case 'moderate': return colors.moderate;
+      case 'moderate':
+      case 'call care team': return colors.moderate;
       default: return colors.mild;
     }
   }};
@@ -262,7 +263,7 @@ export const EntryDate = styled.p<{ $isDark?: boolean }>`
   transition: color 0.3s ease;
 `;
 
-export const SeverityBadge = styled.span<{ $severity?: 'mild' | 'moderate' | 'severe' | 'urgent' }>`
+export const SeverityBadge = styled.span<{ $severity?: 'mild' | 'moderate' | 'severe' | 'urgent' | 'call care team' }>`
   display: inline-flex;
   align-items: center;
   padding: 0.25rem 0.75rem;
@@ -281,6 +282,7 @@ export const SeverityBadge = styled.span<{ $severity?: 'mild' | 'moderate' | 'se
           border: 1px solid ${colors.severe};
         `;
       case 'moderate':
+      case 'call care team':
         return css`
           background: ${colors.moderateBg};
           color: ${colors.moderateText};
@@ -538,7 +540,7 @@ export const SummaryDate = styled.div`
   }
 `;
 
-export const SummaryBadge = styled.span<{ $severity?: 'mild' | 'moderate' | 'severe' | 'urgent' }>`
+export const SummaryBadge = styled.span<{ $severity?: 'mild' | 'moderate' | 'severe' | 'urgent' | 'call care team' }>`
   display: inline-flex;
   align-items: center;
   padding: 4px 12px;
@@ -557,6 +559,7 @@ export const SummaryBadge = styled.span<{ $severity?: 'mild' | 'moderate' | 'sev
           border: 1px solid ${colors.severe};
         `;
       case 'moderate':
+      case 'call care team':
         return css`
           background: ${colors.moderateBg};
           color: ${colors.moderateText};

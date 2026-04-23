@@ -481,7 +481,7 @@ const SymptomName = styled.span<{ $isDark?: boolean }>`
   transition: color 0.3s ease;
 `;
 
-const SeverityTag = styled.span<{ $severity?: 'mild' | 'moderate' | 'severe' }>`
+const SeverityTag = styled.span<{ $severity?: 'mild' | 'moderate' | 'severe' | 'call care team' }>`
   display: inline-flex;
   padding: 0.125rem 0.5rem;
   border-radius: 9999px;
@@ -496,6 +496,7 @@ const SeverityTag = styled.span<{ $severity?: 'mild' | 'moderate' | 'severe' }>`
           color: ${colors.severe};
         `;
       case 'moderate':
+      case 'call care team':
         return css`
           background: ${colors.moderateBg};
           color: ${colors.moderateText};
@@ -813,7 +814,9 @@ const EducationPage: React.FC = () => {
             <SymptomInfo>
               <SymptomIcon $isDark={isDark}><symptom.icon /></SymptomIcon>
               <SymptomName $isDark={isDark}>{symptom.name}</SymptomName>
-              <SeverityTag $severity={symptom.severity}>{symptom.severity}</SeverityTag>
+              <SeverityTag $severity={symptom.severity}>
+                {symptom.severity === 'moderate' ? 'Call Care Team' : symptom.severity}
+              </SeverityTag>
             </SymptomInfo>
             <RemoveButton $isDark={isDark} onClick={() => removeSymptom(symptom.name)}>Remove</RemoveButton>
           </SymptomRow>

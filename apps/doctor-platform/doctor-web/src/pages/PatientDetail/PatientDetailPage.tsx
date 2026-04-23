@@ -724,7 +724,9 @@ const PatientDetailPage: React.FC = () => {
         return {
           date: item.date,
           symptom: toTitleCase(item.symptom_name),
-          severity: rawSeverity ? toTitleCase(rawSeverity) : '--',
+          severity: rawSeverity 
+            ? (rawSeverity.toLowerCase() === 'moderate' ? 'Call Care Team' : toTitleCase(rawSeverity)) 
+            : '--',
           medicationName: item.medication_name?.trim() ? item.medication_name : '--',
           medicationFrequency: item.medication_frequency?.trim() ? item.medication_frequency : '--',
           temperature: typeof temperature === 'number' ? `${temperature.toFixed(1)}°F` : '—',

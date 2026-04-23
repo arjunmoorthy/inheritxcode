@@ -104,14 +104,14 @@ const PatientDataTable: React.FC<PatientDataTableProps> = ({
                           height: '22px',
                           backgroundColor: row.severity === 'Severe' 
                             ? isDark ? 'rgba(234, 88, 12, 0.2)' : 'rgba(234, 88, 12, 0.1)'
-                            : row.severity === 'Moderate'
+                            : row.severity === 'Call Care Team'
                             ? isDark ? 'rgba(245, 158, 11, 0.2)' : 'rgba(245, 158, 11, 0.1)'
                             : row.severity === '--'
                             ? isDark ? 'rgba(100, 116, 139, 0.2)' : 'rgba(148, 163, 184, 0.2)'
                             : isDark ? 'rgba(16, 185, 129, 0.2)' : 'rgba(16, 185, 129, 0.1)',
                           color: row.severity === 'Severe'
                             ? isDark ? '#ea580c' : '#c2410c'
-                            : row.severity === 'Moderate'
+                            : row.severity === 'Call Care Team'
                             ? isDark ? '#f59e0b' : '#d97706'
                             : row.severity === '--'
                             ? isDark ? '#94a3b8' : '#64748b'
