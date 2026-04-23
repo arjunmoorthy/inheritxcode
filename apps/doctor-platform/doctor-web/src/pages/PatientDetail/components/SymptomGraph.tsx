@@ -51,7 +51,7 @@ type ChartRow = {
   date: string;
 } & Record<string, number | string | undefined>;
 
-const SEVERITY_LEVELS = ['Relieved', 'Mild', 'Moderate', 'Severe', 'Very Severe'] as const;
+const SEVERITY_LEVELS = ['Relieved', 'Mild', 'Call Care Team', 'Severe', 'Very Severe'] as const;
 const TEMP_TICKS = [96, 98, 100, 102, 104];
 const FAX_DASH_PATTERNS = ['', '8 4', '2 2', '10 4 2 4', '5 5', '15 5', '8 3 2 3 2 3'];
 const CHART_MARGIN = { top: 14, right: 44, bottom: 50, left: 18 } as const;

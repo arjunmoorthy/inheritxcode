@@ -386,7 +386,7 @@ const SummariesPage: React.FC = () => {
                       <EntryHeader>
                         <EntryDate $isDark={isDark}>{formatDate(summary.created_at)}</EntryDate>
                         <SeverityBadge $severity={severity}>
-                          {severity.charAt(0).toUpperCase() + severity.slice(1)}
+                          {severity === 'moderate' ? 'Call Care Team' : severity.charAt(0).toUpperCase() + severity.slice(1)}
                         </SeverityBadge>
                       </EntryHeader>
 

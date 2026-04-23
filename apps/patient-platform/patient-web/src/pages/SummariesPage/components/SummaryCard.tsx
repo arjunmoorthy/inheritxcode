@@ -35,7 +35,8 @@ const Card = styled.div<{ $severity?: string }>`
     switch (props.$severity?.toLowerCase()) {
       case 'urgent':
       case 'severe': return colors.severe;
-      case 'moderate': return colors.moderate;
+      case 'moderate':
+      case 'call care team': return colors.moderate;
       default: return colors.mild;
     }
   }};
@@ -108,6 +109,7 @@ const SeverityBadge = styled.span<{ $severity?: string }>`
           border: 1px solid ${colors.severe};
         `;
       case 'moderate':
+      case 'call care team':
         return css`
           background: ${colors.moderateBg};
           color: ${colors.moderateText};
@@ -250,7 +252,7 @@ const getSeverity = (summary: Summary): string => {
   const lowerText = bulletedSummary.toLowerCase();
   
   if (lowerText.includes('severe') || lowerText.includes('urgent')) return 'Severe';
-  if (lowerText.includes('moderate')) return 'Moderate';
+  if (lowerText.includes('moderate')) return 'Call Care Team';
   return 'Mild';
 };
 

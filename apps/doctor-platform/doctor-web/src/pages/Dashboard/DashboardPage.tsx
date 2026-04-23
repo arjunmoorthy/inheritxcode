@@ -675,7 +675,7 @@ const mapSeverityToPriority = (severity: string | null | undefined): 'low' | 'me
                     >
                       <MenuItem value="all">All Severities</MenuItem>
                       <MenuItem value="mild">Mild</MenuItem>
-                      <MenuItem value="moderate">Moderate</MenuItem>
+                      <MenuItem value="moderate">Call Care Team</MenuItem>
                       <MenuItem value="severe">Severe</MenuItem>
                       <MenuItem value="urgent">Urgent</MenuItem>
                     </Select>
@@ -805,7 +805,7 @@ const mapSeverityToPriority = (severity: string | null | undefined): 'low' | 'me
               >
                 <MenuItem value="all">All Severities</MenuItem>
                 <MenuItem value="mild">Mild</MenuItem>
-                <MenuItem value="moderate">Moderate</MenuItem>
+                <MenuItem value="moderate">Call Care Team</MenuItem>
                 <MenuItem value="severe">Severe</MenuItem>
                 <MenuItem value="urgent">Urgent</MenuItem>
               </Select>
@@ -951,13 +951,6 @@ const mapSeverityToPriority = (severity: string | null | undefined): 'low' | 'me
                               <div className={`font-bold ${isDark ? 'text-[#F5F3EE]' : 'text-slate-900'} text-base leading-tight`}>
                                 {patient.patientName}
                               </div>
-                              {/* Chat Summary Section */}
-                              {/* <div className={`hidden md:flex items-center gap-2 px-3 py-1 rounded-full border ${isDark ? 'bg-blue-500/5 border-blue-500/20 text-blue-400' : 'bg-blue-50 border-blue-100 text-blue-600'}`}>
-                                <MessageCircle size={12} className="shrink-0" />
-                                <span className="text-[11px] font-medium truncate max-w-[250px]">
-                                  {patient.summary && patient.summary !== '—' ? patient.summary : 'Recently reported mild cough and pain'}
-                                </span>
-                              </div> */}
                             </div>
                             <div className={`text-xs mt-0.5 flex items-center gap-3 sm:gap-4 flex-wrap ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
                               <span className="flex items-center gap-1.5">
@@ -981,7 +974,7 @@ const mapSeverityToPriority = (severity: string | null | undefined): 'low' | 'me
                                   ? isDark ? 'bg-emerald-500/20 text-emerald-400' : 'bg-emerald-500 text-white'
                                   : isDark ? 'bg-slate-500/20 text-slate-300' : 'bg-slate-200 text-slate-700'
                             }`}>
-                            {severity ? `${severity.charAt(0).toUpperCase()}${severity.slice(1)}` : 'N/A'}
+                            {severity ? (severity === 'moderate' ? 'Call Care Team' : `${severity.charAt(0).toUpperCase()}${severity.slice(1)}`) : 'N/A'}
                           </span>
 
                         </div>
