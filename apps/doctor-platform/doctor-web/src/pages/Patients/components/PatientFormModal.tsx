@@ -42,7 +42,7 @@ const patientSchema = z.object({
   firstName: z.string().min(1, 'First name is required').max(50, 'First name is too long'),
   lastName: z.string().min(1, 'Last name is required').max(50, 'Last name is too long'),
   email: z.string().email('Please enter a valid email address'),
-  phone: z.string().regex(/^\d*$/, 'Phone number must contain only numbers').optional(),
+  phone: z.string().optional(),
   mrn: z.string().optional(),
   dateOfBirth: z.string().refine((val) => !val || dayjs(val).isBefore(dayjs().add(1, 'day')), 'Date of birth cannot be in the future').optional(),
   gender: z.string().optional(),
@@ -386,14 +386,10 @@ export const PatientFormModal: React.FC<PatientFormModalProps> = ({
                   {...field}
                   label="Phone"
                   type="tel"
-                  placeholder="1234567890"
+                  placeholder="(555) 123-4567"
                   icon={<Phone size={18} />}
                   error={errors.phone?.message}
                   fullWidth
-                  onChange={(e) => {
-                    const value = e.target.value.replace(/\D/g, '');
-                    field.onChange(value);
-                  }}
                 />
               )} />
               <Controller name="mrn" control={control} render={({ field }) => (
