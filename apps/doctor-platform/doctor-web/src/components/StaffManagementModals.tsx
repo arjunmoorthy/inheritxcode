@@ -37,7 +37,7 @@ const staffSchema = z.object({
     clinicDepartment: z.string().optional(),
     clinicAddress: z.string().optional(),
     clinicFax: z.string().optional(),
-    selectedClinicUuid: z.string().optional(),
+    selectedClinicUuid: z.string().min(1, 'Please select a clinic'),
 });
 
 type StaffFormValues = z.infer<typeof staffSchema>;
@@ -521,9 +521,10 @@ const StaffManagementModals: React.FC = () => {
                             control={controlStaff}
                             render={({ field }) => (
                                 <Select
-                                    label="Clinic"
+                                    label="Clinic *"
                                     placeholder={isLoadingClinics ? 'Loading clinic list...' : 'Select clinic'}
                                     options={clinicOptions}
+                                    error={staffErrors.selectedClinicUuid?.message}
                                     isDisabled={isLoadingClinics || !!watchStaff('autofillClinicInfo')}
                                     value={
                                         clinicOptions.find((opt) => String(opt.value) === String(field.value))

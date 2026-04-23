@@ -38,9 +38,9 @@ const patientSchema = z.object({
   firstName: z.string().min(1, 'First name is required').max(50, 'First name is too long'),
   lastName: z.string().min(1, 'Last name is required').max(50, 'Last name is too long'),
   email: z.string().email('Please enter a valid email address'),
-  phone: z.string().optional(),
+  phone: z.string().regex(/^\d*$/, 'Phone number must contain only numbers').optional(),
   mrn: z.string().optional(),
-  dateOfBirth: z.string().optional(),
+  dateOfBirth: z.string().refine((val) => !val || dayjs(val).isBefore(dayjs().add(1, 'day')), 'Date of birth cannot be in the future').optional(),
   gender: z.string().optional(),
   location: z.string().optional(),
   diagnosis: z.string().min(1, 'Diagnosis is required'),
@@ -292,9 +292,14 @@ export const AddPatientModal: React.FC<AddPatientModalProps> = ({
                     {...field}
                     label="Phone"
                     type="tel"
-                    placeholder="(555) 123-4567"
+                    placeholder="1234567890"
                     icon={<Phone size={18} />}
+                    error={errors.phone?.message}
                     fullWidth
+                    onChange={(e) => {
+                      const value = e.target.value.replace(/\D/g, '');
+                      field.onChange(value);
+                    }}
                   />
                 )}
               />
@@ -309,6 +314,7 @@ export const AddPatientModal: React.FC<AddPatientModalProps> = ({
                     label="MRN"
                     placeholder="e.g., MRN123456"
                     icon={<User size={18} />}
+                    error={errors.mrn?.message}
                     fullWidth
                   />
                 )}
@@ -332,6 +338,7 @@ export const AddPatientModal: React.FC<AddPatientModalProps> = ({
                       onChange={(newValue) => field.onChange(newValue && newValue.isValid() ? newValue.format('YYYY-MM-DD') : '')}
                       format="MM/DD/YYYY"
                       views={['day', 'month', 'year']}
+                      disableFuture
                       slotProps={{
                         popper: {
                           sx: { zIndex: 100000 },
@@ -377,6 +384,7 @@ export const AddPatientModal: React.FC<AddPatientModalProps> = ({
                         field.onChange(option?.value as string || '');
                       }}
                       placeholder="Select gender"
+                      error={errors.gender?.message}
                       fullWidth
                     />
                   );
@@ -405,6 +413,7 @@ export const AddPatientModal: React.FC<AddPatientModalProps> = ({
                         field.onChange(option?.value as string || '');
                       }}
                       placeholder={isLoadingClinics ? 'Loading clinics...' : 'Select location'}
+                      error={errors.location?.message}
                       fullWidth
                     />
                   );
@@ -533,6 +542,7 @@ export const AddPatientModal: React.FC<AddPatientModalProps> = ({
                     label="Regimen Name"
                     placeholder="e.g., Carboplatin + Pemetrexed"
                     icon={<Pill size={18} />}
+                    error={errors.regimenName?.message}
                     fullWidth
                   />
                 )}
@@ -548,6 +558,7 @@ export const AddPatientModal: React.FC<AddPatientModalProps> = ({
                     label="Regimen Code"
                     placeholder="e.g., PEMBRO-CARBO-PEM"
                     icon={<Pill size={18} />}
+                    error={errors.regimenCode?.message}
                     fullWidth
                   />
                 )}
@@ -563,6 +574,7 @@ export const AddPatientModal: React.FC<AddPatientModalProps> = ({
                     label="Regimen Stage"
                     placeholder="e.g., Stage IV"
                     icon={<Stethoscope size={18} />}
+                    error={errors.regimenStage?.message}
                     fullWidth
                   />
                 )}
@@ -584,6 +596,7 @@ export const AddPatientModal: React.FC<AddPatientModalProps> = ({
                         field.onChange(option?.value as string || '');
                       }}
                       placeholder="Select day"
+                      error={errors.dayOfChemo?.message}
                       fullWidth
                     />
                   );
