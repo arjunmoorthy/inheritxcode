@@ -507,8 +507,6 @@ async def send_patient_symptoms_fax(
     """
     Build a patient symptom PDF report and send it as an outgoing fax through Sinch.
     """
-    assert_staff_can_access_dashboard_patient(db, current_user, patient_uuid)
-
     patient = (
         db.query(Patient)
         .join(User, User.id == Patient.user_id)
