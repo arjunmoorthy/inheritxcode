@@ -73,20 +73,68 @@ async def send_reset_password_email(email: str, reset_link: str):
 async def send_email(to: str, subject: str, patient_name: str):
     """Generic email sending helper."""
 
+    login_link = "https://patient.healthai.global/"
     html = f"""
-    <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
-        <p>Dear {patient_name},</p>
+    <div style="margin:0; padding:0; background-color:#f3f6fb;">
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color:#f3f6fb; padding:24px 0;">
+        <tr>
+          <td align="center">
+            <table role="presentation" width="600" cellspacing="0" cellpadding="0" border="0" style="width:600px; max-width:600px;">
+              <tr>
+                <td style="background-color:#0b5ed7; padding:18px 24px; border-radius:12px 12px 0 0;">
+                  <div style="font-family: Arial, sans-serif; color:#ffffff; font-size:18px; font-weight:700; letter-spacing:0.2px;">
+                    Patient Reminder: Daily Symptom Check-In
+                  </div>
+                </td>
+              </tr>
+              <tr>
+                <td style="background-color:#ffffff; padding:24px; border-radius:0 0 12px 12px;">
+                  <div style="font-family: Arial, sans-serif; line-height:1.6; color:#1f2937; font-size:15px;">
+                    <p style="margin:0 0 14px 0;">Dear {patient_name},</p>
 
-        <p>
-        We are committed to supporting you through every step of your treatment.
-        Your feedback in these daily check-ins helps your team understand your recovery
-        and allows us to provide the right guidance exactly when you need it.
-        </p>
+                    <p style="margin:0 0 14px 0;">
+                      We are committed to supporting you through every step of your treatment.
+                      Your feedback in these daily check-ins helps your team understand your recovery
+                      and allows us to provide the right guidance exactly when you need it.
+                    </p>
 
-        <p>
-        Please take a moment to log your symptoms for today. Your entries help us
-        ensure your treatment plan remains safe and effective.
-        </p>
+                    <p style="margin:0 0 18px 0;">
+                      Please take a moment to log your symptoms for today. Your entries help us
+                      ensure your treatment plan remains safe and effective.
+                    </p>
+
+                    <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin: 10px 0 18px 0;">
+                      <tr>
+                        <td align="left" bgcolor="#0b5ed7" style="border-radius:10px;">
+                          <a href="{login_link}" target="_blank"
+                             style="display:inline-block; padding:12px 18px; font-size:15px; font-family: Arial, sans-serif;
+                                    color:#ffffff; text-decoration:none; font-weight:700; border-radius:10px;">
+                            Log in to the Patient Portal
+                          </a>
+                        </td>
+                      </tr>
+                    </table>
+
+                    <p style="margin:0 0 10px 0; color:#4b5563; font-size:13px;">
+                      If the button doesn’t work, copy and paste this link into your browser:
+                    </p>
+                    <p style="margin:0; background-color:#f3f4f6; padding:10px 12px; border-radius:10px; word-break:break-all;">
+                      <a href="{login_link}" style="color:#0b5ed7; text-decoration:none;">{login_link}</a>
+                    </p>
+                  </div>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding:14px 24px;">
+                  <div style="font-family: Arial, sans-serif; color:#6b7280; font-size:12px; line-height:1.5; text-align:center;">
+                    Please do not reply to this email. If you need help, contact your care team.
+                  </div>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      </table>
     </div>
     """
 
