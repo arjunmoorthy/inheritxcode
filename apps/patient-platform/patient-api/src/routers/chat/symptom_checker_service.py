@@ -562,7 +562,11 @@ class SymptomCheckerService:
         try:
             engine_response = engine.process_response(user_response)
         except Exception as e:
-            logger.error(f"Engine processing error: {e}")
+            logger.exception(
+                "Engine processing error (symptom checker). chat_uuid=%s message_type=%s",
+                chat_uuid,
+                getattr(message, "message_type", None),
+            )
             error_msg = MessageModel(
                 chat_uuid=chat_uuid,
                 sender="assistant",

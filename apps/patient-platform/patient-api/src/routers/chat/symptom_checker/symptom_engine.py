@@ -797,8 +797,15 @@ class SymptomCheckerEngine:
         return False
 
     def _is_adl_question(self, question_id: str) -> bool:
-        """Check if question is the shared ADL/self-care yes/no prompt."""
-        return question_id == 'adl'
+        """
+        Check if question is an ADL/self-care yes/no prompt we want to ask once per session.
+
+        Notes:
+        - Some symptom modules use the generic id `adl`.
+        - Fever uses `fever_adl` with slightly different wording; product wants this asked once
+          when symptoms overlap (e.g. Fever + Nausea selected together).
+        """
+        return question_id in ('adl', 'fever_adl')
 
     def _is_oral_intake_question(self, question_id: str) -> bool:
         """Check if question is one of the equivalent oral-intake prompts."""
@@ -807,6 +814,10 @@ class SymptomCheckerEngine:
     def _is_fever_yesno_question(self, question_id: str) -> bool:
         """Check if question asks fever as yes/no."""
         return question_id in ('fever', 'fever_check')
+
+    def _is_diarrhea_yesno_question(self, question_id: str) -> bool:
+        """Check if question asks diarrhea as yes/no (used in DEH-201 cross-check)."""
+        return question_id == 'diarrhea_check'
 
     def _is_weight_loss_question(self, question_id: str, symptom_id: Optional[str]) -> bool:
         """
@@ -973,6 +984,21 @@ class SymptomCheckerEngine:
                     f"{self.state.session_fever_answer}"
                 )
                 self.state.answers[question.id] = self.state.session_fever_answer
+                self.state.current_question_index += 1
+                continue
+
+            # Cross-module diarrhea cross-check skip:
+            # If the user already selected Diarrhea (DIA-205) in this session, don't ask
+            # DEH-201's "Have you had diarrhea?" again — assume "Yes" for routing.
+            if (
+                self._is_diarrhea_yesno_question(question.id)
+                and 'DIA-205' in (self.state.selected_symptoms or [])
+                and (question.condition is None or question.condition(self.state.answers))
+            ):
+                logger.info(
+                    "Skipping diarrhea_check because Diarrhea (DIA-205) is already selected in session"
+                )
+                self.state.answers[question.id] = True
                 self.state.current_question_index += 1
                 continue
 
