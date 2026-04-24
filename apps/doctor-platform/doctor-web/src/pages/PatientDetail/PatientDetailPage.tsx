@@ -763,7 +763,7 @@ const PatientDetailPage: React.FC = () => {
           <tr>
             <td>${escapeHtml(formatDate(row.date))}</td>
             <td>${escapeHtml(row.symptom)}</td>
-            <td>${escapeHtml(row.severity)}</td>
+            <td>${escapeHtml(row.severity === 'Call Care Team' ? 'Moderate' : row.severity)}</td>
             <td>${escapeHtml(row.medicationName)}</td>
             <td>${escapeHtml(row.medicationFrequency)}</td>
             <td>${escapeHtml(row.temperature)}</td>

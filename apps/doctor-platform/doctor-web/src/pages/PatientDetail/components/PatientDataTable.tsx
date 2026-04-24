@@ -97,21 +97,21 @@ const PatientDataTable: React.FC<PatientDataTableProps> = ({
                     </td>
                     <td className={`py-2 px-2 sm:px-3 text-xs sm:text-sm ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
                       <Chip
-                        label={row.severity}
+                        label={row.severity === 'Call Care Team' ? 'Moderate' : row.severity}
                         size="small"
                         sx={{
                           fontSize: '0.7rem',
                           height: '22px',
                           backgroundColor: row.severity === 'Severe' 
                             ? isDark ? 'rgba(234, 88, 12, 0.2)' : 'rgba(234, 88, 12, 0.1)'
-                            : row.severity === 'Call Care Team'
+                            : (row.severity === 'Call Care Team' || row.severity === 'Moderate')
                             ? isDark ? 'rgba(245, 158, 11, 0.2)' : 'rgba(245, 158, 11, 0.1)'
                             : row.severity === '--'
                             ? isDark ? 'rgba(100, 116, 139, 0.2)' : 'rgba(148, 163, 184, 0.2)'
                             : isDark ? 'rgba(16, 185, 129, 0.2)' : 'rgba(16, 185, 129, 0.1)',
                           color: row.severity === 'Severe'
                             ? isDark ? '#ea580c' : '#c2410c'
-                            : row.severity === 'Call Care Team'
+                            : (row.severity === 'Call Care Team' || row.severity === 'Moderate')
                             ? isDark ? '#f59e0b' : '#d97706'
                             : row.severity === '--'
                             ? isDark ? '#94a3b8' : '#64748b'
