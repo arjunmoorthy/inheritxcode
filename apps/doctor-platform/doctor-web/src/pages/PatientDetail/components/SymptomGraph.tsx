@@ -258,7 +258,7 @@ const SymptomGraph: React.FC<SymptomGraphProps> = ({
           return (
             <div className={`rounded-xl px-3 py-2 shadow-lg border ${effectiveDark ? 'bg-[#252320] border-slate-700 text-slate-100' : 'bg-white border-slate-200 text-slate-900'}`}>
               <div className="text-sm font-semibold mb-1">{formatDateShort(String(label || ''))}</div>
-              {visibleEntries.map((entry) => {
+              {[...visibleEntries].reverse().map((entry) => {
                 const isTemp = entry.name === 'Temperature';
                 return (
                   <div key={entry.name} className="text-xs sm:text-sm" style={{ color: String(entry.color || '#475569') }}>
@@ -274,26 +274,21 @@ const SymptomGraph: React.FC<SymptomGraphProps> = ({
         }}
       />
 
-      {seriesMeta.map((series, idx) => (
+      {/* 1. Render Temperature first (at the bottom layer) */}
+      {seriesMeta.filter(s => s.isTemperature).map((series) => (
         <Line
           key={series.key}
-          yAxisId={series.isTemperature ? 'temp' : 'severity'}
+          yAxisId="temp"
           dataKey={series.key}
           name={series.name}
           type="monotone"
           stroke={isFaxMode ? (effectiveDark ? '#cbd5e1' : '#334155') : series.color}
           strokeWidth={isPrintMode ? 3 : (isFaxMode ? 2.5 : 2)}
-          strokeDasharray={isFaxMode ? FAX_DASH_PATTERNS[idx % FAX_DASH_PATTERNS.length] : (series.isTemperature ? '5 4' : undefined)}
+          strokeDasharray={isFaxMode ? FAX_DASH_PATTERNS[seriesMeta.indexOf(series) % FAX_DASH_PATTERNS.length] : '5 4'}
           dot={(dotProps: any) => {
             const { cx, cy, value } = dotProps;
             if (cx == null || cy == null || value == null) return null;
-
-            // Use slightly different radii per symptom series so overlapping
-            // same-day/same-severity reports remain visible.
-            const baseRadius = isPrintMode ? 5 : (isFaxMode ? 4.5 : 4.8);
-            const overlapRadiusOffset = series.isTemperature ? 0 : (idx % 3) * 1.1;
-            const radius = baseRadius + overlapRadiusOffset;
-
+            const radius = isPrintMode ? 5 : (isFaxMode ? 4.5 : 4.8);
             return (
               <circle
                 cx={cx}
@@ -301,7 +296,7 @@ const SymptomGraph: React.FC<SymptomGraphProps> = ({
                 r={radius}
                 fill={isFaxMode ? (effectiveDark ? '#cbd5e1' : '#334155') : series.color}
                 stroke={isFaxMode ? (effectiveDark ? '#0f172a' : '#ffffff') : '#ffffff'}
-                strokeWidth={isFaxMode ? 1.8 : 2}
+                strokeWidth={isFaxMode ? 1.5 : 1.8}
               />
             );
           }}
@@ -310,6 +305,41 @@ const SymptomGraph: React.FC<SymptomGraphProps> = ({
           isAnimationActive={false}
         />
       ))}
+
+      {/* 2. Render all other symptoms in reverse order (so First in legend is rendered last/on top) */}
+      {[...seriesMeta].filter(s => !s.isTemperature).reverse().map((series) => {
+        const originalIdx = seriesMeta.findIndex(s => s.key === series.key);
+        return (
+          <Line
+            key={series.key}
+            yAxisId="severity"
+            dataKey={series.key}
+            name={series.name}
+            type="monotone"
+            stroke={isFaxMode ? (effectiveDark ? '#cbd5e1' : '#334155') : series.color}
+            strokeWidth={isPrintMode ? 3 : (isFaxMode ? 2.5 : 2)}
+            strokeDasharray={isFaxMode ? FAX_DASH_PATTERNS[originalIdx % FAX_DASH_PATTERNS.length] : undefined}
+            dot={(dotProps: any) => {
+              const { cx, cy, value } = dotProps;
+              if (cx == null || cy == null || value == null) return null;
+              const radius = isPrintMode ? 5 : (isFaxMode ? 4.5 : 4.8);
+              return (
+                <circle
+                  cx={cx}
+                  cy={cy}
+                  r={radius}
+                  fill={isFaxMode ? (effectiveDark ? '#cbd5e1' : '#334155') : series.color}
+                  stroke={isFaxMode ? (effectiveDark ? '#0f172a' : '#ffffff') : '#ffffff'}
+                  strokeWidth={isFaxMode ? 1.5 : 1.8}
+                />
+              );
+            }}
+            activeDot={{ r: 8, strokeWidth: 2.5 }}
+            connectNulls
+            isAnimationActive={false}
+          />
+        );
+      })}
     </ComposedChart>
   );
 
