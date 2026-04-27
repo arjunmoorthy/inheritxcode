@@ -280,6 +280,7 @@ def extract_structured_fields(extracted_data: list[dict]) -> dict:
         ]
 
         for i, line in enumerate(lower_lines):
+            print("Checking line for pathway diagnosis:", line)
 
             if any(label in line for label in LABELS):
 
@@ -328,6 +329,79 @@ def extract_structured_fields(extracted_data: list[dict]) -> dict:
                             return word_clean
 
         return None
+
+    def is_invalid_diagnosis(line):
+        l = line.lower()
+
+        invalid_patterns = [
+            "no diagnosis found",
+            "no matching",
+            "not found",
+            "staging",
+            "information was found",
+            "plan name",
+            "summary",
+        ]
+
+        return any(p in l for p in invalid_patterns)
+
+    def extract_diagnosis(lines):
+        diagnoses = []
+        capture = False
+
+        for line in lines:
+            clean = line.strip()
+            l = clean.lower()
+
+            # Start
+            if l.startswith("diagnosis"):
+                capture = True
+                continue
+
+            # Stop at next section
+            if capture and ("plan" in l or "oncology" in l):
+                break
+
+            if capture:
+                # Skip numbering
+                if re.match(r"^\d+\.", clean):
+                    continue
+
+                # ❌ Skip invalid/system lines
+                if is_invalid_diagnosis(clean):
+                    continue
+
+                # ✅ Keep only meaningful lines
+                if len(clean) > 3:
+                    diagnoses.append(clean)
+
+        return diagnoses if diagnoses else None
+    
+    # def extract_pathway_diagnosis(lines):
+    #     for line in lines:
+    #         match = re.search(
+    #             r"(?i)start on pathway regimen\s*[:\-]?\s*(.+)",
+    #             line
+    #         )
+    #         if match:
+    #             value = match.group(1).strip()
+
+    #             # Ignore codes like BOS307
+    #             if re.match(r"^[A-Z]{2,}\d+$", value):
+    #                 continue
+
+    #             return [value]
+
+    #     return None
+    
+    def get_diagnosis(lines):
+        diagnosis = extract_diagnosis(lines)
+
+        if diagnosis:
+            return diagnosis
+
+        # fallback
+        return extract_pathway()
 
     # def extract_past_medical_history():
     #     section = slice_section(lines, "past medical history")
@@ -1226,11 +1300,11 @@ def extract_structured_fields(extracted_data: list[dict]) -> dict:
     if plan_name:
         structured["plan_name"] = {"value": plan_name}
     
-    diagnosis = extract_pathway()
+    diagnosis = get_diagnosis(lines)
     if diagnosis:
         structured["diagnosis"] = {"value": diagnosis}
 
-    pathway = extract_pathway() 
+    pathway = extract_pathway()
     if pathway:
         structured["start_on_pathway_regimen"] = {"value": pathway}
 
