@@ -22,6 +22,7 @@ interface StaffMember {
     email: string;
     phone: string;
     clinic: string;
+    clinicId?: number;
     address: string;
     fax: string;
 }
@@ -82,6 +83,7 @@ const StaffManagementModals: React.FC = () => {
         email: s.email || '',
         phone: s.phone || '',
         clinic: s.clinic?.name ?? '',
+        clinicId: s.clinic?.id,
         address: s.clinic?.address ?? '',
         fax: '',
     }));
@@ -228,6 +230,9 @@ const StaffManagementModals: React.FC = () => {
         setValueStaff('fullName', staff.name);
         setValueStaff('email', staff.email);
         setValueStaff('phone', staff.phone);
+        if (staff.clinicId) {
+            setValueStaff('selectedClinicUuid', String(staff.clinicId));
+        }
     };
 
     const handleCloseAddStaff = () => {
