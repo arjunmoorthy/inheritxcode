@@ -59,7 +59,7 @@ import type { Patient } from '../../services/patients';
 const symptomColors: Record<string, string> = {
   'cough': '#FF9500',      // Orange
   'fever': '#EAB308',       // Yellow
-  'pain': '#10B981',        // Green
+  'pain': '#EC4899',        // Pink
   'vomiting': '#06B6D4',    // Light Blue
   'diarrhea': '#14B8A6',    // Teal
   'appetite loss': '#F97316', // Deep Orange
@@ -71,6 +71,8 @@ const symptomColors: Record<string, string> = {
   'mouth sores': '#EC4899', // Pink
   'fatigue': '#8B5CF6',     // Purple
   'nausea': '#EC4899',      // Pink
+  'joint': '#EAB308',       // Yellow
+  'joint/muscle/general pain': '#EAB308', // Yellow
   'temperature': '#EF4444', // Red
 };
 
