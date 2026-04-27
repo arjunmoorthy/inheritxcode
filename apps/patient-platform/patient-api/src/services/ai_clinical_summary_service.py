@@ -35,6 +35,13 @@ DOCTOR_SUMMARY_PROMPT = (
     "language, in 3-5 sentences, without including recommendations, triage "
     "levels, or next steps. Ensure nothing reported is omitted. If there are "
     "any emergent symptoms, that should be the first symptom reported."
+
+    "Normalize and expand all abbreviations into proper clinical terminology "
+    "(e.g., 'hr' → 'heart rate'). If a heart rate value is available, you MUST "
+    "include the numeric value in beats per minute (e.g., 'heart rate of 110 bpm'). "
+    "If the heart rate is indicated as elevated but no exact number is available, "
+    "state it as 'heart rate >100 bpm'. Do not use vague phrases like "
+    "'elevated heart rate' without a number or threshold."
 )
 
 PATIENT_SUMMARY_PROMPT = (
@@ -51,6 +58,13 @@ PATIENT_SUMMARY_PROMPT = (
     "co-occurring or associated when relevant. Use clear and simple language in "
     "3-5 sentences. Do not include recommendations, triage levels, or next "
     "steps. Ensure nothing reported is omitted."
+
+    "Normalize and expand all abbreviations into proper clinical terminology "
+    "(e.g., 'hr' → 'heart rate'). If a heart rate value is available, you MUST "
+    "include the numeric value in beats per minute (e.g., 'heart rate of 110 bpm'). "
+    "If the heart rate is indicated as elevated but no exact number is available, "
+    "state it as 'heart rate >100 bpm'. Do not use vague phrases like "
+    "'elevated heart rate' without a number or threshold."
 )
 
 PATIENT_SUMMARY_REFINEMENT_PROMPT = (

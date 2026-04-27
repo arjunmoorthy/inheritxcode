@@ -415,6 +415,12 @@ SYMPTOMS['FEV-202'] = SymptomDef(
             # condition=lambda a: float(a.get('temp', 0) or 0) > 100.3 and 'other' in (a.get('high_temp_symptoms') or [])
         ),
         Question(
+            id='heart_rate',
+            text='What is your heart rate? (Enter number, e.g., 95)',
+            input_type=InputType.NUMBER,
+            condition=lambda a: 'hr' in (a.get('high_temp_symptoms') or [])
+        ),
+        Question(
             id='fever_intake',
             text='Have you been able to eat/drink normally?',
             input_type=InputType.CHOICE,
