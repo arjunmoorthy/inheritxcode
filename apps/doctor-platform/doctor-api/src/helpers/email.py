@@ -179,6 +179,7 @@ async def send_welcome_email_staff(
     email: str,
     temp_password: str,
     login_link: str,
+    first_name: str,
 ):
     """
     Sends a welcome email with temporary login credentials
@@ -187,59 +188,44 @@ async def send_welcome_email_staff(
 
     html = f"""
     <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
-        <h2 style="color: #007bff;">Welcome to the Provider's Portal</h2>
+        <h2 style="color: #007bff;">Access your Provider Portal account</h2>
 
-        <p>Hi,</p>
+        <p>Hello,{first_name}</p>
 
-        <p>Your staff account has been successfully created.</p>
+        <p>Your staff account for the Provider Portal has been created.</p>
 
         <p><strong>Your login credentials:</strong></p>
 
-        <table cellspacing="0" cellpadding="6" style="margin: 10px 0;">
-            <tr>
-                <td><strong>Email:</strong></td>
-                <td>{email}</td>
-            </tr>
-            <tr>
-                <td><strong>Temporary Password:</strong></td>
-                <td>{temp_password}</td>
-            </tr>
-        </table>
+        <p><strong>Account email:</strong> {email}</p>
 
-        <p style="color:#d9534f;">
-            ⚠️ For security reasons, you will be required to change your password on your first login.
+        <p><strong>Temporary password:</strong> {temp_password}</p>
+
+        <p>
+            Please use the link below to access your account and set your password.
         </p>
 
-        <!-- Left-aligned button -->
-        <table cellspacing="0" cellpadding="0" style="margin: 20px 0;">
-            <tr>
-                <td align="left" bgcolor="#007bff" style="border-radius: 5px;">
-                    <a href="{login_link}" target="_blank"
-                       style="display: inline-block; padding: 12px 25px; font-size: 16px;
-                              color: #ffffff; text-decoration: none; font-weight: bold;
-                              border-radius: 5px;">
-                        Login to Portal
-                    </a>
-                </td>
-            </tr>
-        </table>
-
-        <p>If the button doesn’t work, copy and paste this link into your browser:</p>
-
-        <p style="background-color:#f5f5f5; padding:10px; border-radius:5px; word-break:break-all;">
-            <a href="{login_link}" style="color:#007bff;">{login_link}</a>
+        <p>
+            <a href="{login_link}" 
+            style="display:inline-block;padding:10px 18px;background:#007bff;color:#ffffff;text-decoration:none;border-radius:4px;">
+                Access Account
+            </a>
         </p>
 
-        <p>If you did not expect this email, please ignore it.</p>
+        <p>If the button above does not work, copy and paste this link into your browser:</p>
+
+        <p style="word-break:break-all; color:#555;">
+            {login_link}
+        </p>
+
+        <p>If you were not expecting this email, you can ignore it.</p>
 
         <br>
-        <p>Thanks,<br>
-        <strong>Care Team</strong></p>
-    </div>
+
+        <p>Care Team</p>
     """
 
     message = MessageSchema(
-        subject="Welcome to the Provider's Portal",
+        subject="Access your Provider Portal account",
         recipients=[email],
         body=html,
         subtype="html",
