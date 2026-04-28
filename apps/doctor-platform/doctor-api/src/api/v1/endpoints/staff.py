@@ -590,7 +590,7 @@ def add_staff_simple(
 
         # 📧 Send welcome email (DIRECT call, no background task)
         try:
-            print("📧 About to send welcome email to staff...")
+            print("📧 About to send welcome email to staff...", {"email": email_clean})
             if user.is_first_login:  # Only send if it's the first login (new account)
                 asyncio.run(
                     send_welcome_email_staff(
@@ -601,7 +601,7 @@ def add_staff_simple(
                 )
                 print("✅ Welcome email function executed")
         except Exception as email_error:
-            logger.error(f"Failed to send welcome email: {email_error}")
+            logger.error(f"Failed to send welcome email: {email_error}", extra={"email": email_clean})
 
     except HTTPException:
         db.rollback()
