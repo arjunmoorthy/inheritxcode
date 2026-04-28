@@ -18,6 +18,7 @@ All endpoints require authentication.
 
 from typing import List, Literal, Optional
 from uuid import UUID
+import uuid
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy.orm import Session
@@ -27,6 +28,7 @@ from services import StaffService
 from db.repositories import UserRepository, StaffRepository, ClinicRepository
 from core.logging import get_logger
 from db.models import Staff, PhysicianNurseAssignment, Clinic, StaffClinic
+from db.models.analytics import EmailLog, EmailStatus
 from core.schemas import APIResponse, ErrorResponse
 from utils.security import generate_random_password, hash_password
 from helpers.email import send_welcome_email_staff
@@ -592,14 +594,43 @@ def add_staff_simple(
         try:
             print("📧 About to send welcome email to staff...", {"email": email_clean})
             if user.is_first_login:  # Only send if it's the first login (new account)
-                asyncio.run(
-                    send_welcome_email_staff(
-                        email=email_clean,
-                        temp_password=temp_password,
-                        login_link=login_link
-                    )
+                # 🟡 Step 1: Create log (PENDING)
+                email_log = EmailLog(
+                    user_id=user.id,
+                    recipient_email=email_clean,
+                    email_type="WELCOME_EMAIL",
+                    status=EmailStatus.PENDING,
+                    request_id=str(uuid.uuid4()),  # Unique ID for tracing this email send attempt
+                    meta_data={
+                        "staff_id": staff.id,
+                        "role": staff.role,
+                    },
                 )
-                print("✅ Welcome email function executed")
+                db.add(email_log)
+                db.commit()
+                db.refresh(email_log)
+
+                try:
+                    asyncio.run(
+                        send_welcome_email_staff(
+                            email=email_clean,
+                            temp_password=temp_password,
+                            login_link=login_link,
+                            first_name=first_name,
+                        )
+                    )
+                    # 🟢 Step 2: Mark SUCCESS
+                    email_log.status = EmailStatus.SUCCESS
+                    db.commit()
+                    print("✅ Welcome email sent")
+                except Exception as email_error:
+                     # 🔴 Step 3: Mark FAILED
+                    email_log.status = EmailStatus.FAILED
+                    email_log.error_message = str(email_error)
+                    db.commit()
+
+                    raise email_error
+
         except Exception as email_error:
             logger.error(f"Failed to send welcome email: {email_error}", extra={"email": email_clean})
 

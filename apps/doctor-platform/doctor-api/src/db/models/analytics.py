@@ -16,7 +16,9 @@ from datetime import datetime, date
 from typing import Optional
 
 from sqlalchemy import Column, String, Text, Boolean, DateTime, Date, Integer, ForeignKey, Index, func
-from sqlalchemy.dialects.postgresql import UUID, JSONB
+from sqlalchemy import Enum as SqlEnum
+from enum import Enum
+from sqlalchemy.dialects.postgresql import UUID, JSONB, JSON
 from sqlalchemy.orm import relationship
 
 from db.base import DoctorBase
@@ -283,3 +285,40 @@ class WeeklyReport(DoctorBase):
             "total_questions": self.total_questions,
             "generated_at": self.generated_at.isoformat() if self.generated_at else None,
         }
+
+
+class EmailStatus(str, Enum):
+    PENDING = "PENDING"
+    SUCCESS = "SUCCESS"
+    FAILED = "FAILED"
+
+
+class EmailLog(DoctorBase):
+    __tablename__ = "email_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    # Optional relation to user/staff
+    user_id = Column(Integer, nullable=True, index=True)
+
+    # Email details
+    recipient_email = Column(String(255), nullable=False, index=True)
+    email_type = Column(String(100), nullable=False, index=True)
+
+    # Status tracking
+    status = Column(SqlEnum(EmailStatus), nullable=False, index=True)
+
+    # Error tracking
+    error_message = Column(Text, nullable=True)
+
+    # Request tracing
+    request_id = Column(String(100), nullable=True, index=True)
+
+    # Extra metadata (JSON)
+    meta_data = Column("metadata", JSON, nullable=True)
+
+    # Provider info (optional but useful)
+    provider_message_id = Column(String(255), nullable=True)
+
+    # Timestamp
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
