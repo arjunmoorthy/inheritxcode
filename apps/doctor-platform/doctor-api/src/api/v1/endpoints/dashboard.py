@@ -385,6 +385,19 @@ NURSE_LIKE_ROLES = {"nurse", "research_coordinator", "navigator", "medical_assis
 #             detail="Failed to generate weekly report",
 #         )
 
+from zoneinfo import ZoneInfo
+
+def _to_pst(dt: Optional[datetime]) -> Optional[str]:
+    if not dt:
+        return None
+
+    # If naive → assume UTC (important!)
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=ZoneInfo("UTC"))
+
+    pst_dt = dt.astimezone(ZoneInfo("America/Los_Angeles"))
+    return pst_dt.isoformat()
+
 
 @router.get("/patient-listing-dashboard")
 def patient_listing_dashboard(
@@ -616,15 +629,19 @@ def patient_listing_dashboard(
                 ),
                 {"patient_uuids": patient_uuids},
             ).mappings().all()
+            # latest_chatbot_date_by_patient = {
+            #     row["patient_uuid"]: (
+            #         row["last_chatbot_date"].isoformat()
+            #         if row.get("last_chatbot_date") is not None
+            #         else None
+            #     )
+            #     for row in chatbot_rows
+            # }
+
             latest_chatbot_date_by_patient = {
-                row["patient_uuid"]: (
-                    row["last_chatbot_date"].isoformat()
-                    if row.get("last_chatbot_date") is not None
-                    else None
-                )
+                row["patient_uuid"]: _to_pst(row.get("last_chatbot_date"))
                 for row in chatbot_rows
             }
-
         latest_severity_by_patient: Dict[str, Optional[str]] = {}
         if patient_uuids:
             severity_rows = patient_db.execute(
