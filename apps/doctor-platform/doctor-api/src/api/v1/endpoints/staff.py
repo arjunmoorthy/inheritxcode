@@ -29,7 +29,7 @@ from db.repositories import UserRepository, StaffRepository, ClinicRepository
 from core.logging import get_logger
 from db.models import Staff, PhysicianNurseAssignment, Clinic, StaffClinic
 from db.models.analytics import EmailLog, EmailStatus
-from core.schemas import APIResponse, ErrorResponse
+from core.schemas import APIResponse
 from utils.security import generate_random_password, hash_password
 from helpers.email import send_welcome_email_staff
 from api.deps import require_roles
@@ -925,6 +925,69 @@ def update_staff(
             "phone": staff.phone,
         },
     }
+
+
+
+@router.delete(
+    "/{staff_id}",
+    response_model=APIResponse[MessageResponse],
+    summary="Delete Staff",
+    description="Delete a staff member (admin only). This will remove the staff record and associated user entry.",
+)
+def delete_staff(
+    staff_id: int,
+    current_user: TokenData = Depends(require_roles("admin")),
+    db: Session = Depends(get_doctor_db_session),
+):
+    """Delete (admin only) a staff member by integer staff ID."""
+    # Find the staff record
+    staff = (
+        db.query(Staff)
+        .filter(
+            Staff.id == staff_id,
+            Staff.is_active == True,
+        )
+        .first()
+    )
+
+    if not staff:
+        raise HTTPException(status_code=404, detail="Staff not found")
+
+    # Delete only staff and their associated user record (if exists)
+    try:
+        # Capture user id/email before deleting staff
+        user_id = getattr(staff, "user_id", None)
+        user_email = getattr(staff, "email", None)
+
+        # Delete staff row
+        db.delete(staff)
+        db.commit()
+
+        # Delete user row if present
+        user_repo = UserRepository(db)
+        user = None
+        if user_id:
+            user = user_repo.get_by_id(user_id)
+        if not user and user_email:
+            user = user_repo.get_by_email(user_email)
+        if user:
+            user_repo.delete(user)
+        else:
+            # no user found, that's okay — we only focus on staff and user
+            pass
+    except Exception:
+        logger.exception("Failed to delete staff")
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to delete staff",
+        )
+
+    return APIResponse(
+        success=True,
+        message="Staff deleted successfully",
+        data=MessageResponse(message="Staff deleted successfully"),
+    )
 
 
 # @router.get(
