@@ -322,6 +322,15 @@ const updateStaffById = async (
 };
 
 
+/** DELETE /api/v1/staff/{staff_id} - Delete a staff member by ID */
+const deleteStaffById = async (staffId: number): Promise<unknown> => {
+  const response = await apiClient.delete<unknown>(
+    `${API_CONFIG.ENDPOINTS.STAFF.LIST}/${staffId}`
+  );
+  return response.data;
+};
+
+
 // =============================================================================
 // React Query Hooks
 // =============================================================================
@@ -443,6 +452,17 @@ export const useUpdateStaffById = () => {
   return useMutation({
     mutationFn: ({ staffId, payload }: { staffId: number; payload: UpdateStaffByIdPayload }) =>
       updateStaffById(staffId, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['staff'] });
+    },
+  });
+};
+
+/** Delete a staff member via DELETE /api/v1/staff/{staff_id} */
+export const useDeleteStaffById = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (staffId: number) => deleteStaffById(staffId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['staff'] });
     },
