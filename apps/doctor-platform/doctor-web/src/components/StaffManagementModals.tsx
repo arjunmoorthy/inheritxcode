@@ -2,13 +2,13 @@ import React, { useEffect, useState } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { Mail, Phone, Building, MapPin, Printer, User, Edit, UserCog, CheckCircle, X } from 'lucide-react';
+import { Mail, Phone, Building, MapPin, Printer, User, Edit, UserCog, CheckCircle, X, Trash2 } from 'lucide-react';
 import { Button, Input, Select, Modal, ModalFooter } from '@/components/ui';
 import type { SelectOption } from '@/components/ui';
 import { useUser } from '../contexts/UserContext';
 import { useThemeMode } from '@oncolife/ui-components';
 import { Snackbar, Alert } from '@mui/material';
-import { useAddStaffV1, useStaffListDoctors, useUpdateStaffById, useAllStaff, useCurrentStaffProfile } from '../services/staff';
+import { useAddStaffV1, useStaffListDoctors, useUpdateStaffById, useAllStaff, useCurrentStaffProfile, useDeleteStaffById } from '../services/staff';
 import { useClinics, useCreateClinic, useUpdateClinic, type ClinicItem } from '../services/clinics';
 import { useStaffManagement } from '../contexts/StaffManagementContext';
 
@@ -63,11 +63,14 @@ const StaffManagementModals: React.FC = () => {
     const [updateStaffSuccess, setUpdateStaffSuccess] = useState(false);
     const [editingClinic, setEditingClinic] = useState<ClinicItem | null>(null);
     const [showClinicFormModal, setShowClinicFormModal] = useState(false);
-    const [topError, setTopError] = useState<string | null>(null);
+    const [alertInfo, setAlertInfo] = useState<{ message: string; severity: 'error' | 'success' } | null>(null);
+    const [staffToDelete, setStaffToDelete] = useState<StaffMember | null>(null);
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
     // Mutations/Services
     const addStaffMutation = useAddStaffV1();
     const updateStaffByIdMutation = useUpdateStaffById();
+    const deleteStaffByIdMutation = useDeleteStaffById();
     const createClinicMutation = useCreateClinic();
     const updateClinicMutation = useUpdateClinic();
     const { data: allStaffData = [], isLoading: isLoadingAllStaff } = useAllStaff(showUpdateStaffModal);
@@ -235,6 +238,29 @@ const StaffManagementModals: React.FC = () => {
         }
     };
 
+    const handleDeleteClick = (staff: StaffMember) => {
+        setStaffToDelete(staff);
+        setShowDeleteConfirm(true);
+    };
+
+    const confirmDeleteStaff = async () => {
+        if (!staffToDelete) return;
+        const staffId = staffToDelete.staffId ?? (staffToDelete.id && /^\d+$/.test(String(staffToDelete.id)) ? Number(staffToDelete.id) : null);
+        if (staffId == null) return;
+        try {
+            const result = await deleteStaffByIdMutation.mutateAsync(staffId) as any;
+            setShowDeleteConfirm(false);
+            setStaffToDelete(null);
+            setAlertInfo({ 
+                message: result?.message || result?.data?.message || 'Staff deleted successfully', 
+                severity: 'success' 
+            });
+        } catch (error) {
+            console.error('Delete staff failed:', error);
+            setAlertInfo({ message: 'Failed to delete staff member. Please try again.', severity: 'error' });
+        }
+    };
+
     const handleCloseAddStaff = () => {
         setAddStaffSuccess(null);
         resetStaff();
@@ -269,7 +295,7 @@ const StaffManagementModals: React.FC = () => {
     };
 
     const showTopError = (message: string) => {
-        setTopError(message);
+        setAlertInfo({ message, severity: 'error' });
     };
 
     const handleEditClinic = (clinic: ClinicItem) => {
@@ -334,15 +360,15 @@ const StaffManagementModals: React.FC = () => {
     return (
         <>
             <Snackbar
-                open={!!topError}
+                open={!!alertInfo}
                 autoHideDuration={6000}
-                onClose={() => setTopError(null)}
+                onClose={() => setAlertInfo(null)}
                 anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
                 sx={{ zIndex: 100100 }}
             >
                 <Alert
-                    onClose={() => setTopError(null)}
-                    severity="error"
+                    onClose={() => setAlertInfo(null)}
+                    severity={alertInfo?.severity || 'error'}
                     variant="filled"
                     sx={{
                         width: '100%',
@@ -367,15 +393,15 @@ const StaffManagementModals: React.FC = () => {
                     action={
                         <button
                             type="button"
-                            onClick={() => setTopError(null)}
+                            onClick={() => setAlertInfo(null)}
                             className="text-white/90 hover:text-white transition-colors items-center justify-center flex"
-                            aria-label="Close error message"
+                            aria-label="Close message"
                         >
                             <X size={18} />
                         </button>
                     }
                 >
-                    {topError}
+                    {alertInfo?.message}
                 </Alert>
             </Snackbar>
 
@@ -628,12 +654,35 @@ const StaffManagementModals: React.FC = () => {
                                         className={`w-full text-left p-4 rounded-xl border transition-colors ${isDark ? 'bg-slate-800/60 border-slate-700 hover:bg-slate-800/80 text-white' : 'bg-white border-slate-200 hover:bg-slate-50 text-slate-900'}`}
                                     >
                                         <div className="flex items-center justify-between">
-                                            <div>
+                                            <div className="flex-1">
                                                 <h3 className="font-semibold">{staff.name}</h3>
                                                 <p className="text-sm opacity-70">{staff.email}</p>
                                                 <span className={`inline-block mt-1 px-2 py-0.5 rounded text-xs ${isDark ? 'bg-slate-700' : 'bg-slate-100'}`}>{staff.role}</span>
                                             </div>
-                                            <Edit size={16} />
+                                            <div className="flex items-center gap-2">
+                                                <button
+                                                    type="button"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handleEditStaff(staff);
+                                                    }}
+                                                    className={`p-2 rounded-lg transition-colors ${isDark ? 'hover:bg-slate-700 text-slate-300' : 'hover:bg-slate-100 text-slate-600'}`}
+                                                    title="Edit staff"
+                                                >
+                                                    <Edit size={16} />
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handleDeleteClick(staff);
+                                                    }}
+                                                    className={`p-2 rounded-lg transition-colors ${isDark ? 'hover:bg-red-500/20 text-red-400' : 'hover:bg-red-50' + ' text-red-600'}`}
+                                                    title="Delete staff"
+                                                >
+                                                    <Trash2 size={16} />
+                                                </button>
+                                            </div>
                                         </div>
                                     </button>
                                 ))}
@@ -736,6 +785,34 @@ const StaffManagementModals: React.FC = () => {
                         </Button>
                     </ModalFooter>
                 </form>
+            </Modal>
+            <Modal
+                isOpen={showDeleteConfirm}
+                onClose={() => setShowDeleteConfirm(false)}
+                title="Delete Staff Member"
+                size="sm"
+            >
+                <div className="space-y-4">
+                    <p className={`${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+                        Are you sure you want to delete <strong>{staffToDelete?.name}</strong>? This action cannot be undone.
+                    </p>
+                    <ModalFooter className="mt-6">
+                        <Button
+                            variant="outline"
+                            onClick={() => setShowDeleteConfirm(false)}
+                        >
+                            No, Keep
+                        </Button>
+                        <Button
+                            variant="primary"
+                            className="bg-red-600 hover:bg-red-700 border-red-600 hover:border-red-700 text-white"
+                            onClick={confirmDeleteStaff}
+                            loading={deleteStaffByIdMutation.isPending}
+                        >
+                            Yes, Delete
+                        </Button>
+                    </ModalFooter>
+                </div>
             </Modal>
         </>
     );
