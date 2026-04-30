@@ -15,7 +15,7 @@ celery_app.conf.enable_utc = True
 celery_app.conf.beat_schedule = {
     "run-fax-job-every-minute": {
         "task": "run_scheduler_task",
-        "schedule": crontab(minute="*"),
+        "schedule": crontab(hour="9", minute="0"),  # Every day at 9:00 AM
         "options": {"queue": "doctor_queue"},
     }
 }
