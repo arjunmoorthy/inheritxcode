@@ -9,10 +9,13 @@ celery_app.conf.task_routes = {
     "run_scheduler_task": {"queue": "doctor_queue"},
 }
 
+celery_app.conf.timezone = "America/Los_Angeles"
+celery_app.conf.enable_utc = True
+
 celery_app.conf.beat_schedule = {
     "run-fax-job-every-minute": {
         "task": "run_scheduler_task",
-        "schedule": crontab(hour="9", minute="0"),  # Every 5 minutes for testing, change to crontab(hour=0, minute=0) for daily at midnight
+        "schedule": crontab(minute="*"),
         "options": {"queue": "doctor_queue"},
     }
 }
