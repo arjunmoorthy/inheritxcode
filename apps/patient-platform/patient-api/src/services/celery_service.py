@@ -15,10 +15,15 @@ celery_app = Celery(
 celery_app.conf.timezone = "America/Los_Angeles"
 celery_app.autodiscover_tasks(["services"])
 
+celery_app.conf.task_routes = {
+    "services.tasks.send_daily_patient_alerts": {"queue": "patient_queue"},
+}
+
 # ✅ ADD IT HERE
 celery_app.conf.beat_schedule = {
     "send-patient-alerts-daily": {
         "task": "services.tasks.send_daily_patient_alerts",
         "schedule": crontab(hour=7, minute=58),  # Every 5 minutes for testing, change to crontab(hour=0, minute=0) for daily at midnight
+        "options": {"queue": "patient_queue"},
     },
 }

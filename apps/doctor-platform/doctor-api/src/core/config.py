@@ -279,7 +279,7 @@ class Settings(BaseSettings):
         description="Base URL for doctor reset-password page (link in forgot password email). Env: DOCTOR_FORGET_PASSWORD_BASE_URL",
     )
     doctor_dashboard_base_url: str = Field(
-        default="https://api.doctor.healthai.global/",
+        default="https://doctor.healthai.global/",
         description="Base URL for doctor dashboard frontend pages (fax preview, etc). Env: DOCTOR_DASHBOARD_BASE_URL",
     )
 

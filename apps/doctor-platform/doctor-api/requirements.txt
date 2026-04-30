@@ -25,6 +25,10 @@ pytz>=2024.1
 email-validator>=2.1.0
 bcrypt==4.0.1
 
+# Celery & Redis for background workers
+celery==5.6.3
+redis==7.4.0
+
 # Rate Limiting
 slowapi>=0.1.9
 
