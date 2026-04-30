@@ -180,7 +180,10 @@ def send_automated_fax(patient_id: int, user_uuid: str):
         )
 
         print(f"[AUTO-FAX] SUCCESS patient={user_uuid}")
-
+        patient = db.query(Patient).filter(Patient.id == patient_id).first()
+        if patient:
+            patient.last_fax_sent_at = datetime.utcnow()
+            db.commit()
     except Exception as e:
         print(f"[AUTO-FAX] FAILED patient={user_uuid} error={e}")
 

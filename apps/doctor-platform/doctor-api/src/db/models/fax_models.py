@@ -85,6 +85,7 @@ class Patient(DoctorBase, TimestampMixin):
     library_code = Column(String(255), nullable=True)
     drug_description = Column(Text, nullable=True)
     stage = Column(String(255), nullable=True)
+    last_fax_sent_at = Column(DateTime, nullable=True)
 
     # History (latest known)
     past_medical_history = Column(Text)
