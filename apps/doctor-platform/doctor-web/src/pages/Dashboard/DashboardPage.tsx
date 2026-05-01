@@ -508,85 +508,85 @@ const mapSeverityToPriority = (severity: string | null | undefined): 'low' | 'me
             ) : (
               <div className="flex flex-row gap-4 items-end flex-wrap w-full">
                 {/* Provider Filter - Admin Only */}
-                 <div className="flex flex-col gap-1.5 w-full sm:w-[250px]">
-                    <Typography variant="caption" sx={{ fontWeight: 700, color: isDark ? '#64748b' : '#94a3b8', ml: 0.5, textTransform: 'uppercase', letterSpacing: '0.05em', fontSize: '0.65rem' }}>
-                      Provider
-                    </Typography>
-                    <FormControl size="small" sx={{ width: { xs: '100%', sm: 250 } }}>
-                      <Select
-                        multiple
-                        value={selectedPhysicianIds}
-                        onChange={handlePhysicianChange}
-                        displayEmpty
-                        IconComponent={ChevronDown}
-                        renderValue={(selected) => {
-                          if (selected.includes('all')) return 'All Providers';
-                          if (selected.length === 0) return 'All Providers';
-                          if (selected.length === 1) {
-                            const doc = doctors.find(d => String(d.id) === String(selected[0]));
-                            return doc?.full_name || `${doc?.first_name || ''} ${doc?.last_name || ''}`.trim() || `Doctor #${selected[0]}`;
-                          }
-                          return `${selected.length} Selected`;
-                        }}
-                        MenuProps={{
-                          PaperProps: {
-                            sx: {
-                              backgroundColor: isDark ? '#252320' : 'white',
-                              border: `1px solid ${isDark ? '#334155' : '#e2e8f0'}`,
-                              borderRadius: '12px',
-                              marginTop: '4px',
-                              maxHeight: 400,
-                              boxShadow: isDark
-                                ? '0 10px 15px -3px rgba(0, 0, 0, 0.5), 0 4px 6px -2px rgba(0, 0, 0, 0.4)'
-                                : '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
-                            },
+                <div className="flex flex-col gap-1.5 w-full sm:w-[250px]">
+                  <Typography variant="caption" sx={{ fontWeight: 700, color: isDark ? '#64748b' : '#94a3b8', ml: 0.5, textTransform: 'uppercase', letterSpacing: '0.05em', fontSize: '0.65rem' }}>
+                    Provider
+                  </Typography>
+                  <FormControl size="small" sx={{ width: { xs: '100%', sm: 250 } }}>
+                    <Select
+                      multiple
+                      value={selectedPhysicianIds}
+                      onChange={handlePhysicianChange}
+                      displayEmpty
+                      IconComponent={ChevronDown}
+                      renderValue={(selected) => {
+                        if (selected.includes('all')) return 'All Providers';
+                        if (selected.length === 0) return 'All Providers';
+                        if (selected.length === 1) {
+                          const doc = doctors.find(d => String(d.id) === String(selected[0]));
+                          return doc?.full_name || `${doc?.first_name || ''} ${doc?.last_name || ''}`.trim() || `Doctor #${selected[0]}`;
+                        }
+                        return `${selected.length} Selected`;
+                      }}
+                      MenuProps={{
+                        PaperProps: {
+                          sx: {
+                            backgroundColor: isDark ? '#252320' : 'white',
+                            border: `1px solid ${isDark ? '#334155' : '#e2e8f0'}`,
+                            borderRadius: '12px',
+                            marginTop: '4px',
+                            maxHeight: 400,
+                            boxShadow: isDark
+                              ? '0 10px 15px -3px rgba(0, 0, 0, 0.5), 0 4px 6px -2px rgba(0, 0, 0, 0.4)'
+                              : '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
                           },
-                        }}
-                        sx={{
-                          borderRadius: '12px',
-                          backgroundColor: isDark ? '#1A1917' : 'white',
-                          color: isDark ? '#f1f5f9' : '#0f172a',
-                          fontWeight: 500,
-                          height: '40px',
-                          '& .MuiOutlinedInput-notchedOutline': { borderColor: isDark ? '#334155' : '#e2e8f0' },
-                          '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: isDark ? '#475569' : '#cbd5e1' },
-                          '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: '#2563EB' },
-                          '& .MuiSelect-select': {
-                            paddingTop: '8px',
-                            paddingBottom: '8px',
-                          }
-                        }}
-                      >
-                        <MenuItem value="all" sx={{ py: 0.5 }}>
-                          <Checkbox
-                            size="small"
-                            checked={selectedPhysicianIds.includes('all')}
-                            sx={{ color: isDark ? '#64748b' : undefined, '&.Mui-checked': { color: '#2563EB' } }}
-                          />
-                          <ListItemText
-                            primary="All Providers"
-                            primaryTypographyProps={{ variant: 'body2', fontWeight: selectedPhysicianIds.includes('all') ? 600 : 400, color: isDark ? '#f1f5f9' : '#0f172a' }}
-                          />
-                        </MenuItem>
-                        {doctors.map((doc) => {
-                          const isSelected = selectedPhysicianIds.indexOf(doc.id) > -1;
-                          return (
-                            <MenuItem key={doc.id} value={doc.id} sx={{ py: 0.5 }}>
-                              <Checkbox
-                                size="small"
-                                checked={isSelected}
-                                sx={{ color: isDark ? '#64748b' : undefined, '&.Mui-checked': { color: '#2563EB' } }}
-                              />
-                              <ListItemText
-                                primary={doc.full_name || `${doc.first_name || ''} ${doc.last_name || ''}`.trim() || `Doctor #${doc.id}`}
-                                primaryTypographyProps={{ variant: 'body2', fontWeight: isSelected ? 600 : 400, color: isDark ? '#f1f5f9' : '#0f172a' }}
-                              />
-                            </MenuItem>
-                          );
-                        })}
-                      </Select>
-                    </FormControl>
-                  </div>
+                        },
+                      }}
+                      sx={{
+                        borderRadius: '12px',
+                        backgroundColor: isDark ? '#1A1917' : 'white',
+                        color: isDark ? '#f1f5f9' : '#0f172a',
+                        fontWeight: 500,
+                        height: '40px',
+                        '& .MuiOutlinedInput-notchedOutline': { borderColor: isDark ? '#334155' : '#e2e8f0' },
+                        '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: isDark ? '#475569' : '#cbd5e1' },
+                        '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: '#2563EB' },
+                        '& .MuiSelect-select': {
+                          paddingTop: '8px',
+                          paddingBottom: '8px',
+                        }
+                      }}
+                    >
+                      <MenuItem value="all" sx={{ py: 0.5 }}>
+                        <Checkbox
+                          size="small"
+                          checked={selectedPhysicianIds.includes('all')}
+                          sx={{ color: isDark ? '#64748b' : undefined, '&.Mui-checked': { color: '#2563EB' } }}
+                        />
+                        <ListItemText
+                          primary="All Providers"
+                          primaryTypographyProps={{ variant: 'body2', fontWeight: selectedPhysicianIds.includes('all') ? 600 : 400, color: isDark ? '#f1f5f9' : '#0f172a' }}
+                        />
+                      </MenuItem>
+                      {doctors.map((doc) => {
+                        const isSelected = selectedPhysicianIds.indexOf(doc.id) > -1;
+                        return (
+                          <MenuItem key={doc.id} value={doc.id} sx={{ py: 0.5 }}>
+                            <Checkbox
+                              size="small"
+                              checked={isSelected}
+                              sx={{ color: isDark ? '#64748b' : undefined, '&.Mui-checked': { color: '#2563EB' } }}
+                            />
+                            <ListItemText
+                              primary={doc.full_name || `${doc.first_name || ''} ${doc.last_name || ''}`.trim() || `Doctor #${doc.id}`}
+                              primaryTypographyProps={{ variant: 'body2', fontWeight: isSelected ? 600 : 400, color: isDark ? '#f1f5f9' : '#0f172a' }}
+                            />
+                          </MenuItem>
+                        );
+                      })}
+                    </Select>
+                  </FormControl>
+                </div>
 
                 {/* Search Filter */}
                 <div className="flex flex-col gap-1.5 w-full sm:w-[250px]">
@@ -965,19 +965,28 @@ const mapSeverityToPriority = (severity: string | null | undefined): 'low' | 'me
                             </div>
                           </div>
                           {/* Severity Badge - top-right on mobile */}
-                          <span className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs font-bold tracking-wider flex-shrink-0 ${severity === 'urgent'
-                            ? isDark ? 'bg-red-500/20 text-red-400' : 'bg-red-500 text-white'
-                            : severity === 'severe'
-                              ? isDark ? 'bg-orange-500/20 text-orange-400' : 'bg-orange-500 text-white'
-                              : severity === 'moderate'
-                                ? isDark ? 'bg-yellow-500/20 text-yellow-400' : 'bg-yellow-500 text-white'
-                                : severity === 'mild'
-                                  ? isDark ? 'bg-emerald-500/20 text-emerald-400' : 'bg-emerald-500 text-white'
-                                  : isDark ? 'bg-slate-500/20 text-slate-300' : 'bg-slate-200 text-slate-700'
-                            }`}>
-                            {severity ? (severity === 'moderate' ? 'Call Care Team' : `${severity.charAt(0).toUpperCase()}${severity.slice(1)}`) : 'N/A'}
-                          </span>
-
+                          <div className='flex flex-col gap-2'>
+                            <div className='flex justify-end'>
+                              <span className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs font-bold tracking-wider flex-shrink-0 ${severity === 'urgent'
+                                ? isDark ? 'bg-red-500/20 text-red-400' : 'bg-red-500 text-white'
+                                : severity === 'severe'
+                                  ? isDark ? 'bg-orange-500/20 text-orange-400' : 'bg-orange-500 text-white'
+                                  : severity === 'moderate'
+                                    ? isDark ? 'bg-yellow-500/20 text-yellow-400' : 'bg-yellow-500 text-white'
+                                    : severity === 'mild'
+                                      ? isDark ? 'bg-emerald-500/20 text-emerald-400' : 'bg-emerald-500 text-white'
+                                      : isDark ? 'bg-slate-500/20 text-slate-300' : 'bg-slate-200 text-slate-700'
+                                }`}>
+                                {severity ? (severity === 'moderate' ? 'Call Care Team' : `${severity.charAt(0).toUpperCase()}${severity.slice(1)}`) : 'N/A'}
+                              </span>
+                            </div>
+                            <span className={`${isDark ? 'text-slate-400' : 'text-slate-500'} font-bold`}>
+                              <span>Last 3 Days Severity :</span> {"  "}
+                              <span className={`${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                                {patient.highestSeverityLast3Days ? (patient.highestSeverityLast3Days === 'moderate' ? 'Call Care Team' : `${patient.highestSeverityLast3Days.charAt(0).toUpperCase()}${patient.highestSeverityLast3Days.slice(1)}`) : 'N/A'}
+                              </span>
+                            </span>
+                          </div>
                         </div>
 
                         {/* Diagnosis, Last Chatbot, Last Chemo - stacked on mobile, row on desktop */}
@@ -1122,11 +1131,11 @@ const mapSeverityToPriority = (severity: string | null | undefined): 'low' | 'me
           }
         }}
       >
-        <DialogTitle sx={{ 
-          pb: 1, 
-          pt: 3, 
+        <DialogTitle sx={{
+          pb: 1,
+          pt: 3,
           px: 3,
-          fontWeight: 700, 
+          fontWeight: 700,
           color: isDark ? '#f1f5f9' : '#0f172a',
           fontFamily: 'serif',
           fontSize: '1.5rem'
@@ -1139,9 +1148,9 @@ const mapSeverityToPriority = (severity: string | null | undefined): 'low' | 'me
           </DialogContentText>
         </DialogContent>
         <DialogActions sx={{ p: 3, pt: 1, gap: 1.5 }}>
-          <Button 
+          <Button
             onClick={() => setIsDeleteModalOpen(false)}
-            sx={{ 
+            sx={{
               borderRadius: '10px',
               px: 3,
               py: 1,
@@ -1155,12 +1164,12 @@ const mapSeverityToPriority = (severity: string | null | undefined): 'low' | 'me
           >
             No
           </Button>
-          <Button 
+          <Button
             onClick={handleConfirmDelete}
             variant="contained"
             color="error"
             disabled={deletePatientMutation.isPending}
-            sx={{ 
+            sx={{
               borderRadius: '10px',
               px: 3,
               py: 1,

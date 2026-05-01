@@ -9,10 +9,11 @@ import { PatientFormModal } from './PatientFormModal';
 interface AddPatientModalProps {
   open: boolean;
   onClose: () => void;
+  onSuccess?: () => void;
 }
 
-const AddPatientModal: React.FC<AddPatientModalProps> = ({ open, onClose }) => (
-  <PatientFormModal open={open} onClose={onClose} mode="add" />
+const AddPatientModal: React.FC<AddPatientModalProps> = ({ open, onClose, onSuccess }) => (
+  <PatientFormModal open={open} onClose={onClose} mode="add" onSuccess={onSuccess} />
 );
 
 export default AddPatientModal;
