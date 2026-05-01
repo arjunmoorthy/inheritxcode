@@ -629,14 +629,6 @@ def patient_listing_dashboard(
                 ),
                 {"patient_uuids": patient_uuids},
             ).mappings().all()
-            # latest_chatbot_date_by_patient = {
-            #     row["patient_uuid"]: (
-            #         row["last_chatbot_date"].isoformat()
-            #         if row.get("last_chatbot_date") is not None
-            #         else None
-            #     )
-            #     for row in chatbot_rows
-            # }
 
             latest_chatbot_date_by_patient = {
                 row["patient_uuid"]: _to_pst(row.get("last_chatbot_date"))
@@ -667,6 +659,48 @@ def patient_listing_dashboard(
                 for row in severity_rows
                 if row.get("patient_uuid")
             }
+
+        # Compute highest severity observed in the past 3 days for each patient.
+        # We reuse the same severity token (triage_level or engine_state->>'highest_triage_level')
+        # and then normalize it using the nested `_normalize_latest_severity` function
+        # defined above, choosing the worst severity by `_severity_rank`.
+        latest_3day_highest_severity_by_patient: Dict[str, Optional[str]] = {}
+        if patient_uuids:
+            since_dt = datetime.utcnow() - timedelta(days=3)
+            sev_rows = patient_db.execute(
+                text(
+                    """
+                    SELECT c.patient_uuid::text AS patient_uuid,
+                           COALESCE(NULLIF(c.triage_level, ''), NULLIF(c.engine_state->>'highest_triage_level', ''), 'none') AS severity_level
+                    FROM conversations c
+                    WHERE c.patient_uuid::text = ANY(:patient_uuids)
+                      AND COALESCE(c.updated_at, c.created_at) >= :since_dt
+                    """
+                ),
+                {"patient_uuids": patient_uuids, "since_dt": since_dt},
+            ).mappings().all()
+
+            # group values per patient
+            temp_map: Dict[str, List[Optional[str]]] = {}
+            for row in sev_rows:
+                pu = row.get("patient_uuid")
+                lvl = row.get("severity_level")
+                if not pu:
+                    continue
+                temp_map.setdefault(pu, []).append(lvl)
+
+            for pu, vals in temp_map.items():
+                best_label: Optional[str] = None
+                best_rank = -1
+                for raw_val in vals:
+                    norm = _normalize_latest_severity(raw_val)
+                    if norm is None:
+                        continue
+                    r = _severity_rank(norm)
+                    if r > best_rank:
+                        best_rank = r
+                        best_label = norm
+                latest_3day_highest_severity_by_patient[pu] = best_label
 
         response = []
         for p in patients:
@@ -759,6 +793,7 @@ def patient_listing_dashboard(
                     "regimen_code": p.library_code,
                     "drug_description": cleaned_drug_description,
                     "stage": p.stage,
+                    "highest_severity_last_3_days": latest_3day_highest_severity_by_patient.get(patient_uuid) if patient_uuid else None,
                 }
             )
 
