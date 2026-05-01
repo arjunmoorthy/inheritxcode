@@ -1165,6 +1165,7 @@ const PatientDetailPage: React.FC = () => {
         onClose={() => setIsProfileModalOpen(false)}
         mode="edit"
         patient={patientForModal}
+        onSuccess={() => showToast('Patient profile updated successfully!', 'success')}
       />
 
       {/* Stylish Toast Notification */}

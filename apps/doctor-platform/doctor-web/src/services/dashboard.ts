@@ -65,6 +65,7 @@ export interface PatientListingApiItem {
   regimen_code?: string | null;
   stage?: string | null;
   drug_description?: string | null;
+  highest_severity_last_3_days?: string | null;
 }
 
 export interface PatientListingApiResponse {
@@ -107,6 +108,7 @@ export interface PatientSummary {
   regimenCode?: string | null;
   stage?: string | null;
   drug_description?: string | null;
+  highestSeverityLast3Days?: 'mild' | 'moderate' | 'severe' | 'urgent' | null;
 }
 
 export interface PatientRanking {
@@ -351,6 +353,7 @@ const transformListingToSummary = (item: PatientListingApiItem): PatientSummary 
   regimenCode: item.regimen_code || undefined,
   stage: item.stage || undefined,
   drug_description: item.drug_description || undefined,
+  highestSeverityLast3Days: mapApiSeverityToDashboardSeverity(item.highest_severity_last_3_days),
 });
 
 // Fetch dashboard landing (ranked patient list)

@@ -227,6 +227,7 @@ interface PatientFormModalProps {
   onClose: () => void;
   mode: PatientFormModalMode;
   patient?: Patient | null;
+  onSuccess?: () => void;
 }
 
 export const PatientFormModal: React.FC<PatientFormModalProps> = ({
@@ -234,6 +235,7 @@ export const PatientFormModal: React.FC<PatientFormModalProps> = ({
   onClose,
   mode,
   patient = null,
+  onSuccess,
 }) => {
   const theme = useTheme();
   const { isDark } = useThemeMode();
@@ -323,6 +325,7 @@ export const PatientFormModal: React.FC<PatientFormModalProps> = ({
         const payload = toAddManualPatientPayload(data);
         await addMutation.mutateAsync(payload);
       }
+      onSuccess?.();
       reset();
       onClose();
     } catch (error) {

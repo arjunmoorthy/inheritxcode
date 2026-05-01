@@ -11,11 +11,12 @@ interface EditPatientModalProps {
   open: boolean;
   onClose: () => void;
   patient: Patient | null;
+  onSuccess?: () => void;
 }
 
-const EditPatientModal: React.FC<EditPatientModalProps> = ({ open, onClose, patient }) => {
+const EditPatientModal: React.FC<EditPatientModalProps> = ({ open, onClose, patient, onSuccess }) => {
   if (!patient) return null;
-  return <PatientFormModal open={open} onClose={onClose} mode="edit" patient={patient} />;
+  return <PatientFormModal open={open} onClose={onClose} mode="edit" patient={patient} onSuccess={onSuccess} />;
 };
 
 export default EditPatientModal;
