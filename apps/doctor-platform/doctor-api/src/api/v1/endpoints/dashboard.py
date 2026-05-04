@@ -1080,7 +1080,6 @@ def _to_provider_voice(summary: Optional[str]) -> Optional[str]:
         text_value += "."
     return text_value
 
-
 @router.get(
     "/patient/{patient_uuid}/summaries",
     response_model=APIResponse[List[PatientConversationSummaryResponse]],
@@ -1136,8 +1135,10 @@ def get_patient_summaries(
     summaries = [
         PatientConversationSummaryResponse(
             uuid=str(row["uuid"]),
-            created_at=row["created_at"].isoformat() if row.get("created_at") else None,
-            updated_at=row["updated_at"].isoformat() if row.get("updated_at") else None,
+            # created_at=row["created_at"].isoformat() if row.get("created_at") else None,
+            # updated_at=row["updated_at"].isoformat() if row.get("updated_at") else None,
+            created_at=_to_pst(row.get("created_at")),
+            updated_at=_to_pst(row.get("updated_at")),
             conversation_state=row["conversation_state"],
             triage_level=row.get("triage_level"),
             symptom_list=row["symptom_list"] or [],
