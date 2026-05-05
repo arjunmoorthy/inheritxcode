@@ -43,7 +43,7 @@ interface SymptomGraphProps {
   isSidebarOpen: boolean;
   fullscreen?: boolean;
   formatDateShort: (date: string) => string;
-  lastChemoDate?: string | null;
+  chemoDates?: string[];
   isFaxMode?: boolean;
 }
 
@@ -77,7 +77,7 @@ const SymptomGraph: React.FC<SymptomGraphProps> = ({
   isDark,
   fullscreen = false,
   formatDateShort,
-  lastChemoDate,
+  chemoDates = [],
   isFaxMode = false,
 }) => {
   const [viewportWidth, setViewportWidth] = useState<number>(
@@ -119,17 +119,28 @@ const SymptomGraph: React.FC<SymptomGraphProps> = ({
     : (fullscreen ? Math.max(420, window.innerHeight - 220) : isMobileViewport ? 300 : 380);
   const printChartWidth = Math.max(980, viewportWidth - 40);
   const { dates, symptoms } = graphData;
-  const normalizedChemoDate = useMemo(() => normalizeToIsoDate(lastChemoDate), [lastChemoDate]);
+
+  const normalizedChemoDates = useMemo(() => (
+    (chemoDates || [])
+      .map(d => normalizeToIsoDate(d))
+      .filter((d): d is string => d !== null)
+  ), [chemoDates]);
+
   const chartDates = useMemo(() => {
     if (!dates.length) return dates;
-    if (!normalizedChemoDate || dates.includes(normalizedChemoDate)) return dates;
-
+    
+    // Add any chemo dates that are within range but not already in dates
     const firstDate = dates[0];
     const lastDate = dates[dates.length - 1];
-    if (normalizedChemoDate < firstDate || normalizedChemoDate > lastDate) return dates;
+    
+    const missingChemoDates = normalizedChemoDates.filter(
+      d => d >= firstDate && d <= lastDate && !dates.includes(d)
+    );
 
-    return [...dates, normalizedChemoDate].sort();
-  }, [dates, normalizedChemoDate]);
+    if (missingChemoDates.length === 0) return dates;
+
+    return [...dates, ...missingChemoDates].sort();
+  }, [dates, normalizedChemoDates]);
   const hasData = chartDates.length > 0 && symptoms.length > 0;
 
   const seriesMeta = useMemo(() => (
@@ -158,10 +169,11 @@ const SymptomGraph: React.FC<SymptomGraphProps> = ({
     () => chartDates.filter((_, idx) => idx === 0 || idx === chartDates.length - 1 || idx % labelStep === 0),
     [chartDates, labelStep]
   );
-  const chemoMarkerDate = useMemo(() => {
-    if (!normalizedChemoDate || !chartDates.length) return null;
-    return chartDates.includes(normalizedChemoDate) ? normalizedChemoDate : null;
-  }, [normalizedChemoDate, chartDates]);
+  
+  const chemoMarkerDates = useMemo(() => {
+    if (!normalizedChemoDates.length || !chartDates.length) return [];
+    return normalizedChemoDates.filter(d => chartDates.includes(d));
+  }, [normalizedChemoDates, chartDates]);
 
   if (isLoading) {
     return (
@@ -199,9 +211,10 @@ const SymptomGraph: React.FC<SymptomGraphProps> = ({
           ifOverflow="extendDomain"
         />
       ))}
-      {chemoMarkerDate && (
+      {chemoMarkerDates.map((date) => (
         <ReferenceLine
-          x={chemoMarkerDate}
+          key={`chemo-line-${date}`}
+          x={date}
           yAxisId="severity"
           stroke={effectiveDark ? '#22d3ee' : '#0891b2'}
           strokeDasharray="4 4"
@@ -216,7 +229,7 @@ const SymptomGraph: React.FC<SymptomGraphProps> = ({
             offset: 0,
           }}
         />
-      )}
+      ))}
       <XAxis
         dataKey="date"
         ticks={visibleTicks}

@@ -34,7 +34,7 @@ interface GraphSectionProps {
   onFullscreenClose: () => void;
   patientName?: string;
   formatDateShort: (date: string) => string;
-  lastChemoDate?: string | null;
+  chemoDates?: string[];
   isFaxMode?: boolean;
 }
 
@@ -48,7 +48,7 @@ const GraphSection: React.FC<GraphSectionProps> = ({
   onFullscreenClose,
   patientName,
   formatDateShort,
-  lastChemoDate,
+  chemoDates,
   isFaxMode = false,
 }) => {
   const FAX_DASH_PATTERNS = [
@@ -128,7 +128,7 @@ const GraphSection: React.FC<GraphSectionProps> = ({
           isSidebarOpen={isSidebarOpen}
           fullscreen={false}
           formatDateShort={formatDateShort}
-          lastChemoDate={lastChemoDate}
+          chemoDates={chemoDates}
           isFaxMode={isFaxMode}
         />
       </div>
@@ -264,7 +264,7 @@ const GraphSection: React.FC<GraphSectionProps> = ({
               isSidebarOpen={false}
               fullscreen={true}
               formatDateShort={formatDateShort}
-              lastChemoDate={lastChemoDate}
+              chemoDates={chemoDates}
               isFaxMode={isFaxMode}
             />
           </div>
