@@ -1130,7 +1130,7 @@ const PatientDetailPage: React.FC = () => {
               onFullscreenClose={() => setIsChartFullscreen(false)}
               patientName={patientDetails?.patientName}
               formatDateShort={formatDateShort}
-              lastChemoDate={timelineData?.last_chemo_date ?? null}
+              chemoDates={timelineData?.chemo_dates ?? []}
               isFaxMode={isFaxMode}
             />
 
@@ -1302,7 +1302,7 @@ const PatientDetailPage: React.FC = () => {
               onFullscreenClose={() => setIsChartFullscreen(false)}
               patientName={patientDetails?.patientName}
               formatDateShort={formatDateShort}
-              lastChemoDate={timelineData?.last_chemo_date ?? null}
+              chemoDates={timelineData?.chemo_dates ?? []}
               isFaxMode={true}
             />
 
