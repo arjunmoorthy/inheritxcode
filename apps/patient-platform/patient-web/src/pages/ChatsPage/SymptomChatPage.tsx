@@ -279,7 +279,7 @@ const SymptomChatPage: React.FC = () => {
   // Send a message
   const sendUserMessage = (
     content: string, 
-    messageType: 'text' | 'button_response' | 'multi_select_response' | 'feeling_response' = 'text',
+    messageType: Message['message_type'] = 'text',
     structuredData?: Record<string, any>
   ) => {
     if (!chatSession || !isConnected) return;
@@ -308,6 +308,11 @@ const SymptomChatPage: React.FC = () => {
   // Handle text submission (e.g. chemo date YYYY-MM-DD) — sends as message_type "text"
   const handleTextSubmitFromBubble = (value: string) => {
     sendUserMessage(value, 'text');
+  };
+
+  // Handle image submission
+  const handleImageSubmit = (imageUrl: string) => {
+    sendUserMessage(imageUrl, 'image_response');
   };
 
   // Handle multi-select submission
@@ -566,6 +571,7 @@ const SymptomChatPage: React.FC = () => {
                 // Send message to backend for other actions
                 sendUserMessage(action, 'button_response');
               }}
+              onImageSubmit={handleImageSubmit}
               shouldShowInteractive={shouldShowInteractive(message, index)}
             />
           </div>

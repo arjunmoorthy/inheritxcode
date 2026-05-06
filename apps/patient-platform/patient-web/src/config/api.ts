@@ -60,6 +60,7 @@ export const API_CONFIG = {
       FEELING: (uuid: string) => `/chat/${uuid}/feeling`,
       DELETE: (uuid: string) => `/chat/${uuid}`,
       WS: (uuid: string) => `/chat/ws/${uuid}`,
+      UPLOAD_RASH_PHOTO: '/chat/upload-rash-photo',
     },
 
     // Chemotherapy

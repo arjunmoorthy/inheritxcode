@@ -210,6 +210,23 @@ const ChatsPage: React.FC = () => {
     }
   };
 
+  const handleImageSubmit = (base64: string) => {
+    if (!chatSession) return;
+    const userMessage: Message = {
+      id: -1,
+      chat_uuid: chatSession.chat_uuid,
+      sender: 'user',
+      message_type: 'image_response',
+      content: base64,
+      created_at: new Date().toISOString(),
+    };
+    setMessages(prev => [...prev, userMessage]);
+    if (isConnected) {
+      setIsThinking(true);
+      sendMessage(base64, 'image_response');
+    }
+  };
+
   const handleButtonClick = async (option: string) => {
     if (!chatSession) return;
     // Handle special chemo date responses
@@ -474,6 +491,7 @@ const ChatsPage: React.FC = () => {
               onButtonClick={handleButtonClick}
               onMultiSelectSubmit={handleMultiSelectSubmit}
               onFeelingSelect={handleFeelingSelect}
+              onImageSubmit={handleImageSubmit}
               shouldShowInteractiveElements={shouldShowInteractiveElements(message, index)}
             />
           ))}

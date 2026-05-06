@@ -47,4 +47,55 @@ export const chatService = {
     });
     return response.data;
   },
+
+  generateUploadUrl: async (fileName: string, contentType: string) => {
+    const response = await apiClient.post(
+      `/chat/generate-upload-url?file_name=${encodeURIComponent(fileName)}&content_type=${encodeURIComponent(contentType)}`,
+      {}
+    );
+    return response.data;
+  },
+
+  uploadFile: async (url: string, file: File) => {
+    const response = await fetch(url, {
+      method: 'PUT',
+      body: file,
+      headers: {
+        'Content-Type': file.type,
+      },
+    });
+    if (!response.ok) {
+      throw new Error('Failed to upload file');
+    }
+    return true;
+  },
+
+  uploadImage: async (file: File, chatUuid: string) => {
+    const patientUuid = getPatientUuid();
+    const timezone = getUserTimezone();
+    
+    const params = new URLSearchParams({
+      chat_uuid: chatUuid,
+      timezone: timezone
+    });
+    
+    if (patientUuid) {
+      params.set('patient_uuid', patientUuid);
+    }
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const response = await apiClient.post(
+      `${API_CONFIG.ENDPOINTS.CHAT.UPLOAD_RASH_PHOTO}?${params.toString()}`,
+      formData,
+      {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      }
+    );
+    // Assuming backend returns { file_url: "..." }
+    return response.data.file_url;
+  },
 };

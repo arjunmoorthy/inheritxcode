@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
+import { Camera, Send, X } from 'lucide-react';
 import type { Message } from '../../types/chat';
 import { formatTimeForDisplay } from '@oncolife/shared-utils';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import dayjs, { Dayjs } from 'dayjs';
+import { chatService } from '../../services/chatService';
 
 interface SymptomGroup {
   name: string;
@@ -21,6 +23,7 @@ interface SymptomMessageBubbleProps {
   onDisclaimerAccept?: () => void;
   onEmergencyCheck?: (selected: string[]) => void;
   onSummaryAction?: (action: string) => void;
+  onImageSubmit?: (imageUrl: string) => void;
   shouldShowInteractive?: boolean;
 }
 
@@ -108,6 +111,17 @@ const formatUserResponse = (content: string): string => {
   return cleanContent;
 };
 
+// Check if content is an image (base64 or URL)
+const isImageContent = (content: string): boolean => {
+  if (!content) return false;
+  const isBase64 = content.startsWith('data:image/') && content.includes(';base64,');
+  // More robust URL regex to catch S3 URLs with or without extensions, with query params
+  const isUrl = /^https?:\/\/.*?\.(jpg|jpeg|png|gif|webp|svg|bmp|tiff|heic)(?:\?.*)?$/i.test(content) ||
+                /^https?:\/\/.*\/[a-zA-Z0-9_-]+\.(jpg|jpeg|png|gif|webp|svg|bmp|tiff|heic)/i.test(content) ||
+                (content.includes('s3') && content.includes('amazonaws.com') && !content.includes(' '));
+  return isBase64 || isUrl;
+};
+
 export const SymptomMessageBubble: React.FC<SymptomMessageBubbleProps> = ({
   message,
   onOptionSelect,
@@ -117,6 +131,7 @@ export const SymptomMessageBubble: React.FC<SymptomMessageBubbleProps> = ({
   onDisclaimerAccept,
   onEmergencyCheck,
   onSummaryAction,
+  onImageSubmit,
   shouldShowInteractive = false,
 }) => {
   const [selectedOptions, setSelectedOptions] = useState<string[]>([]);
@@ -125,6 +140,10 @@ export const SymptomMessageBubble: React.FC<SymptomMessageBubbleProps> = ({
   // Chemo today check: when user selects "No", show calendar for next chemo date
   const [showNextChemoDatePicker, setShowNextChemoDatePicker] = useState(false);
   const [nextChemoDate, setNextChemoDate] = useState<string>('');
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
   
   const isUser = message.sender === 'user';
   const frontendType = message.structured_data?.frontend_type || message.message_type;
@@ -598,6 +617,102 @@ export const SymptomMessageBubble: React.FC<SymptomMessageBubbleProps> = ({
   };
 
   // =========================================================================
+  // RENDER: Image Selector
+  // =========================================================================
+  const renderImageSelector = () => {
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (file) {
+        if (!file.type.startsWith('image/')) {
+          alert('Please select an image file.');
+          return;
+        }
+        setSelectedFile(file);
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setImagePreview(reader.result as string);
+        };
+        reader.readAsDataURL(file);
+      }
+    };
+
+    const handleSendImage = async () => {
+      if (!selectedFile || !onImageSubmit) return;
+
+      try {
+        setIsUploading(true);
+        
+        // Upload file as binary directly to the new endpoint
+        const file_url = await chatService.uploadImage(selectedFile, message.chat_uuid);
+        
+        if (!file_url) {
+          throw new Error('Failed to upload image');
+        }
+        
+        // 3. Send the final URL back to chat
+        onImageSubmit(file_url);
+        
+        setImagePreview(null);
+        setSelectedFile(null);
+      } catch (error: any) {
+        console.error('Upload failed:', error);
+        const errorMsg = error?.message || 'Unknown error';
+        alert(`Failed to upload image: ${errorMsg}. Please try again.`);
+      } finally {
+        setIsUploading(false);
+      }
+    };
+
+    const handleCancel = () => {
+      setImagePreview(null);
+      setSelectedFile(null);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    };
+
+    return (
+      <div className="image-selector-container">
+        <input
+          type="file"
+          ref={fileInputRef}
+          onChange={handleFileChange}
+          accept="image/*"
+          style={{ display: 'none' }}
+        />
+        
+        {!imagePreview ? (
+          <button 
+            className="option-btn primary image-select-btn"
+            onClick={() => fileInputRef.current?.click()}
+          >
+            Select Image
+          </button>
+        ) : (
+          <div className="image-preview-wrapper">
+            <img src={imagePreview} alt="Preview" className="image-preview-thumb" />
+            <div className="image-preview-actions">
+              <button className="option-btn secondary" onClick={handleCancel} disabled={isUploading}>
+                Cancel
+              </button>
+              <button className="option-btn primary" onClick={handleSendImage} disabled={isUploading} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                {isUploading ? (
+                  'Uploading...'
+                ) : (
+                  <>
+                    <Send size={16} />
+                    Send Image
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // =========================================================================
   // RENDER: Emergency Result
   // =========================================================================
   const renderEmergencyResult = () => {
@@ -654,6 +769,11 @@ export const SymptomMessageBubble: React.FC<SymptomMessageBubbleProps> = ({
     // Next chemo date picker (after answering "No" to chemo today)
     if (frontendType === 'next_chemo_date') {
       return renderNextChemoDatePicker();
+    }
+
+    // Image selector
+    if (frontendType === 'image') {
+      return renderImageSelector();
     }
 
     if (!options.length) return null;
@@ -809,7 +929,15 @@ export const SymptomMessageBubble: React.FC<SymptomMessageBubbleProps> = ({
       {isUser && (
         <div className="user-message-container message-container">
           <div className="message-bubble user-bubble sender-user-bubble">
-            <div className="message-content">{formatUserResponse(message.content)}</div>
+            <div className="message-content">
+              { (message.message_type === 'image' || message.message_type === 'image_response' || isImageContent(message.content)) ? (
+                <div className="chat-image-content">
+                  <img src={message.content} alt="Sent by user" className="chat-image-thumb" onClick={() => window.open(message.content, '_blank')} />
+                </div>
+              ) : (
+                formatUserResponse(message.content)
+              )}
+            </div>
           </div>
           <div className="message-time">
             {formatTimeForDisplay(message.created_at)}

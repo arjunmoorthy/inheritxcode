@@ -38,7 +38,9 @@ export interface Message {
     | 'disclaimer'
     | 'emergency_check'
     | 'emergency'
-    | 'summary';
+    | 'summary'
+    | 'image'
+    | 'image_response';
   content: string;
   structured_data?: {
     options?: string[];
