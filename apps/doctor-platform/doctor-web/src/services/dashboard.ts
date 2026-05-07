@@ -15,6 +15,7 @@
  * Endpoints Used:
  *   GET  /api/v1/dashboard            - Ranked patient list
  *   GET  /api/v1/dashboard/patient/:id - Patient detail with timeline
+ *   GET  /api/v1/dashboard/patient/:id/overall-summary - Patient overall summary
  *   GET  /api/v1/dashboard/reports/weekly - Weekly report data
  * 
  * Copyright:
@@ -537,9 +538,42 @@ const sendPatientFax = async ({
   return response.data;
 };
 
+// Fetch patient overall summary
+const fetchPatientOverallSummary = async (
+  patientUuid: string,
+  startDate?: string,
+  endDate?: string
+): Promise<any> => {
+  try {
+    const params = new URLSearchParams();
+    if (startDate) params.set('start_date', startDate);
+    if (endDate) params.set('end_date', endDate);
+    const query = params.toString();
+    const response = await apiClient.get<any>(
+      `${API_CONFIG.ENDPOINTS.DASHBOARD.OVERALL_SUMMARY(patientUuid)}${query ? `?${query}` : ''}`
+    );
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching patient overall summary:', error);
+    return null;
+  }
+};
+
 // =============================================================================
 // React Query Hooks
 // =============================================================================
+
+export const usePatientOverallSummary = (
+  patientUuid: string,
+  startDate?: string,
+  endDate?: string
+) => {
+  return useQuery({
+    queryKey: ['patientOverallSummary', patientUuid, startDate, endDate],
+    queryFn: () => fetchPatientOverallSummary(patientUuid, startDate, endDate),
+    enabled: !!patientUuid,
+  });
+};
 
 export const useDashboardLanding = (days: number = 7) => {
   return useQuery({

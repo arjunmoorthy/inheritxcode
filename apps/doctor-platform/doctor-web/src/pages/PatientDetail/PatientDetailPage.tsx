@@ -1129,6 +1129,11 @@ const PatientDetailPage: React.FC = () => {
               onFullscreenOpen={() => setIsChartFullscreen(true)}
               onFullscreenClose={() => setIsChartFullscreen(false)}
               patientName={patientDetails?.patientName}
+              patientUuid={uuid}
+              startDate={startDate}
+              endDate={endDate}
+              onStartDateChange={handleStartDateChange}
+              onEndDateChange={handleEndDateChange}
               formatDateShort={formatDateShort}
               chemoDates={timelineData?.chemo_dates ?? []}
               isFaxMode={isFaxMode}
@@ -1301,6 +1306,11 @@ const PatientDetailPage: React.FC = () => {
               onFullscreenOpen={() => setIsChartFullscreen(true)}
               onFullscreenClose={() => setIsChartFullscreen(false)}
               patientName={patientDetails?.patientName}
+              patientUuid={uuid}
+              startDate={startDate}
+              endDate={endDate}
+              onStartDateChange={handleStartDateChange}
+              onEndDateChange={handleEndDateChange}
               formatDateShort={formatDateShort}
               chemoDates={timelineData?.chemo_dates ?? []}
               isFaxMode={true}
