@@ -861,6 +861,7 @@ class ChatService:
             'triage_result': 'text',
             'chemo_today_check': 'single_select',
             'next_chemo_date': 'text',
+            'image': 'image',
         }
         return mapping.get(engine_type, 'text')
     
@@ -876,6 +877,7 @@ class ChatService:
             'triage_result': 'text',
             'chemo_today_check': 'single-select',
             'next_chemo_date': 'next_chemo_date',
+            'image': 'image',
         }
         return mapping.get(engine_type, 'text')
     
