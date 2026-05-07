@@ -284,6 +284,22 @@ class Settings(BaseSettings):
     )
 
     # ==========================================================================
+    # Gemini AI (for clinical summary generation)
+    # ==========================================================================
+    gemini_api_key: Optional[str] = Field(
+        default=None,
+        description="Gemini API key for AI-generated clinical summaries"
+    )
+    gemini_model: str = Field(
+        default="gemini-2.5-flash",
+        description="Gemini model name for clinical summary generation"
+    )
+    gemini_timeout_seconds: int = Field(
+        default=120,
+        description="Timeout (seconds) for Gemini summary generation requests"
+    )
+
+    # ==========================================================================
     # Sinch Fax (outgoing fax API)
     # ==========================================================================
     sinch_fax_base_url: str = Field(
