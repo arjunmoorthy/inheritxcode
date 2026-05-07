@@ -14,15 +14,18 @@ Complete endpoints for the symptom checker chat:
 
 import json
 import os
-from uuid import UUID
+from uuid import UUID, uuid4
 from typing import List, Optional, Literal
 from datetime import date, datetime, time
 
+import boto3
 from fastapi import APIRouter, Depends, HTTPException, Query, WebSocket, WebSocketDisconnect, status
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from jose import jwt, JWTError
 import pytz
+from fastapi import UploadFile, File
+
 
 from api.deps import get_patient_db, get_optional_patient_uuid
 from services import ChatService
@@ -616,3 +619,85 @@ async def websocket_endpoint(
         logger.error(f"WebSocket error: chat={chat_uuid} error={e}")
         reason = str(e)[:120] + "..." if len(str(e)) > 120 else str(e)
         await websocket.close(code=status.WS_1011_INTERNAL_ERROR, reason=reason)
+
+
+s3_client = boto3.client(
+    "s3",
+    aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
+    aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
+    region_name=os.getenv("AWS_REGION"),
+)
+
+@router.post("/upload-rash-photo")
+async def upload_rash_photo(
+    chat_uuid: UUID = Query(..., description="Chat UUID to attach the photo to"),
+    db: Session = Depends(get_patient_db),
+    patient_uuid: Optional[str] = Query(default=None, description="Patient UUID (optional if Bearer token from doctor-api login)"),
+    timezone: str = Query(default="America/Los_Angeles", description="User's timezone"),
+    auth_uuid: Optional[UUID] = Depends(get_optional_patient_uuid),
+    file: UploadFile = File(...),
+):
+    """
+    Upload a rash photo to S3, save a user message of type 'image' referencing the
+    uploaded file, and run the symptom engine so the assistant advances.
+
+    Ownership is verified using the same `patient_uuid` query param +
+    `get_optional_patient_uuid` dependency used across chat endpoints.
+    """
+    # Upload to S3 (same semantics as before)
+    key = f"rash_uploads/{uuid4()}_{file.filename}"
+    try:
+        s3_client.upload_fileobj(
+            file.file,
+            "skinrash-images",
+            key,
+            ExtraArgs={"ContentType": file.content_type}
+        )
+    except Exception as e:
+        logger.exception(f"Failed to upload rash photo: {e}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to upload file")
+
+    file_url = f"https://skinrash-images.s3.amazonaws.com/{key}"
+
+    # Verify ownership of chat via resolved patient UUID
+    resolved_patient_uuid = resolve_patient_uuid(patient_uuid, auth_uuid)
+    chat = db.query(ChatModel).filter(
+        ChatModel.uuid == chat_uuid,
+        ChatModel.patient_uuid == UUID(resolved_patient_uuid),
+    ).first()
+    if not chat:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Chat not found or access denied")
+
+    # Build message payload and run through engine
+    ws_msg = WebSocketMessageIn(
+        type="user_message",
+        message_type="image",
+        content=file_url,
+        structured_data={
+            "file_name": file.filename,
+            "content_type": file.content_type,
+        },
+    )
+
+    chat_service = ChatService(db)
+
+    assistant_responses = []
+    try:
+        response_generator = chat_service.process_message_stream(chat_uuid, ws_msg)
+        async for chunk in response_generator:
+            if getattr(chunk, "sender", None) == "assistant":
+                if hasattr(chunk, "dict"):
+                    assistant_responses.append(chunk.dict())
+                else:
+                    assistant_responses.append(Message.from_orm(chunk).dict())
+    except Exception as e:
+        logger.exception(f"Error processing uploaded image through chat engine: {e}")
+        # Return file_url even if engine processing fails so frontend can retry or call confirm
+        return {"file_url": file_url, "assistant_responses": [], "error": str(e)}
+
+    # Convert message_type format for frontend
+    for r in assistant_responses:
+        if isinstance(r.get("message_type"), str):
+            r["message_type"] = r["message_type"].replace("_", "-")
+
+    return {"file_url": file_url, "assistant_responses": assistant_responses}

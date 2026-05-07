@@ -22,6 +22,7 @@ class InputType(str, Enum):
     MULTISELECT = "multiselect" # Multiple select
     BUTTON = "button"           # Single action button
     CONFIRM = "confirm"         # Confirmation with checkbox
+    IMAGE = "image"             # Image upload (for rashes, etc.)
 
 
 class SymptomCategory(str, Enum):

@@ -2290,6 +2290,12 @@ SYMPTOMS['SKI-212'] = SymptomDef(
             ]
         ),
         Question(
+            id='rash_photo',
+            text='Please upload a photo of the rash',
+            input_type=InputType.IMAGE,
+            condition=lambda a: bool(a.get('loc'))  # show after location is selected
+        ),
+        Question(
             id='loc_other',
             text='Please describe the location:',
             input_type=InputType.TEXT,

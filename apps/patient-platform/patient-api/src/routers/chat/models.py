@@ -26,8 +26,9 @@ class Message(BaseModel):
         "system", 
         "button_prompt", 
         "single_select",
-        "feeling_select", 
-        "feeling_response"
+    "feeling_select", 
+    "feeling_response",
+    "image"
     ]
     content: str
     structured_data: Optional[Dict[str, Any]] = None
@@ -136,6 +137,7 @@ class WebSocketMessageIn(BaseModel):
         "symptom_select_response",
         "summary_action",
         "undo_last_step",
+            "image",
     ]
     content: str
     structured_data: Optional[Dict[str, Any]] = None

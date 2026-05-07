@@ -756,6 +756,7 @@ class SymptomCheckerService:
             'summary': 'text',
             'emergency': 'text',
             'download': 'text',
+            'image': 'image',
         }
         return mapping.get(engine_type, 'text')
 
@@ -775,6 +776,7 @@ class SymptomCheckerService:
             'summary': 'summary',
             'emergency': 'emergency',
             'download': 'download',
+            'image': 'image',
         }
         return mapping.get(engine_type, 'text')
 

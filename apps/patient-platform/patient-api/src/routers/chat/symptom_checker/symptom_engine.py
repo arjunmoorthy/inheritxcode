@@ -1050,6 +1050,10 @@ class SymptomCheckerEngine:
         
         elif question.input_type == InputType.NUMBER:
             message_type = 'number'
+
+        elif question.input_type == InputType.IMAGE:
+            # Prompt expects an image upload from the user
+            message_type = 'image'
         
         else:  # TEXT
             message_type = 'text'
@@ -1233,6 +1237,33 @@ class SymptomCheckerEngine:
                 self.state.answers[question.id] = user_response
                 # self._store_answer(question.id, user_response)
                 logger.info(f"Stored answer for {question.id}: {user_response}")
+
+            elif question.input_type == InputType.IMAGE:
+                # Expecting: URL or dict with file metadata
+                if not user_response:
+                    # Allow skip (optional upload)
+                    self.state.answers[question.id] = None
+                    logger.info(f"No image uploaded for {question.id}")
+                else:
+                    # If frontend sends URL
+                    if isinstance(user_response, str):
+                        self.state.answers[question.id] = user_response
+                    
+                    # If frontend sends structured response
+                    elif isinstance(user_response, dict):
+                        self.state.answers[question.id] = user_response.get("url")
+                    
+                    else:
+                        return EngineResponse(
+                            message="Please upload a valid image.",
+                            message_type='image',
+                            options=[],
+                            sender='ruby',
+                            avatar='⚠️',
+                            state=self.state
+                        )
+
+                    logger.info(f"Stored image for {question.id}: {self.state.answers[question.id]}")
             
             # Other input types (CHOICE, YES_NO, MULTISELECT) - no validation needed
             else:
