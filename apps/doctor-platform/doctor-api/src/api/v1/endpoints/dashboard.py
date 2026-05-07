@@ -42,6 +42,7 @@ from sqlalchemy.orm import Session
 
 from api.deps import get_current_user, get_patient_db_session, get_doctor_db_session, TokenData
 from services.dashboard_service import DashboardService
+from services.overall_summary_service import OverallSummaryService
 from services.fax_patient_service import parse_date
 from services.audit_service import AuditService
 from core.logging import get_logger
@@ -1429,6 +1430,70 @@ def get_patient_trends(
         chemo_dates=chemo_dates,
         last_chemo_date=last_chemo_date,
     )
+
+
+class OverallSummaryResponseSchema(BaseModel):
+    """Response schema for the overall clinical summary."""
+    summary: str
+    anchor_date: Optional[str] = None
+    chemo_dates: List[str] = []
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
+    conversation_count: int = 0
+
+
+@router.get(
+    "/patient/{patient_uuid}/overall-summary",
+    response_model=OverallSummaryResponseSchema,
+    summary="Patient overall clinical summary (AI-generated)",
+    description="Generate an AI-powered overall clinical summary for a patient "
+                "over a date range, anchored to chemotherapy dates. "
+                "Uses Gemini with the format: Timeline of Events, Current Status, Treatment Response.",
+)
+def get_patient_overall_summary(
+    patient_uuid: UUID,
+    start_date: Optional[date] = Query(default=None, description="Start date (YYYY-MM-DD)"),
+    end_date: Optional[date] = Query(default=None, description="End date (YYYY-MM-DD)"),
+    current_user=Depends(
+        require_roles(
+            "physician",
+            "nurse",
+            "research_coordinator",
+            "navigator",
+            "medical_assistant",
+            "admin",
+        )
+    ),
+    patient_db: Session = Depends(get_patient_db_session),
+    doctor_db: Session = Depends(get_doctor_db_session),
+):
+    """
+    Generate an AI-powered overall clinical summary for the patient
+    within the specified date range.
+
+    The summary is anchored to the most recent chemotherapy date (Day 0)
+    and follows this format:
+    - **Timeline of Significant Events**: Symptom onset/resolution relative to Day 0
+    - **Current Status (Day +X)**: Snapshot of the patient's condition
+    - **Treatment Response**: Medication efficacy relative to the timeline
+
+    Falls back to a deterministic summary if Gemini is unavailable.
+    """
+    # Defaults: last 30 days (matching trends endpoint)
+    today = datetime.utcnow().date()
+    start = start_date or (today - timedelta(days=30))
+    end = end_date or today
+    if end < start:
+        raise HTTPException(status_code=400, detail="end_date must be >= start_date")
+
+    service = OverallSummaryService(patient_db, doctor_db)
+    result = service.generate(
+        patient_uuid=patient_uuid,
+        start_date=start,
+        end_date=end,
+    )
+
+    return OverallSummaryResponseSchema(**result.to_dict())
 
 
 # =============================================================================

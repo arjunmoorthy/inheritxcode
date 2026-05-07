@@ -25,6 +25,7 @@ from .patient_service import PatientService
 from .dashboard_service import DashboardService
 from .audit_service import AuditService
 from .registration_service import RegistrationService
+from .overall_summary_service import OverallSummaryService, OverallSummaryResponse
 
 __all__ = [
     "BaseService",
@@ -35,5 +36,7 @@ __all__ = [
     "DashboardService",
     "AuditService",
     "RegistrationService",
+    "OverallSummaryService",
+    "OverallSummaryResponse",
 ]
 
