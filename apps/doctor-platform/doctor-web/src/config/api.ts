@@ -81,6 +81,7 @@ export const API_CONFIG = {
       PATIENT_TIMELINE: (uuid: string) => `/dashboard/patient/${uuid}`,
       PATIENT_QUESTIONS: (uuid: string) => `/dashboard/patient/${uuid}/questions`,
       PATIENT_PROFILE_UPDATE: (uuid: string) => `/dashboard/patient/${uuid}/profile`,
+      OVERALL_SUMMARY: (uuid: string) => `/dashboard/patient/${uuid}/overall-summary`,
       REPORTS_LIST: '/dashboard/reports',
       REPORTS_WEEKLY: '/dashboard/reports/weekly',
       REPORTS_GENERATE: '/dashboard/reports/generate',

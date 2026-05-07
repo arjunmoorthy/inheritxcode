@@ -3,15 +3,17 @@
  * Wrapper for the symptom graph with header, legend, and fullscreen functionality
  */
 
-import React from 'react';
+import React, { useState, useMemo } from 'react';
 import IconButton from '@mui/material/IconButton';
 import Tooltip from '@mui/material/Tooltip';
 import Dialog from '@mui/material/Dialog';
 import DialogContent from '@mui/material/DialogContent';
 import DialogTitle from '@mui/material/DialogTitle';
 import Typography from '@mui/material/Typography';
-import { Maximize, Minimize } from 'lucide-react';
+import CircularProgress from '@mui/material/CircularProgress';
+import { Maximize, Minimize, Calendar, Info } from 'lucide-react';
 import SymptomGraph from './SymptomGraph';
+import { usePatientOverallSummary } from '../../../services/dashboard';
 
 interface Symptom {
   name: string;
@@ -33,6 +35,11 @@ interface GraphSectionProps {
   onFullscreenOpen: () => void;
   onFullscreenClose: () => void;
   patientName?: string;
+  patientUuid?: string;
+  startDate: string;
+  endDate: string;
+  onStartDateChange: (date: string) => void;
+  onEndDateChange: (date: string) => void;
   formatDateShort: (date: string) => string;
   chemoDates?: string[];
   isFaxMode?: boolean;
@@ -47,10 +54,21 @@ const GraphSection: React.FC<GraphSectionProps> = ({
   onFullscreenOpen,
   onFullscreenClose,
   patientName,
+  patientUuid,
+  startDate,
+  endDate,
+  onStartDateChange,
+  onEndDateChange,
   formatDateShort,
   chemoDates,
   isFaxMode = false,
 }) => {
+  // Fetch summary data
+  const { data: summaryData, isLoading: isSummaryLoading, isFetching: isSummaryFetching } = usePatientOverallSummary(
+    patientUuid || '',
+    startDate,
+    endDate
+  );
   const FAX_DASH_PATTERNS = [
     '', // solid
     '8,4', // dashed
@@ -87,6 +105,7 @@ const GraphSection: React.FC<GraphSectionProps> = ({
             </Tooltip>
           </div>
 
+
           {/* Legend */}
           <div className="flex flex-wrap gap-1.5 sm:gap-2">
             {graphData.symptoms.map((symptom, idx) => (
@@ -103,7 +122,7 @@ const GraphSection: React.FC<GraphSectionProps> = ({
                   ) : (
                     <div className="flex items-center gap-0.5">
                       <div
-                        className="w-2.5 h-0.5"
+                        className="w-2.5 h-0.5 rounded-full"
                         style={{ backgroundColor: symptom.color }}
                       />
                       <div
@@ -113,7 +132,7 @@ const GraphSection: React.FC<GraphSectionProps> = ({
                     </div>
                   )}
                 </div>
-                <span className={`text-[11px] sm:text-xs md:text-sm ${isDark ? 'text-slate-300' : 'text-slate-700'} whitespace-nowrap`}>
+                <span className={`text-[11px] sm:text-xs font-medium ${isDark ? 'text-slate-300' : 'text-slate-700'} whitespace-nowrap`}>
                   {symptom.name.charAt(0).toUpperCase() + symptom.name.slice(1)}
                 </span>
               </div>
@@ -131,6 +150,50 @@ const GraphSection: React.FC<GraphSectionProps> = ({
           chemoDates={chemoDates}
           isFaxMode={isFaxMode}
         />
+      </div>
+
+      {/* Summary Card */}
+      <div className={`mb-5 p-4 rounded-xl border transition-all duration-300 ${isDark
+          ? 'bg-gradient-to-br from-[#2D2A26] to-[#252320] border-slate-700/50 shadow-inner'
+          : 'bg-gradient-to-br from-blue-50/50 to-indigo-50/30 border-blue-100/50 shadow-sm'
+        }`}>
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <div className={`w-2 h-2 rounded-full ${isSummaryFetching ? 'bg-blue-500 animate-pulse' : 'bg-green-500'}`} />
+            <h4 className={`text-xs mb-0 font-bold uppercase tracking-wider ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+              Overall Summary
+            </h4>
+          </div>
+          {isSummaryFetching && <CircularProgress size={12} thickness={5} sx={{ color: '#3b82f6' }} />}
+        </div>
+
+        {isSummaryLoading ? (
+          <div className="flex flex-col gap-2">
+            <div className={`h-4 w-3/4 rounded animate-pulse ${isDark ? 'bg-slate-700' : 'bg-slate-200'}`} />
+            <div className={`h-4 w-1/2 rounded animate-pulse ${isDark ? 'bg-slate-700' : 'bg-slate-200'}`} />
+          </div>
+        ) : summaryData ? (
+          <div className={`text-sm leading-relaxed ${isDark ? 'text-slate-200' : 'text-slate-700'}`}>
+            {typeof summaryData === 'string' ? (
+              summaryData
+            ) : summaryData.summary ? (
+              summaryData.summary
+            ) : (
+              <div className="flex flex-wrap gap-4">
+                {Object.entries(summaryData).map(([key, value]) => (
+                  <div key={key} className="flex flex-col">
+                    <span className="text-[10px] font-semibold uppercase text-slate-400">{key.replace(/_/g, ' ')}</span>
+                    <span className="font-medium text-slate-800 dark:text-slate-100">{String(value)}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className={`text-sm italic ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
+            No summary available for the selected range.
+          </div>
+        )}
       </div>
 
       {/* Fullscreen Chart Dialog */}
