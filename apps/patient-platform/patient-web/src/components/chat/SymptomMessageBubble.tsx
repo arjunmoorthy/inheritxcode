@@ -141,7 +141,7 @@ export const SymptomMessageBubble: React.FC<SymptomMessageBubbleProps> = ({
   const [showNextChemoDatePicker, setShowNextChemoDatePicker] = useState(false);
   const [nextChemoDate, setNextChemoDate] = useState<string>('');
   const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [uploadedUrl, setUploadedUrl] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   
@@ -620,52 +620,58 @@ export const SymptomMessageBubble: React.FC<SymptomMessageBubbleProps> = ({
   // RENDER: Image Selector
   // =========================================================================
   const renderImageSelector = () => {
-    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
       if (file) {
         if (!file.type.startsWith('image/')) {
           alert('Please select an image file.');
           return;
         }
-        setSelectedFile(file);
+
+        // Show local preview immediately
         const reader = new FileReader();
         reader.onloadend = () => {
           setImagePreview(reader.result as string);
         };
         reader.readAsDataURL(file);
+
+        try {
+          setIsUploading(true);
+          
+          // Upload file as binary directly to the new endpoint
+          const file_url = await chatService.uploadImage(file, message.chat_uuid);
+          
+          if (!file_url) {
+            throw new Error('Failed to upload image');
+          }
+          
+          // Store the URL for later sending
+          setUploadedUrl(file_url);
+        } catch (error: any) {
+          console.error('Upload failed:', error);
+          const errorMsg = error?.message || 'Unknown error';
+          alert(`Failed to upload image: ${errorMsg}. Please try again.`);
+          // Clear preview on failure
+          setImagePreview(null);
+        } finally {
+          setIsUploading(false);
+        }
       }
     };
 
-    const handleSendImage = async () => {
-      if (!selectedFile || !onImageSubmit) return;
-
-      try {
-        setIsUploading(true);
-        
-        // Upload file as binary directly to the new endpoint
-        const file_url = await chatService.uploadImage(selectedFile, message.chat_uuid);
-        
-        if (!file_url) {
-          throw new Error('Failed to upload image');
-        }
-        
-        // 3. Send the final URL back to chat
-        onImageSubmit(file_url);
-        
-        setImagePreview(null);
-        setSelectedFile(null);
-      } catch (error: any) {
-        console.error('Upload failed:', error);
-        const errorMsg = error?.message || 'Unknown error';
-        alert(`Failed to upload image: ${errorMsg}. Please try again.`);
-      } finally {
-        setIsUploading(false);
-      }
+    const handleSendImage = () => {
+      if (!uploadedUrl || !onImageSubmit) return;
+      
+      // Send the final URL back to chat
+      onImageSubmit(uploadedUrl);
+      
+      setImagePreview(null);
+      setUploadedUrl(null);
     };
 
     const handleCancel = () => {
       setImagePreview(null);
-      setSelectedFile(null);
+      setUploadedUrl(null);
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
@@ -695,7 +701,12 @@ export const SymptomMessageBubble: React.FC<SymptomMessageBubbleProps> = ({
               <button className="option-btn secondary" onClick={handleCancel} disabled={isUploading}>
                 Cancel
               </button>
-              <button className="option-btn primary" onClick={handleSendImage} disabled={isUploading} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <button 
+                className="option-btn primary" 
+                onClick={handleSendImage} 
+                disabled={isUploading || !uploadedUrl} 
+                style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+              >
                 {isUploading ? (
                   'Uploading...'
                 ) : (

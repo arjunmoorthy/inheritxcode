@@ -312,7 +312,7 @@ const SymptomChatPage: React.FC = () => {
 
   // Handle image submission
   const handleImageSubmit = (imageUrl: string) => {
-    sendUserMessage(imageUrl, 'image_response');
+    sendUserMessage(imageUrl, 'image');
   };
 
   // Handle multi-select submission
