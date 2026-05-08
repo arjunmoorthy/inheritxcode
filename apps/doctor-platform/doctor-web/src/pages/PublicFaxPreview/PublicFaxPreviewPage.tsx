@@ -352,8 +352,13 @@ const PublicFaxPreviewPage: React.FC = () => {
                 onFullscreenOpen={() => setIsChartFullscreen(true)}
                 onFullscreenClose={() => setIsChartFullscreen(false)}
                 patientName={patientDetails?.patientName}
+                patientUuid={patientUiId}
+                startDate={startDate}
+                endDate={endDate}
+                onStartDateChange={() => {}}
+                onEndDateChange={() => {}}
                 formatDateShort={formatDateShort}
-                lastChemoDate={timeline?.last_chemo_date ?? null}
+                chemoDates={timeline?.chemo_dates ?? (timeline?.last_chemo_date ? [timeline.last_chemo_date] : [])}
                 isFaxMode
               />
             </div>

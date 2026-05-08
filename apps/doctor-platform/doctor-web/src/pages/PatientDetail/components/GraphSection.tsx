@@ -137,6 +137,25 @@ const GraphSection: React.FC<GraphSectionProps> = ({
                 </span>
               </div>
             ))}
+
+            {/* Chemo Legend */}
+            {chemoDates && chemoDates.length > 0 && (
+              <div className="flex items-center gap-1.5">
+                <div className="flex items-center">
+                  <svg width="24" height="12" className="mr-1">
+                    <line
+                      x1="0" y1="6" x2="24" y2="6"
+                      stroke={isDark ? '#22d3ee' : '#0891b2'}
+                      strokeWidth="2.5"
+                      strokeDasharray="4 4"
+                    />
+                  </svg>
+                </div>
+                <span className={`text-[11px] sm:text-xs font-medium ${isDark ? 'text-slate-300' : 'text-slate-700'} whitespace-nowrap`}>
+                  Chemo Day
+                </span>
+              </div>
+            )}
           </div>
         </div>
 
@@ -271,6 +290,25 @@ const GraphSection: React.FC<GraphSectionProps> = ({
                   </span>
                 </div>
               ))}
+              
+              {/* Chemo Legend in Fullscreen */}
+              {chemoDates && chemoDates.length > 0 && (
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center">
+                    <svg width="30" height="12" className="mr-2">
+                      <line
+                        x1="0" y1="6" x2="30" y2="6"
+                        stroke={isDark ? '#22d3ee' : '#0891b2'}
+                        strokeWidth="3"
+                        strokeDasharray="4 4"
+                      />
+                    </svg>
+                  </div>
+                  <span className={`text-sm ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                    Chemo Day
+                  </span>
+                </div>
+              )}
             </div>
             <Tooltip title="Exit fullscreen">
               <IconButton
@@ -316,6 +354,25 @@ const GraphSection: React.FC<GraphSectionProps> = ({
                 </span>
               </div>
             ))}
+            
+            {/* Chemo Legend in Mobile Fullscreen */}
+            {chemoDates && chemoDates.length > 0 && (
+              <div className="flex items-center gap-2">
+                <div className="flex items-center">
+                  <svg width="24" height="12" className="mr-1">
+                    <line
+                      x1="0" y1="6" x2="24" y2="6"
+                      stroke={isDark ? '#22d3ee' : '#0891b2'}
+                      strokeWidth="2.5"
+                      strokeDasharray="4 4"
+                    />
+                  </svg>
+                </div>
+                <span className={`text-sm ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                  → Chemo Day
+                </span>
+              </div>
+            )}
           </div>
 
           {/* Fullscreen Graph */}
