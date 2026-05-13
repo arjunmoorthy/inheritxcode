@@ -275,18 +275,12 @@ class OverallSummaryService(BaseService):
                     conversation_state,
                     symptom_list,
                     severity_list,
-                    bulleted_summary,
-                    longer_summary,
                     clinical_narrative_summary,
-                    patient_narrative_summary,
-                    overall_feeling,
-                    medication_list,
                     triage_level
                 FROM conversations
                 WHERE patient_uuid = :patient_uuid
                   AND created_at >= :start_dt
                   AND created_at <= :end_dt
-                  AND bulleted_summary IS NOT NULL
                 ORDER BY created_at ASC
                 """
             ),
@@ -303,12 +297,7 @@ class OverallSummaryService(BaseService):
                 "uuid": str(row["uuid"]),
                 "created_at": row["created_at"].isoformat() if row.get("created_at") else None,
                 "symptom_list": row["symptom_list"] or [],
-                "bulleted_summary": row["bulleted_summary"] or "",
-                "longer_summary": row["longer_summary"] or "",
                 "clinical_narrative_summary": row["clinical_narrative_summary"] or "",
-                "patient_narrative_summary": row["patient_narrative_summary"] or "",
-                "overall_feeling": row["overall_feeling"],
-                "medication_list": row["medication_list"] or [],
                 "triage_level": row["triage_level"],
             })
         return result
