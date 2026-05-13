@@ -54,7 +54,7 @@ from routers.chat.models import (
     ConnectionEstablished, Message
 )
 from routers.chat.symptom_checker_service import _display_content_for_user_symptom_message
-
+from services.redis_client import redis_client
 # Database models
 from db.patient_models import (
     ChatPatient,
@@ -402,6 +402,21 @@ class ChatService:
         chat.overall_feeling = feeling
         self.db.commit()
         logger.info(f"Updated feeling: chat={chat_uuid} feeling={feeling}")
+
+        # ==========================================
+        # CLEAR OVERALL SUMMARY CACHE
+        # ==========================================
+
+        for key in redis_client.scan_iter(
+            f"overall_summary:{patient_uuid}:*"
+        ):
+            redis_client.delete(key)
+
+        logger.info(
+            f"Cleared overall summary cache for patient {patient_uuid}"
+        )
+
+        logger.info(f"Updated feeling: chat={chat_uuid} feeling={feeling}")
     
     # =========================================================================
     # Message Processing
@@ -560,6 +575,19 @@ class ChatService:
         self.db.add(user_msg)
         self.db.commit()
         self.db.refresh(user_msg)
+
+        # Immediately clear overall summary cache for this patient so a newly
+        # submitted symptom will force regeneration of overall summaries for
+        # the same date range.
+        try:
+            for key in redis_client.scan_iter(
+                f"overall_summary:{chat.patient_uuid}:*"
+            ):
+                redis_client.delete(key)
+            logger.info(f"Cleared overall summary cache for patient {chat.patient_uuid}")
+        except Exception:
+            logger.exception("Failed to clear overall summary cache")
+
         yield Message.from_orm(user_msg)
         
         # 2. Load or create the engine with saved state
@@ -1082,6 +1110,17 @@ class ChatService:
             f"Created conversation summary: {conversation_summary.uuid} "
             f"for patient: {chat.patient_uuid}"
         )
+
+        # Clear overall summary cache for this patient so overall summaries
+        # that include this completed conversation are regenerated.
+        try:
+            for key in redis_client.scan_iter(
+                f"overall_summary:{chat.patient_uuid}:*"
+            ):
+                redis_client.delete(key)
+            logger.info(f"Cleared overall summary cache for patient {chat.patient_uuid}")
+        except Exception:
+            logger.exception("Failed to clear overall summary cache after saving conversation summary")
         return conversation_summary
     
     def _save_chat_to_diary(self, chat: ChatModel) -> DiaryEntry:

@@ -29,6 +29,7 @@ from db.repositories import ConversationRepository
 from services.base import BaseService
 from core.exceptions import NotFoundException, ValidationException
 from core.logging import get_logger
+from services.redis_client import redis_client
 
 # Import symptom checker engine
 from routers.chat.symptom_checker import SymptomCheckerEngine
@@ -183,6 +184,14 @@ class ConversationService(BaseService):
             content=user_input,
             message_type=message_type
         )
+
+        # Immediately clear overall summary cache for this patient so
+        # any newly submitted symptom (or change) causes fresh summary
+        # generation for the same date range.
+        for key in redis_client.scan_iter(
+            f"overall_summary:{conversation.patient_uuid}:*"
+        ):
+            redis_client.delete(key)
         
         # Process input through engine
         result = engine.process_input(user_input)
@@ -212,6 +221,23 @@ class ConversationService(BaseService):
             )
         
         self.flush()
+
+        print(f"Processed message for conversation {conversation_id}, "f"triage_level={result.get('triage_level')}, "
+        f"is_complete={result.get('is_complete')}")
+
+        # ==========================================
+        # CLEAR OVERALL SUMMARY CACHE
+        # ==========================================
+
+        for key in redis_client.scan_iter(
+            f"overall_summary:{conversation.patient_uuid}:*"
+        ):
+            redis_client.delete(key)
+
+        logger.info(
+            f"Cleared overall summary cache for patient "
+            f"{conversation.patient_uuid}"
+        )
         
         return {
             "message": result["message"],
