@@ -15,6 +15,7 @@ from sqlalchemy import desc, and_, func
 from db.models import Conversation, Message
 from db.repositories.base import BaseRepository
 from core.logging import get_logger
+from services.redis_client import redis_client
 
 logger = get_logger(__name__)
 
@@ -237,6 +238,16 @@ class ConversationRepository(BaseRepository[Conversation]):
             f"Added message to conversation {conversation_id}",
             extra={"sender": sender, "type": message_type}
         )
+
+        # Clear overall summary cache for the patient owning this conversation
+        try:
+            conv = self.db.query(Conversation).filter(Conversation.uuid == conversation_id).first()
+            if conv:
+                for key in redis_client.scan_iter(f"overall_summary:{conv.patient_uuid}:*"):
+                    redis_client.delete(key)
+                logger.info(f"Cleared overall summary cache for patient {conv.patient_uuid}")
+        except Exception:
+            logger.exception("Failed to clear overall summary cache after adding message")
         
         return message
     

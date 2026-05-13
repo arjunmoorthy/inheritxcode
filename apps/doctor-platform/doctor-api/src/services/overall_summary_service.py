@@ -22,12 +22,11 @@ from sqlalchemy import text
 from core.logging import get_logger
 from core.config import settings
 from services.base import BaseService
+from services.redis_client import redis_client
+import json
 
 logger = get_logger(__name__)
 
-# ---------------------------------------------------------------------------
-# Prompt template matching the client's exact format
-# ---------------------------------------------------------------------------
 OVERALL_SUMMARY_PROMPT = (
     "Please provide a concise oncology-style clinical summary using the "
     "patient PRO data, daily summaries, and chemotherapy dates provided below.\n\n"
@@ -57,6 +56,42 @@ OVERALL_SUMMARY_PROMPT = (
     "{daily_summaries}"
 )
 
+
+# OVERALL_SUMMARY_PROMPT = (
+#     "Generate a concise oncology-style clinical synthesis using the "
+#     "patient daily summaries and chemotherapy dates.\n\n"
+
+#     "Instructions:\n"
+#     "- Treat each chemotherapy date as Day 0 for that cycle.\n"
+#     "- Use ONLY the exact format 'Day +X from C#'.\n"
+#     "- NEVER use abbreviations such as D+X or C1D3.\n"
+#     "- Focus on clinically meaningful symptom progression only.\n"
+#     "- Summarize related symptoms together instead of listing every detail.\n"
+#     "- Prioritize major toxicities, functional decline, infections, neurological changes, and treatment response.\n"
+#     "- Avoid excessive granular details such as stool counts, exact temperatures, durations, or repetitive severity wording unless clinically critical.\n"
+#     "- Avoid repeating the same symptom multiple times.\n"
+#     "- Keep the tone medically concise and professional.\n"
+#     "- Total response must remain under 200 words.\n\n"
+
+#     "Format EXACTLY as:\n\n"
+
+#     "Clinical Synthesis\n\n"
+
+#     "Timeline of Significant Events\n"
+#     "- Day +X from C#: concise clinically meaningful event summary\n\n"
+
+#     "Current Status\n"
+#     "- Brief overall current clinical condition\n\n"
+
+#     "Treatment / Intervention Response\n"
+#     "- Brief summary of medication/intervention effectiveness\n\n"
+
+#     "Chemotherapy Dates:\n"
+#     "{chemotherapy_dates}\n\n"
+
+#     "Patient Daily Summaries:\n"
+#     "{daily_summaries}"
+# )
 
 # ---------------------------------------------------------------------------
 # Response model for the overall summary
@@ -104,6 +139,19 @@ class OverallSummaryService(BaseService):
         super().__init__(doctor_db)
         self.patient_db = patient_db
 
+    def _get_cache_key(
+        self,
+        patient_uuid,
+        start_date,
+        end_date,
+    ):
+        return (
+            f"overall_summary:"
+            f"{patient_uuid}:"
+            f"{start_date}:"
+            f"{end_date}"
+        )
+
     # =========================================================================
     # Public API
     # =========================================================================
@@ -129,6 +177,21 @@ class OverallSummaryService(BaseService):
             f"Generating overall summary for patient {patient_uuid} "
             f"from {start_date} to {end_date}"
         )
+
+        cache_key = self._get_cache_key(
+            patient_uuid,
+            start_date,
+            end_date,
+        )
+
+        cached_data = redis_client.get(cache_key)
+
+        if cached_data:
+            logger.info("Returning overall summary from Redis cache")
+
+            return OverallSummaryResponse(
+                **json.loads(cached_data)
+            )
 
         # 1. Fetch conversations
         conversations = self._fetch_conversations(patient_uuid, start_date, end_date)
@@ -161,16 +224,30 @@ class OverallSummaryService(BaseService):
             # Fallback if Gemini fails
             summary_text = self._build_fallback_summary(conversations, chemo_dates)
 
-        return OverallSummaryResponse(
+        result = OverallSummaryResponse(
             summary=summary_text,
             anchor_date=chemo_dates[-1] if chemo_dates else (
-                conversations[0].get("created_at", "")[:10] if conversations[0].get("created_at") else None
+                conversations[0].get("created_at", "")[:10]
+                if conversations[0].get("created_at")
+                else None
             ),
             chemo_dates=chemo_dates,
             start_date=start_date.isoformat(),
             end_date=end_date.isoformat(),
             conversation_count=len(conversations),
         )
+
+        # =====================================================
+        # STORE RESULT IN REDIS
+        # =====================================================
+
+        redis_client.setex(
+            cache_key,
+            3600,  # cache for 1 hour
+            json.dumps(result.to_dict())
+        )
+
+        return result
 
     # =========================================================================
     # Data Fetching
@@ -290,6 +367,48 @@ class OverallSummaryService(BaseService):
         if not chemo_dates:
             return "No chemotherapy dates recorded in this period."
         return "\n".join(f"- {d}" for d in chemo_dates)
+    
+    # def _build_daily_summaries(
+    #     self,
+    #     conversations: List[Dict[str, Any]],
+    # ) -> str:
+
+    #     lines = []
+
+    #     for conv in conversations:
+
+    #         created = conv.get("created_at", "")
+    #         day_str = created[:10] if created else ""
+
+    #         symptoms = conv.get("symptom_list", [])
+    #         symptom_str = ", ".join(symptoms) if symptoms else "None"
+
+    #         feeling = conv.get("overall_feeling") or "N/A"
+
+    #         triage = conv.get("triage_level") or "N/A"
+
+    #         meds = conv.get("medication_list", [])
+    #         med_names = []
+
+    #         for m in meds:
+    #             if isinstance(m, dict):
+    #                 name = m.get("medicineName") or m.get("name")
+    #                 if name:
+    #                     med_names.append(name)
+    #             elif isinstance(m, str):
+    #                 med_names.append(m)
+
+    #         meds_str = ", ".join(med_names) if med_names else "None"
+
+    #         lines.append(
+    #             f"Date: {day_str} | "
+    #             f"Symptoms: {symptom_str} | "
+    #             f"Feeling: {feeling} | "
+    #             f"Triage: {triage} | "
+    #             f"Medications: {meds_str}"
+    #         )
+
+    #     return "\n".join(lines)
 
     def _build_daily_summaries(
         self,
@@ -311,9 +430,6 @@ class OverallSummaryService(BaseService):
             # Use the best available summary text
             summary_text = (
                 conv.get("clinical_narrative_summary")
-                or conv.get("patient_narrative_summary")
-                or conv.get("longer_summary")
-                or conv.get("bulleted_summary")
                 or "No summary available"
             )
 
@@ -346,6 +462,7 @@ class OverallSummaryService(BaseService):
             )
 
         return "\n\n".join(lines) if lines else "No daily summaries available."
+
 
     # =========================================================================
     # Gemini AI Call
