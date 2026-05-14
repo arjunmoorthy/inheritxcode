@@ -105,7 +105,7 @@ services:
       - S3_EDUCATION_BUCKET=${S3_EDUCATION_BUCKET:-oncolife-education-east-296062592436}
       # AI_CLINICAL_SUMMARY
       - AI_CLINICAL_SUMMARY_ENABLED=true
-      - GEMINI_MODEL=gemini-2.5-flash
+      - GEMINI_MODEL=gemini-3-flash-preview
       - GEMINI_TIMEOUT_SECONDS=120
       # Celery / Redis
       - CELERY_BROKER_URL=redis://redis:6379/0
