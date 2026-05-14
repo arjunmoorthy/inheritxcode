@@ -270,11 +270,8 @@ class OverallSummaryService(BaseService):
             text(
                 """
                 SELECT
-                    uuid,
-                    created_at,
                     conversation_state,
                     symptom_list,
-                    severity_list,
                     clinical_narrative_summary,
                     triage_level
                 FROM conversations
@@ -294,8 +291,7 @@ class OverallSummaryService(BaseService):
         result = []
         for row in rows:
             result.append({
-                "uuid": str(row["uuid"]),
-                "created_at": row["created_at"].isoformat() if row.get("created_at") else None,
+                "conversation_state": row["conversation_state"] or {},
                 "symptom_list": row["symptom_list"] or [],
                 "clinical_narrative_summary": row["clinical_narrative_summary"] or "",
                 "triage_level": row["triage_level"],
@@ -422,9 +418,6 @@ class OverallSummaryService(BaseService):
                 or "No summary available"
             )
 
-            feeling = conv.get("overall_feeling")
-            feeling_str = f" [Feeling: {feeling}]" if feeling else ""
-
             triage = conv.get("triage_level")
             triage_str = f" [Triage: {triage}]" if triage else ""
 
@@ -446,7 +439,7 @@ class OverallSummaryService(BaseService):
                     meds_str = f" [Medications: {', '.join(med_names)}]"
 
             lines.append(
-                f"Date: {day_str}{feeling_str}{triage_str}{symptom_str}{meds_str}\n"
+                f"Date: {day_str}{triage_str}{symptom_str}{meds_str}\n"
                 f"Summary: {summary_text}"
             )
 

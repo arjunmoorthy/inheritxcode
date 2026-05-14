@@ -29,10 +29,10 @@ async def build_patient_dashboard_pdf_from_url(url: str) -> bytes:
 
             # Try to wait for network to settle, but continue if it never reaches idle.
             try:
-                await page.wait_for_load_state("networkidle", timeout=15_000)
+                await page.wait_for_load_state("networkidle", timeout=20_000)
             except PlaywrightTimeoutError:
                 logger.warning("Playwright networkidle timeout; continuing PDF render for url=%s", url)
-            await page.wait_for_timeout(2000)
+            await page.wait_for_timeout(5000)
 
             # 🧼 Optional: remove unwanted UI (if any)
             await page.add_style_tag(content="""

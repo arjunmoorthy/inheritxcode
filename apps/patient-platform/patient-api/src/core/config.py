@@ -395,7 +395,7 @@ class Settings(BaseSettings):
         description="Gemini API key for AI-generated summaries"
     )
     gemini_model: str = Field(
-        default="gemini-2.5-flash",
+        default="gemini-3-flash-preview",
         description="Gemini model name for clinical summary generation"
     )
     gemini_timeout_seconds: int = Field(
