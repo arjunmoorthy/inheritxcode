@@ -43,7 +43,7 @@ const patientSchema = z.object({
   lastName: z.string().min(1, 'Last name is required').max(50, 'Last name is too long'),
   email: z.string().email('Please enter a valid email address'),
   phone: z.string().optional(),
-  mrn: z.string().optional(),
+  mrn: z.string().min(1, 'MRN is required').regex(/^\d+$/, 'MRN must contain only numbers'),
   dateOfBirth: z.string().refine((val) => !val || dayjs(val).isBefore(dayjs().add(1, 'day')), 'Date of birth cannot be in the future').optional(),
   gender: z.string().optional(),
   location: z.string().optional(),
@@ -65,6 +65,34 @@ const patientSchema = z.object({
 export type PatientFormValues = z.infer<typeof patientSchema>;
 
 const DEFAULT_LOCATION = '';
+
+function getDefaultFormValues(): PatientFormValues {
+  const today = dayjs().format('YYYY-MM-DD');
+  const fourMonthsLater = dayjs().add(4, 'month').format('YYYY-MM-DD');
+  return {
+    firstName: '',
+    lastName: '',
+    email: '',
+    phone: '',
+    mrn: '',
+    dateOfBirth: '',
+    gender: '',
+    location: DEFAULT_LOCATION,
+    diagnosis: '',
+    patientStatus: 'active',
+    regimenName: '',
+    regimenCode: '',
+    regimenStage: '',
+    dayOfChemo: '',
+    treatmentStartDate: today,
+    nextChemoDate: '',
+    endDate: fourMonthsLater,
+    oncologist: '',
+    pastMedicalHistory: '',
+    pastSurgicalHistory: '',
+    physicianIds: [],
+  };
+}
 
 const defaultFormValues: PatientFormValues = {
   firstName: '',
@@ -104,7 +132,7 @@ function patientToFormValues(patient: Patient): PatientFormValues {
     lastName: patient.lastName,
     email: patient.email,
     phone: patient.phoneNumber,
-    mrn: patient.mrn,
+    mrn: patient.mrn ? patient.mrn.replace(/\D/g, '') : '',
     dateOfBirth: patient.dateOfBirth,
     gender: patient.sex,
     location: resolvedLocation,
@@ -114,9 +142,9 @@ function patientToFormValues(patient: Patient): PatientFormValues {
     regimenCode: patient.regimen_code || (patient as any).regimenCode || '',
     regimenStage: patient.stage || (patient as any).regimen_stage || (patient as any).regimenStage || '',
     dayOfChemo: (patient.chemotherapy_day || (patient as any).day_of_chemotherapy_treatment) || '',
-    treatmentStartDate: patient.start_date?.split('T')[0] || '',
+    treatmentStartDate: patient.start_date?.split('T')[0] || dayjs().format('YYYY-MM-DD'),
     nextChemoDate: (patient.next_chemotherapy_treatment || patient.next_chemotherapy_date || (patient as any).next_chemotherapy_treatment)?.split('T')[0] || '',
-    endDate: patient.end_date?.split('T')[0] || '',
+    endDate: patient.end_date?.split('T')[0] || dayjs(patient.start_date?.split('T')[0] || dayjs().format('YYYY-MM-DD')).add(4, 'month').format('YYYY-MM-DD'),
     oncologist: patient.assigned_oncologist || patient.physician || '',
     pastMedicalHistory: patient.past_medical_history || '',
     pastSurgicalHistory: patient.past_surgical_history || '',
@@ -267,7 +295,7 @@ export const PatientFormModal: React.FC<PatientFormModalProps> = ({
     formState: { errors, isSubmitting },
   } = useForm<PatientFormValues>({
     resolver: zodResolver(patientSchema),
-    defaultValues: defaultFormValues,
+    defaultValues: getDefaultFormValues(),
   });
 
   useEffect(() => {
@@ -290,7 +318,7 @@ export const PatientFormModal: React.FC<PatientFormModalProps> = ({
 
         reset(formValues);
       } else {
-        reset(defaultFormValues);
+        reset(getDefaultFormValues());
       }
     }
   }, [open, isEdit, patient, reset, doctors]);
@@ -396,7 +424,18 @@ export const PatientFormModal: React.FC<PatientFormModalProps> = ({
                 />
               )} />
               <Controller name="mrn" control={control} render={({ field }) => (
-                <Input {...field} label="MRN" placeholder="e.g., MRN123456" icon={<User size={18} />} error={errors.mrn?.message} fullWidth />
+                <Input
+                  {...field}
+                  label="MRN *"
+                  placeholder="e.g., 123456"
+                  icon={<User size={18} />}
+                  error={errors.mrn?.message}
+                  fullWidth
+                  onChange={(e) => {
+                    const onlyNums = e.target.value.replace(/\D/g, '');
+                    field.onChange(onlyNums);
+                  }}
+                />
               )} />
               <Controller name="dateOfBirth" control={control} render={({ field }) => (
                 <div className="w-full mb-5">
@@ -596,7 +635,14 @@ export const PatientFormModal: React.FC<PatientFormModalProps> = ({
                   </label>
                   <DatePicker
                     value={field.value ? dayjs(field.value) : null}
-                    onChange={(newValue) => field.onChange(newValue && newValue.isValid() ? newValue.format('YYYY-MM-DD') : '')}
+                    onChange={(newValue) => {
+                      const formatted = newValue && newValue.isValid() ? newValue.format('YYYY-MM-DD') : '';
+                      field.onChange(formatted);
+                      if (formatted) {
+                        const newEndDate = dayjs(formatted).add(4, 'month').format('YYYY-MM-DD');
+                        setValue('endDate', newEndDate, { shouldValidate: true, shouldDirty: true });
+                      }
+                    }}
                     format="MM/DD/YYYY"
                     slotProps={{
                       popper: {
