@@ -185,9 +185,30 @@ const PublicFaxPreviewPage: React.FC = () => {
   }, [currentStaffProfile]);
 
   const formatDate = (dateStr: string) => {
-    const localDate = parseIsoDateAsLocal(dateStr);
-    if (!localDate) return dateStr;
-    return localDate.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' });
+    if (!dateStr || dateStr === '--') return '--';
+    const cleanStr = dateStr.split('T')[0];
+    const parts = cleanStr.split(/[-/]/);
+    if (parts.length === 3) {
+      let year = Number(parts[0]);
+      let month = Number(parts[1]);
+      let day = Number(parts[2]);
+      if (parts[2].length === 4) {
+        year = Number(parts[2]);
+        month = Number(parts[0]);
+        day = Number(parts[1]);
+      }
+      if (!Number.isNaN(year) && !Number.isNaN(month) && !Number.isNaN(day)) {
+        const date = new Date(year, month - 1, day);
+        if (!Number.isNaN(date.getTime())) {
+          return date.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' });
+        }
+      }
+    }
+    const parsed = new Date(dateStr);
+    if (!Number.isNaN(parsed.getTime())) {
+      return parsed.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' });
+    }
+    return dateStr;
   };
 
   const formatDateShort = (dateStr: string) => {
@@ -323,21 +344,17 @@ const PublicFaxPreviewPage: React.FC = () => {
         }
       `}</style>
       <div className="fax-print-container max-w-[1400px] mx-auto space-y-3">
-        <div className={`${isDark ? 'bg-[#252320] border-slate-700/50' : 'bg-white border-slate-200'} rounded-lg border p-3`}>
-          <h1 className="text-base md:text-lg font-semibold">Fax Preview</h1>
-          <p className={`text-xs md:text-sm mb-0 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
-            Patient UI ID: {patientUiId || '--'}
-          </p>
-          <p className={`text-xs md:text-sm mb-0 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
-            Patient Name : {patientDetails?.patientName || '--'}
-          </p>
-          <p className={`text-xs md:text-sm mb-0 ${isDark ? 'text-slate-500' : 'text-slate-500'}`}>
-            Date Range: {startDate} to {endDate}
-          </p>
-          <div className={`text-xs md:text-sm font-medium flex flex-wrap items-center gap-x-6 gap-y-1 ${isDark ? 'text-slate-200' : 'text-slate-700'}`}>
-            <span>Clinic Name : <span className="font-semibold">{clinicName || '--'}</span></span>
-            <span>Fax Number : <span className="font-semibold">{clinicFax || '--'}</span></span>
-          </div>
+        <div className={`${isDark ? 'bg-[#252320] border-slate-700/50' : 'bg-white border-slate-200'} rounded-lg border p-4`}>
+          <h1 className="text-xl md:text-2xl font-bold mb-4 border-b pb-2 border-slate-200 dark:border-slate-700">Fax Preview</h1>
+          <ul className={`list-disc pl-6 space-y-2 text-[18px] font-bold ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>
+            <li>Patient Name: {patientDetails?.patientName || '--'}</li>
+            <li>DOB: {patientDetails?.dateOfBirth ? formatDate(patientDetails.dateOfBirth) : '--'}</li>
+            <li>MRN: {patientDetails?.mrn || '--'}</li>
+            <li>Patient UI ID: {patientUiId || '--'}</li>
+            <li>Date Range: {startDate ? formatDate(startDate) : '--'} to {endDate ? formatDate(endDate) : '--'}</li>
+            <li>Clinic Name: {clinicName || '--'}</li>
+            <li>Fax Number: {clinicFax || '--'}</li>
+          </ul>
         </div>
 
         <div className="flex items-start min-h-0 gap-3">

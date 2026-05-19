@@ -173,8 +173,8 @@ const GraphSection: React.FC<GraphSectionProps> = ({
 
       {/* Summary Card */}
       <div className={`mb-5 p-4 rounded-xl border transition-all duration-300 ${isDark
-          ? 'bg-gradient-to-br from-[#2D2A26] to-[#252320] border-slate-700/50 shadow-inner'
-          : 'bg-gradient-to-br from-blue-50/50 to-indigo-50/30 border-blue-100/50 shadow-sm'
+        ? 'bg-gradient-to-br from-[#2D2A26] to-[#252320] border-slate-700/50 shadow-inner'
+        : 'bg-gradient-to-br from-blue-50/50 to-indigo-50/30 border-blue-100/50 shadow-sm'
         }`}>
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
@@ -290,7 +290,7 @@ const GraphSection: React.FC<GraphSectionProps> = ({
                   </span>
                 </div>
               ))}
-              
+
               {/* Chemo Legend in Fullscreen */}
               {chemoDates && chemoDates.length > 0 && (
                 <div className="flex items-center gap-2">
@@ -354,7 +354,7 @@ const GraphSection: React.FC<GraphSectionProps> = ({
                 </span>
               </div>
             ))}
-            
+
             {/* Chemo Legend in Mobile Fullscreen */}
             {chemoDates && chemoDates.length > 0 && (
               <div className="flex items-center gap-2">

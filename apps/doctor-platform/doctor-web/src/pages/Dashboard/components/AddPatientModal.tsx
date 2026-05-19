@@ -39,7 +39,7 @@ const patientSchema = z.object({
   lastName: z.string().min(1, 'Last name is required').max(50, 'Last name is too long'),
   email: z.string().email('Please enter a valid email address'),
   phone: z.string().optional(),
-  mrn: z.string().optional(),
+  mrn: z.string().min(1, 'MRN is required').regex(/^\d+$/, 'MRN must contain only numbers'),
   dateOfBirth: z.string().refine((val) => !val || dayjs(val).isBefore(dayjs().add(1, 'day')), 'Date of birth cannot be in the future').optional(),
   gender: z.string().optional(),
   location: z.string().optional(),
@@ -59,6 +59,34 @@ const patientSchema = z.object({
 });
 
 export type PatientFormValues = z.infer<typeof patientSchema>;
+
+function getDefaultFormValues(): PatientFormValues {
+  const today = dayjs().format('YYYY-MM-DD');
+  const fourMonthsLater = dayjs().add(4, 'month').format('YYYY-MM-DD');
+  return {
+    firstName: '',
+    lastName: '',
+    email: '',
+    phone: '',
+    mrn: '',
+    dateOfBirth: '',
+    gender: '',
+    location: DEFAULT_LOCATION,
+    diagnosis: '',
+    patientStatus: 'active',
+    regimenName: '',
+    regimenCode: '',
+    regimenStage: '',
+    dayOfChemo: '',
+    treatmentStartDate: today,
+    nextChemoDate: '',
+    endDate: fourMonthsLater,
+    oncologist: '',
+    pastMedicalHistory: '',
+    pastSurgicalHistory: '',
+    physicianIds: [],
+  };
+}
 
 interface AddPatientModalProps {
   isOpen: boolean;
@@ -136,35 +164,16 @@ export const AddPatientModal: React.FC<AddPatientModalProps> = ({
     formState: { errors, isSubmitting },
   } = useForm<PatientFormValues>({
     resolver: zodResolver(patientSchema),
-    defaultValues: {
-      firstName: '',
-      lastName: '',
-      email: '',
-      phone: '',
-      mrn: '',
-      dateOfBirth: '',
-      gender: '',
-      location: DEFAULT_LOCATION,
-      diagnosis: '',
-      patientStatus: 'active',
-      regimenName: '',
-      regimenCode: '',
-      regimenStage: '',
-      dayOfChemo: '',
-      treatmentStartDate: '',
-      nextChemoDate: '',
-      endDate: '',
-      oncologist: '',
-      pastMedicalHistory: '',
-      pastSurgicalHistory: '',
-      physicianIds: [],
-    },
+    defaultValues: getDefaultFormValues(),
   });
 
   // Clear error when modal opens
   useEffect(() => {
-    if (isOpen) setErrorMessage(null);
-  }, [isOpen]);
+    if (isOpen) {
+      setErrorMessage(null);
+      reset(getDefaultFormValues());
+    }
+  }, [isOpen, reset]);
 
   // Pre-fill doctor/oncologist ONLY if the logged in user is a physician
   useEffect(() => {
@@ -307,11 +316,15 @@ export const AddPatientModal: React.FC<AddPatientModalProps> = ({
                 render={({ field }) => (
                   <Input
                     {...field}
-                    label="MRN"
-                    placeholder="e.g., MRN123456"
+                    label="MRN *"
+                    placeholder="e.g., 123456"
                     icon={<User size={18} />}
                     error={errors.mrn?.message}
                     fullWidth
+                    onChange={(e) => {
+                      const onlyNums = e.target.value.replace(/\D/g, '');
+                      field.onChange(onlyNums);
+                    }}
                   />
                 )}
               />
@@ -614,7 +627,14 @@ export const AddPatientModal: React.FC<AddPatientModalProps> = ({
                     </label>
                     <MUIDatePicker
                       value={field.value ? dayjs(field.value) : null}
-                      onChange={(newValue) => field.onChange(newValue && newValue.isValid() ? newValue.format('YYYY-MM-DD') : '')}
+                      onChange={(newValue) => {
+                        const formatted = newValue && newValue.isValid() ? newValue.format('YYYY-MM-DD') : '';
+                        field.onChange(formatted);
+                        if (formatted) {
+                          const newEndDate = dayjs(formatted).add(4, 'month').format('YYYY-MM-DD');
+                          setValue('endDate', newEndDate, { shouldValidate: true, shouldDirty: true });
+                        }
+                      }}
                       format="MM/DD/YYYY"
                       slotProps={{
                         popper: { sx: { zIndex: 100000 } },
