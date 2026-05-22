@@ -22,6 +22,10 @@ from services.overall_summary_service import OverallSummaryService
 
 logger = get_logger(__name__)
 
+NO_TRACKER_DATA_MESSAGE = (
+    "No symptom check-in or tracker data available for the selected date range."
+)
+
 EM_DOCUMENTATION_PROMPT = """Please synthesize the following raw data/tracker info into an EHR-ready note based on current CMS E&M guidelines for Medical Decision Making (MDM):
 
 Format the note using an ultra-lean, highly condensed EHR format with minimal narrative text, heavy bulleting, and explicit billing indicators for maximum scannability. Use the following specific headings:
@@ -96,6 +100,15 @@ class EmDocumentationService(BaseService):
         )
         daily_summaries = self._summary_data._build_daily_summaries(conversations)
         chemotherapy_dates = self._summary_data._format_chemo_dates(chemo_dates)
+
+        if not self._has_tracker_data(conversations, trends):
+            logger.info(
+                f"Skipping E&M generation for patient {patient_uuid}: "
+                "no conversations or trends in date range"
+            )
+            return EmDocumentationResponse(
+                em_text=self._sanitize_output(NO_TRACKER_DATA_MESSAGE)
+            )
 
         prompt = self._build_prompt(
             start_date=start_date,
@@ -181,6 +194,25 @@ class EmDocumentationService(BaseService):
             daily_summaries=daily_summaries,
             trends_data=trends_json,
         )
+
+    @staticmethod
+    def _has_tracker_data(
+        conversations: list,
+        trends: Dict[str, Any],
+    ) -> bool:
+        """True when there is check-in or symptom-tracker data to synthesize."""
+        if conversations:
+            return True
+        compact = EmDocumentationService._compact_trends(trends)
+        if compact.get("chemo_dates"):
+            return True
+        if compact.get("severity_series"):
+            return True
+        if compact.get("temperature_series"):
+            return True
+        if compact.get("medications"):
+            return True
+        return False
 
     @staticmethod
     def _compact_trends(trends: Dict[str, Any]) -> Dict[str, Any]:
