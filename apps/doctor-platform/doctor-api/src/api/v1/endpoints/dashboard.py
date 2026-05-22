@@ -43,6 +43,7 @@ from sqlalchemy.orm import Session
 from api.deps import get_current_user, get_patient_db_session, get_doctor_db_session, TokenData
 from services.dashboard_service import DashboardService
 from services.overall_summary_service import OverallSummaryService
+from services.em_documentation_service import EmDocumentationService
 from services.fax_patient_service import parse_date
 from services.audit_service import AuditService
 from core.logging import get_logger
@@ -1494,6 +1495,64 @@ def get_patient_overall_summary(
     )
 
     return OverallSummaryResponseSchema(**result.to_dict())
+
+
+class EmDocumentationResponseSchema(BaseModel):
+    """Response schema for E&M documentation note generation."""
+    note: str
+    patient_uuid: str
+    start_date: str
+    end_date: str
+    source: str
+
+
+@router.get(
+    "/patient/{patient_uuid}/em-documentation",
+    response_model=EmDocumentationResponseSchema,
+    summary="Patient E&M documentation note (AI-generated)",
+    description="Generate an EHR-ready E&M note from trends and tracker data "
+                "in a single AI pass (CMS MDM guidelines).",
+)
+def get_patient_em_documentation(
+    patient_uuid: UUID,
+    start_date: Optional[date] = Query(default=None, description="Start date (YYYY-MM-DD)"),
+    end_date: Optional[date] = Query(default=None, description="End date (YYYY-MM-DD)"),
+    current_user=Depends(
+        require_roles(
+            "physician",
+            "nurse",
+            "research_coordinator",
+            "navigator",
+            "medical_assistant",
+            "admin",
+        )
+    ),
+    patient_db: Session = Depends(get_patient_db_session),
+    doctor_db: Session = Depends(get_doctor_db_session),
+):
+    today = datetime.utcnow().date()
+    start = start_date or (today - timedelta(days=30))
+    end = end_date or today
+    if end < start:
+        raise HTTPException(status_code=400, detail="end_date must be >= start_date")
+
+    trends = get_patient_trends(
+        patient_uuid=patient_uuid,
+        start_date=start,
+        end_date=end,
+        current_user=current_user,
+        patient_db=patient_db,
+        doctor_db=doctor_db,
+    )
+
+    em_result = EmDocumentationService(patient_db, doctor_db).generate(
+        patient_uuid=patient_uuid,
+        start_date=start,
+        end_date=end,
+        trends=trends.model_dump(),
+    )
+
+    return EmDocumentationResponseSchema(**em_result.to_dict())
 
 
 # =============================================================================
