@@ -56,6 +56,7 @@ from api.deps import require_roles
 from datetime import time, timedelta
 from typing import Dict, Any, Literal, Optional
 from db.models.staff import PhysicianNurseAssignment, PhysicianPatient, Staff
+from utils.demo_mode import parse_demo_mode, mask_patient_listing_item, mask_patient_profile_dict
 
 
 logger = get_logger(__name__)
@@ -403,6 +404,7 @@ def _to_pst(dt: Optional[datetime]) -> Optional[str]:
 
 @router.get("/patient-listing-dashboard")
 def patient_listing_dashboard(
+    demo_mode: bool = Depends(parse_demo_mode),
     search: str | None = Query(
         default=None,
         description="Search by first name, last name, or full name"
@@ -826,6 +828,9 @@ def patient_listing_dashboard(
             return (pr, -ts)
 
         response.sort(key=_sort_key)
+
+        if demo_mode:
+            response = [mask_patient_listing_item(item) for item in response]
 
         return {
             "status": "success",
@@ -1779,6 +1784,7 @@ def _sync_patient_info_demographics(
 def patch_patient_profile(
     patient_uuid: UUID,
     body: PatientProfileUpdateRequest,
+    demo_mode: bool = Depends(parse_demo_mode),
     current_user: User = Depends(
         require_roles(
             "physician",
@@ -1806,10 +1812,15 @@ def patch_patient_profile(
 
     data = body.model_dump(exclude_unset=True)
     if not data:
+        profile = _patient_profile_response_from_fax(fax_patient, patient_uuid)
+        if demo_mode:
+            profile = PatientProfileResponse(
+                **mask_patient_profile_dict(profile.model_dump())
+            )
         return APIResponse(
             success=True,
             message="No changes submitted; returning current profile.",
-            data=_patient_profile_response_from_fax(fax_patient, patient_uuid),
+            data=profile,
         )
 
     patient_user = fax_patient.user
@@ -1982,8 +1993,12 @@ def patch_patient_profile(
             e,
         )
 
+    profile = _patient_profile_response_from_fax(fax_patient, patient_uuid)
+    if demo_mode:
+        profile = PatientProfileResponse(**mask_patient_profile_dict(profile.model_dump()))
+
     return APIResponse(
         success=True,
         message="Patient profile updated successfully.",
-        data=_patient_profile_response_from_fax(fax_patient, patient_uuid),
+        data=profile,
     )
