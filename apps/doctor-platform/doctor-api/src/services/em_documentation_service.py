@@ -62,28 +62,11 @@ Maintain a formal, highly technical medical tone appropriate for direct EHR entr
 class EmDocumentationResponse:
     """Response containing the generated E&M documentation note."""
 
-    def __init__(
-        self,
-        note: str,
-        patient_uuid: str,
-        start_date: str,
-        end_date: str,
-        source: str = "gemini",
-    ):
-        self.note = note
-        self.patient_uuid = patient_uuid
-        self.start_date = start_date
-        self.end_date = end_date
-        self.source = source
+    def __init__(self, em_text: str):
+        self.em_text = em_text
 
-    def to_dict(self) -> Dict[str, Any]:
-        return {
-            "note": self.note,
-            "patient_uuid": self.patient_uuid,
-            "start_date": self.start_date,
-            "end_date": self.end_date,
-            "source": self.source,
-        }
+    def to_dict(self) -> Dict[str, str]:
+        return {"E&M": self.em_text}
 
 
 class EmDocumentationService(BaseService):
@@ -124,7 +107,6 @@ class EmDocumentationService(BaseService):
         )
 
         note_text = self._call_gemini(prompt)
-        source = "gemini"
         if not note_text:
             note_text = self._build_fallback_note(
                 trends=trends,
@@ -135,15 +117,8 @@ class EmDocumentationService(BaseService):
                 start_date=start_date,
                 end_date=end_date,
             )
-            source = "fallback"
 
-        return EmDocumentationResponse(
-            note=note_text,
-            patient_uuid=str(patient_uuid),
-            start_date=start_date.isoformat(),
-            end_date=end_date.isoformat(),
-            source=source,
-        )
+        return EmDocumentationResponse(em_text=self._sanitize_output(note_text))
 
     def _fetch_patient_context(self, patient_uuid: UUID) -> str:
         row = self.db.execute(
@@ -279,6 +254,17 @@ class EmDocumentationService(BaseService):
         cleaned = re.sub(r"^```[a-zA-Z]*\n?", "", cleaned)
         cleaned = re.sub(r"\n?```$", "", cleaned)
         cleaned = re.sub(r"\n{3,}", "\n\n", cleaned)
+        return cleaned.strip()
+
+    @staticmethod
+    def _sanitize_output(text: str) -> str:
+        """Strip markdown bold and newlines for API response."""
+        if not text:
+            return ""
+        cleaned = EmDocumentationService._normalize_output(text)
+        cleaned = cleaned.replace("**", "")
+        cleaned = cleaned.replace("\n", " ")
+        cleaned = re.sub(r"\s{2,}", " ", cleaned)
         return cleaned.strip()
 
     def _build_fallback_note(

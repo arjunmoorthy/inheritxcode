@@ -1499,16 +1499,16 @@ def get_patient_overall_summary(
 
 class EmDocumentationResponseSchema(BaseModel):
     """Response schema for E&M documentation note generation."""
-    note: str
-    patient_uuid: str
-    start_date: str
-    end_date: str
-    source: str
+
+    model_config = {"serialize_by_alias": True, "populate_by_name": True}
+
+    em: str = Field(serialization_alias="E&M", validation_alias="E&M")
 
 
 @router.get(
     "/patient/{patient_uuid}/em-documentation",
     response_model=EmDocumentationResponseSchema,
+    response_model_by_alias=True,
     summary="Patient E&M documentation note (AI-generated)",
     description="Generate an EHR-ready E&M note from trends and tracker data "
                 "in a single AI pass (CMS MDM guidelines).",
@@ -1552,7 +1552,7 @@ def get_patient_em_documentation(
         trends=trends.model_dump(),
     )
 
-    return EmDocumentationResponseSchema(**em_result.to_dict())
+    return EmDocumentationResponseSchema(em=em_result.em_text)
 
 
 # =============================================================================
