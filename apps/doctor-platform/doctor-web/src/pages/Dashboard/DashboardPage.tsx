@@ -52,6 +52,8 @@ import Box from '@mui/material/Box';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import Button from '@mui/material/Button';
+import Switch from '@mui/material/Switch';
+import FormControlLabel from '@mui/material/FormControlLabel';
 import {
   Search,
   User,
@@ -135,6 +137,18 @@ const DashboardPage: React.FC = () => {
   });
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [selectedPatientForDelete, setSelectedPatientForDelete] = useState<{ uuid: string; name: string } | null>(null);
+  const [isDemoMode, setIsDemoMode] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem('demoMode');
+      return saved ? JSON.parse(saved) : false;
+    } catch {
+      return false;
+    }
+  });
+
+  useEffect(() => {
+    localStorage.setItem('demoMode', JSON.stringify(isDemoMode));
+  }, [isDemoMode]);
 
   // Debounce search: wait 400ms after typing stops; clear triggers API immediately
   // Set default physician from user profile if not admin
@@ -161,7 +175,8 @@ const DashboardPage: React.FC = () => {
     'all',
     selectedPhysicianIds,
     severityFilter,
-    checkInFilter
+    checkInFilter,
+    isDemoMode
   );
   const { data: doctors = [] } = useStaffListDoctors();
   const addPatientMutation = useAddManualPatient();
@@ -426,16 +441,35 @@ const mapSeverityToPriority = (severity: string | null | undefined): 'low' | 'me
                 </p>
               </div>
             </div>
-            <button
-              onClick={() => setIsAddPatientModalOpen(true)}
-              className={`inline-flex text-white items-center justify-center gap-2 px-4 py-2 sm:px-5 sm:py-2.5 rounded-lg font-semibold text-sm transition-all duration-200 transform hover:scale-105 active:scale-100 w-full sm:w-auto ${isDark
-                ? 'bg-blue-600 hover:bg-blue-500'
-                : 'bg-[#1e3a5f] hover:bg-[#2e5077]'
-                }`}
-            >
-              <UserPlus size={16} />
-              <span>Add Patient</span>
-            </button>
+            <div className="flex items-center gap-4 w-full sm:w-auto">
+              {user?.role === 'admin' && (
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={isDemoMode}
+                      onChange={(e) => setIsDemoMode(e.target.checked)}
+                      color="primary"
+                    />
+                  }
+                  label={
+                    <Typography sx={{ fontWeight: 600, color: isDark ? '#f1f5f9' : '#0f172a', fontSize: '0.875rem' }}>
+                      Demo Mode
+                    </Typography>
+                  }
+                  sx={{ margin: 0 }}
+                />
+              )}
+              <button
+                onClick={() => setIsAddPatientModalOpen(true)}
+                className={`inline-flex text-white items-center justify-center gap-2 px-4 py-2 sm:px-5 sm:py-2.5 rounded-lg font-semibold text-sm transition-all duration-200 transform hover:scale-105 active:scale-100 w-full sm:w-auto ${isDark
+                  ? 'bg-blue-600 hover:bg-blue-500'
+                  : 'bg-[#1e3a5f] hover:bg-[#2e5077]'
+                  }`}
+              >
+                <UserPlus size={16} />
+                <span>Add Patient</span>
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -929,10 +963,12 @@ const mapSeverityToPriority = (severity: string | null | undefined): 'low' | 'me
           ) : (
             <div className="flex flex-col gap-4">
               {filteredPatients.map((patient) => {
+                const patientName = patient.patientName;
+                const mrn = patient.mrn || 'N/A';
+                const dob = patient.dateOfBirth || (patient as any).date_of_birth || '';
                 const lastChemo = getLastChemo(patient);
                 const lastChatbot = patient.lastUpdated || '';
                 const nextChemo = getNextChemo(patient);
-                const dob = patient.dateOfBirth || (patient as any).date_of_birth || '';
                 const patientRouteId = getPatientRouteId(patient);
                 const severity = getSeverity(patient) as 'mild' | 'moderate' | 'severe' | 'urgent' | null;
 
@@ -950,13 +986,13 @@ const mapSeverityToPriority = (severity: string | null | undefined): 'low' | 'me
                           <div className="flex-1 min-w-0 flex flex-col justify-center">
                             <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
                               <div className={`font-bold ${isDark ? 'text-[#F5F3EE]' : 'text-slate-900'} text-base leading-tight`}>
-                                {patient.patientName}
+                                {patientName}
                               </div>
                             </div>
                             <div className={`text-xs mt-0.5 flex items-center gap-3 sm:gap-4 flex-wrap ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
                               <span className="flex items-center gap-1.5">
                                 <FileText size={14} className="flex-shrink-0" />
-                                <span>MRN: {patient.mrn || 'N/A'}</span>
+                                <span>MRN: {mrn}</span>
                               </span>
                               <span className="flex items-center gap-1.5">
                                 <Calendar size={14} className="flex-shrink-0" />
