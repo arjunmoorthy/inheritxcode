@@ -461,6 +461,15 @@ const PatientDetailPage: React.FC = () => {
     setToast({ open: true, message, type });
   };
 
+  const isDemoMode = useMemo(() => {
+    try {
+      const saved = localStorage.getItem('demoMode');
+      return saved ? JSON.parse(saved) : false;
+    } catch {
+      return false;
+    }
+  }, []);
+
   const handleCloseToast = (_event?: React.SyntheticEvent | Event, reason?: string) => {
     if (reason === 'clickaway') return;
     setToast(prev => ({ ...prev, open: false }));
@@ -501,13 +510,13 @@ const PatientDetailPage: React.FC = () => {
     isLoading: timelineLoading,
     isFetching: timelineFetching,
     refetch: refetchTimeline,
-  } = usePatientTimeline(uuid || '', startDate, endDate);
+  } = usePatientTimeline(uuid || '', startDate, endDate, isDemoMode);
   const { data: clinics = [], isLoading: isLoadingClinics } = useClinics(isFaxPreviewOpen);
   const {
     data: patientDetails,
     isFetching: patientDetailsFetching,
     refetch: refetchPatientDetails,
-  } = usePatientDetails(uuid || '');
+  } = usePatientDetails(uuid || '', isDemoMode);
 
   const {
     data: questions,

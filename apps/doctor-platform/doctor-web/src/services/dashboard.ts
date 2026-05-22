@@ -288,7 +288,8 @@ const fetchPatientListingDashboard = async (
   search?: string | null,
   physicianIds?: (string | number)[] | null,
   severityFilter: string = 'all',
-  lastChatbotCheckIn: string = 'all_time'
+  lastChatbotCheckIn: string = 'all_time',
+  demoMode: boolean = false
 ): Promise<PatientListingApiResponse> => {
   const searchTrimmed = typeof search === 'string' ? search.trim() : '';
   const params = new URLSearchParams();
@@ -297,6 +298,7 @@ const fetchPatientListingDashboard = async (
   params.set('last_chatbot_check_in', lastChatbotCheckIn || 'all_time');
   // Backward-compatible alias supported by backend
   params.set('last_chatbot_checkin', lastChatbotCheckIn || 'all_time');
+  params.set('demo_mode', String(demoMode));
   
   if (physicianIds && physicianIds.length > 0) {
     physicianIds.forEach(id => {
@@ -381,14 +383,16 @@ const fetchPatientSummaries = async (
   filter: string = 'all',
   physicianIds?: (string | number)[] | null,
   severityFilter: string = 'all',
-  lastChatbotCheckIn: string = 'all_time'
+  lastChatbotCheckIn: string = 'all_time',
+  demoMode: boolean = false
 ): Promise<DashboardResponse> => {
   try {
     const listingResponse = await fetchPatientListingDashboard(
       search,
       physicianIds,
       severityFilter,
-      lastChatbotCheckIn
+      lastChatbotCheckIn,
+      demoMode
     );
     const apiData = listingResponse?.data || [];
     let patients = apiData.map(transformListingToSummary);
@@ -419,12 +423,14 @@ const fetchPatientSummaries = async (
 const fetchPatientTimeline = async (
   patientUuid: string,
   startDate?: string,
-  endDate?: string
+  endDate?: string,
+  demoMode: boolean = false
 ): Promise<PatientTimeline> => {
   try {
     const params = new URLSearchParams();
     if (startDate) params.set('start_date', startDate);
     if (endDate) params.set('end_date', endDate);
+    params.set('demo-mode', String(demoMode));
     const query = params.toString();
     const response = await apiClient.get<PatientTimeline>(
       `${API_CONFIG.ENDPOINTS.DASHBOARD.PATIENT_TIMELINE(patientUuid)}/trends${query ? `?${query}` : ''}`
@@ -621,11 +627,12 @@ export const usePatientSummaries = (
   filter: string = 'all',
   physicianIds?: (string | number)[] | null,
   severityFilter: string = 'all',
-  lastChatbotCheckIn: string = 'all_time'
+  lastChatbotCheckIn: string = 'all_time',
+  demoMode: boolean = false
 ) => {
   return useQuery({
-    queryKey: ['patientSummaries', page, search, filter, physicianIds, severityFilter, lastChatbotCheckIn],
-    queryFn: () => fetchPatientSummaries(page, search, filter, physicianIds, severityFilter, lastChatbotCheckIn),
+    queryKey: ['patientSummaries', page, search, filter, physicianIds, severityFilter, lastChatbotCheckIn, demoMode],
+    queryFn: () => fetchPatientSummaries(page, search, filter, physicianIds, severityFilter, lastChatbotCheckIn, demoMode),
     placeholderData: keepPreviousData,
   });
 };
@@ -633,11 +640,12 @@ export const usePatientSummaries = (
 export const usePatientTimeline = (
   patientUuid: string,
   startDate?: string,
-  endDate?: string
+  endDate?: string,
+  demoMode: boolean = false
 ) => {
   return useQuery({
-    queryKey: ['patientTimeline', patientUuid, startDate, endDate],
-    queryFn: () => fetchPatientTimeline(patientUuid, startDate, endDate),
+    queryKey: ['patientTimeline', patientUuid, startDate, endDate, demoMode],
+    queryFn: () => fetchPatientTimeline(patientUuid, startDate, endDate, demoMode),
     enabled: !!patientUuid,
   });
 };
@@ -685,11 +693,11 @@ export const useSendPatientFax = () => {
 };
 
 // Legacy hook for backwards compatibility
-export const usePatientDetails = (patientId: string) => {
+export const usePatientDetails = (patientId: string, demoMode: boolean = false) => {
   return useQuery({
-    queryKey: ['patientDetails', patientId],
+    queryKey: ['patientDetails', patientId, demoMode],
     queryFn: async (): Promise<PatientSummary> => {
-      const listing = await fetchPatientListingDashboard();
+      const listing = await fetchPatientListingDashboard(null, null, 'all', 'all_time', demoMode);
       const matchedPatient = (listing?.data || []).find((item) => {
         const candidateUuid = (item.patient_uuid && String(item.patient_uuid)) || (item.uuid && String(item.uuid));
         return candidateUuid === patientId || String(item.patient_id) === patientId;
