@@ -12,7 +12,7 @@
  * */
 
 import React, { useEffect, useState, useMemo } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useMediaQuery, Snackbar, Dialog, DialogTitle, DialogContent, Button } from '@mui/material';
 import { ChevronLeft, ChevronRight, Filter, X } from 'lucide-react';
 import { useThemeMode } from '@oncolife/ui-components';
@@ -417,6 +417,7 @@ const STATIC_TIMELINE_DATA = {
 const PatientDetailPage: React.FC = () => {
   const { uuid } = useParams<{ uuid: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const { isDark } = useThemeMode();
   const isMobile = useMediaQuery('(max-width:768px)');
 
@@ -461,15 +462,6 @@ const PatientDetailPage: React.FC = () => {
     setToast({ open: true, message, type });
   };
 
-  const isDemoMode = useMemo(() => {
-    try {
-      const saved = localStorage.getItem('demoMode');
-      return saved ? JSON.parse(saved) : false;
-    } catch {
-      return false;
-    }
-  }, []);
-
   const handleCloseToast = (_event?: React.SyntheticEvent | Event, reason?: string) => {
     if (reason === 'clickaway') return;
     setToast(prev => ({ ...prev, open: false }));
@@ -510,13 +502,13 @@ const PatientDetailPage: React.FC = () => {
     isLoading: timelineLoading,
     isFetching: timelineFetching,
     refetch: refetchTimeline,
-  } = usePatientTimeline(uuid || '', startDate, endDate, isDemoMode);
+  } = usePatientTimeline(uuid || '', startDate, endDate);
   const { data: clinics = [], isLoading: isLoadingClinics } = useClinics(isFaxPreviewOpen);
   const {
     data: patientDetails,
     isFetching: patientDetailsFetching,
     refetch: refetchPatientDetails,
-  } = usePatientDetails(uuid || '', isDemoMode);
+  } = usePatientDetails(uuid || '');
 
   const {
     data: questions,

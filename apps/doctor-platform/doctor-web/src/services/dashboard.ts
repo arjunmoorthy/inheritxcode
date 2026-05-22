@@ -430,7 +430,7 @@ const fetchPatientTimeline = async (
     const params = new URLSearchParams();
     if (startDate) params.set('start_date', startDate);
     if (endDate) params.set('end_date', endDate);
-    params.set('demo-mode', String(demoMode));
+    params.set('demo_mode', String(demoMode));
     const query = params.toString();
     const response = await apiClient.get<PatientTimeline>(
       `${API_CONFIG.ENDPOINTS.DASHBOARD.PATIENT_TIMELINE(patientUuid)}/trends${query ? `?${query}` : ''}`
@@ -707,7 +707,7 @@ export const usePatientDetails = (patientId: string, demoMode: boolean = false) 
         return transformListingToSummary(matchedPatient);
       }
 
-      const timeline = await fetchPatientTimeline(patientId);
+      const timeline = await fetchPatientTimeline(patientId, undefined, undefined, demoMode);
       return {
         id: timeline.patient_uuid,
         patientUuid: timeline.patient_uuid,
