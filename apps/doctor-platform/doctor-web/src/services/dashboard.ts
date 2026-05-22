@@ -559,6 +559,27 @@ const fetchPatientOverallSummary = async (
   }
 };
 
+// Fetch patient EM Documentation
+const fetchPatientEmDocumentation = async (
+  patientUuid: string,
+  startDate?: string,
+  endDate?: string
+): Promise<any> => {
+  try {
+    const params = new URLSearchParams();
+    if (startDate) params.set('start_date', startDate);
+    if (endDate) params.set('end_date', endDate);
+    const query = params.toString();
+    const response = await apiClient.get<any>(
+      `${API_CONFIG.ENDPOINTS.DASHBOARD.EM_DOCUMENTATION(patientUuid)}${query ? `?${query}` : ''}`
+    );
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching patient EM documentation:', error);
+    return null;
+  }
+};
+
 // =============================================================================
 // React Query Hooks
 // =============================================================================
@@ -571,6 +592,18 @@ export const usePatientOverallSummary = (
   return useQuery({
     queryKey: ['patientOverallSummary', patientUuid, startDate, endDate],
     queryFn: () => fetchPatientOverallSummary(patientUuid, startDate, endDate),
+    enabled: !!patientUuid,
+  });
+};
+
+export const usePatientEmDocumentation = (
+  patientUuid: string,
+  startDate?: string,
+  endDate?: string
+) => {
+  return useQuery({
+    queryKey: ['patientEmDocumentation', patientUuid, startDate, endDate],
+    queryFn: () => fetchPatientEmDocumentation(patientUuid, startDate, endDate),
     enabled: !!patientUuid,
   });
 };
