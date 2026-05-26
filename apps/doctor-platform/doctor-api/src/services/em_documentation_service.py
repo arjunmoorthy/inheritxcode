@@ -23,12 +23,23 @@ from services.overall_summary_service import OverallSummaryService
 logger = get_logger(__name__)
 
 NO_TRACKER_DATA_MESSAGE = (
-    "No symptom check-in or tracker data available for the selected date range."
+    "<p>No symptom check-in or tracker data available for the selected date range.</p>"
 )
 
 EM_DOCUMENTATION_PROMPT = """Please synthesize the following raw data/tracker info into an EHR-ready note based on current CMS E&M guidelines for Medical Decision Making (MDM):
 
-Format the note using an ultra-lean, highly condensed EHR format with minimal narrative text, heavy bulleting, and explicit billing indicators for maximum scannability. Use the following specific headings:
+Format the note using an ultra-lean, highly condensed EHR format with minimal narrative text, heavy bulleting, and explicit billing indicators for maximum scannability.
+
+OUTPUT FORMAT (required):
+- Return ONLY a valid HTML fragment (no <html>, <head>, or <body> tags, no markdown, no code fences).
+- Use <h2> for each of the six main sections listed below (include the section number in the heading text).
+- Use <h3> for subsections (e.g., Status, Plan under each problem).
+- Use <ul> and <li> for bullet lists; use <ol> and <li> for numbered problem lists.
+- Use <table>, <thead>, <tbody>, <tr>, <th>, and <td> for the Level 5 elevation comparison.
+- Use <p> only for short standalone sentences when bullets are not appropriate.
+- Do not rely on plain-text line breaks; structure must come from HTML elements only.
+
+Use these six <h2> sections in order:
 
 1. CHIEF COMPLAINT / REASON FOR ENCOUNTER: State via a brief, single-sentence bullet that a separate evaluation was required to manage treatment-limiting toxicities distinct from routine pre-infusion protocols.
 
@@ -42,9 +53,9 @@ Format the note using an ultra-lean, highly condensed EHR format with minimal na
 
 5. BILLING & CODING SUMMARY: Outline the target E&M Level (aim for Level 4 / 99214 based on Moderate Complexity MDM, unless data dictates otherwise), list Modifier 25, and provide a clear mapping of primary and secondary supportive ICD-10 diagnosis categories.
 
-6. LEVEL 5 ELEVATION SUMMARY: Provide a brief, side-by-side or highly concise comparison table/breakdown showing exactly what specific thresholds or severe data abnormalities would be required in Column 1 (Problem), Column 2 (Data), and Column 3 (Risk) to elevate this specific case to a Level 5 (99215).
+6. LEVEL 5 ELEVATION SUMMARY: Provide a concise HTML table showing exactly what specific thresholds or severe data abnormalities would be required in Column 1 (Problem), Column 2 (Data), and Column 3 (Risk) to elevate this specific case to a Level 5 (99215).
 
-Maintain a formal, highly technical medical tone appropriate for direct EHR entry. Do not include any introductory text or conversational meta-commentary—provide ONLY the structured sections.
+Maintain a formal, highly technical medical tone appropriate for direct EHR entry. Do not include any introductory text or conversational meta-commentary—provide ONLY the structured HTML sections.
 
 === DATE RANGE ===
 {date_range}
@@ -107,7 +118,7 @@ class EmDocumentationService(BaseService):
                 "no conversations or trends in date range"
             )
             return EmDocumentationResponse(
-                em_text=self._sanitize_output(NO_TRACKER_DATA_MESSAGE)
+                em_text=self._sanitize_html(NO_TRACKER_DATA_MESSAGE)
             )
 
         prompt = self._build_prompt(
@@ -131,7 +142,7 @@ class EmDocumentationService(BaseService):
                 end_date=end_date,
             )
 
-        return EmDocumentationResponse(em_text=self._sanitize_output(note_text))
+        return EmDocumentationResponse(em_text=self._sanitize_html(note_text))
 
     def _fetch_patient_context(self, patient_uuid: UUID) -> str:
         row = self.db.execute(
@@ -289,15 +300,57 @@ class EmDocumentationService(BaseService):
         return cleaned.strip()
 
     @staticmethod
-    def _sanitize_output(text: str) -> str:
-        """Strip markdown bold and newlines for API response."""
+    def _sanitize_html(text: str) -> str:
+        """Normalize model output to a safe HTML fragment for API response."""
         if not text:
             return ""
         cleaned = EmDocumentationService._normalize_output(text)
-        cleaned = cleaned.replace("**", "")
-        cleaned = cleaned.replace("\n", " ")
-        cleaned = re.sub(r"\s{2,}", " ", cleaned)
+        cleaned = re.sub(r"^```(?:html)?\s*", "", cleaned, flags=re.IGNORECASE)
+        cleaned = re.sub(r"\s*```$", "", cleaned)
+        cleaned = re.sub(r"\*\*(.+?)\*\*", r"<strong>\1</strong>", cleaned)
+        cleaned = cleaned.strip()
+        if not re.search(
+            r"<\s*(?:h[1-6]|p|ul|ol|table|div|section)\b", cleaned, re.IGNORECASE
+        ):
+            cleaned = EmDocumentationService._plain_text_to_html(cleaned)
         return cleaned.strip()
+
+    @staticmethod
+    def _plain_text_to_html(text: str) -> str:
+        """Convert legacy plain-text section layout to HTML when the model omits tags."""
+        parts: list[str] = []
+        in_ul = False
+
+        def close_ul() -> None:
+            nonlocal in_ul
+            if in_ul:
+                parts.append("</ul>")
+                in_ul = False
+
+        for line in text.splitlines():
+            stripped = line.strip()
+            if not stripped:
+                close_ul()
+                continue
+
+            section_match = re.match(r"^(\d+)\.\s+(.+)$", stripped)
+            if section_match and not stripped.startswith(("- ", "* ")):
+                close_ul()
+                parts.append(f"<h2>{section_match.group(1)}. {section_match.group(2)}</h2>")
+                continue
+
+            if stripped.startswith(("- ", "* ")):
+                if not in_ul:
+                    parts.append("<ul>")
+                    in_ul = True
+                parts.append(f"<li>{stripped[2:].strip()}</li>")
+                continue
+
+            close_ul()
+            parts.append(f"<p>{stripped}</p>")
+
+        close_ul()
+        return "\n".join(parts)
 
     def _build_fallback_note(
         self,
@@ -334,48 +387,76 @@ class EmDocumentationService(BaseService):
             for m in medications[:5]
         ]
 
-        return "\n".join(
-            [
-                "1. CHIEF COMPLAINT / REASON FOR ENCOUNTER",
-                "- Separate evaluation required for treatment-limiting toxicities "
-                "distinct from routine pre-infusion protocols.",
-                "",
-                "2. INTERVAL HISTORY OF PRESENT ILLNESS (HPI)",
-                f"- Review period: {start_date.isoformat()} to {end_date.isoformat()}.",
-                chemotherapy_dates,
-                daily_summaries[:2000] if daily_summaries else "No daily summaries.",
-                *symptom_lines,
-                "",
-                "3. DATA REVIEWED & ANALYZED",
-                "- [x] Remote chemo tracker PRO data",
-                "- [x] Symptom severity trend lines",
-                "- [x] Daily temperature trend lines",
-                "- [x] Medication tracking entries",
-                f"- [x] Daily check-in summaries ({conversation_count} sessions)",
-                "",
-                "4. ASSESSMENT & PLAN",
-                patient_context,
-                "1. Primary malignancy — Status: Stable — Plan: Continue oncologic regimen per treating team.",
-                *[
-                    f"{i + 2}. {line.lstrip('- ')} — Status: See trends — Plan: Symptom-directed management per protocol."
-                    for i, line in enumerate(symptom_lines[:5])
-                ],
-                "",
-                "5. BILLING & CODING SUMMARY",
-                "- Target E&M: Level 4 / 99214 (Moderate MDM) — Modifier 25 indicated.",
-                "- Primary ICD-10: malignancy category per chart diagnosis.",
-                "- Secondary ICD-10: supportive toxicity/symptom categories per active problems.",
-                "",
-                "6. LEVEL 5 ELEVATION SUMMARY",
-                "| MDM Column | Level 5 (99215) threshold for this case |",
-                "| Problem | New/worsening toxicity with threat to organ function or life |",
-                "| Data | Independent interpretation of unique test + external records review |",
-                "| Risk | High-risk drug therapy, decision re: hospitalization, or emergency surgery |",
-                "",
-                "Temperature highlights:",
-                *temp_lines,
-                "",
-                "Medication highlights:",
-                *med_lines,
-            ]
+        hpi_items = [
+            f"<li>Review period: {start_date.isoformat()} to {end_date.isoformat()}.</li>",
+        ]
+        if chemotherapy_dates:
+            hpi_items.append(f"<li>{chemotherapy_dates}</li>")
+        if daily_summaries:
+            hpi_items.append(f"<li>{daily_summaries[:2000]}</li>")
+        else:
+            hpi_items.append("<li>No daily summaries.</li>")
+        hpi_items.extend(
+            f"<li>{line.lstrip('- ')}</li>" for line in symptom_lines
+        )
+
+        assessment_items = [
+            "<li><strong>Primary malignancy</strong>"
+            "<h3>Status</h3><p>Stable</p>"
+            "<h3>Plan</h3><p>Continue oncologic regimen per treating team.</p></li>",
+        ]
+        for i, line in enumerate(symptom_lines[:5]):
+            label = line.lstrip("- ")
+            assessment_items.append(
+                f"<li><strong>{i + 2}. {label}</strong>"
+                "<h3>Status</h3><p>See trends</p>"
+                "<h3>Plan</h3><p>Symptom-directed management per protocol.</p></li>"
+            )
+
+        temp_html = (
+            "<ul>" + "".join(f"<li>{line.lstrip('- ')}</li>" for line in temp_lines) + "</ul>"
+            if temp_lines
+            else "<p>None recorded.</p>"
+        )
+        med_html = (
+            "<ul>" + "".join(f"<li>{line.lstrip('- ')}</li>" for line in med_lines) + "</ul>"
+            if med_lines
+            else "<p>None recorded.</p>"
+        )
+
+        return (
+            "<h2>1. CHIEF COMPLAINT / REASON FOR ENCOUNTER</h2>"
+            "<ul><li>Separate evaluation required for treatment-limiting toxicities "
+            "distinct from routine pre-infusion protocols.</li></ul>"
+            "<h2>2. INTERVAL HISTORY OF PRESENT ILLNESS (HPI)</h2>"
+            f"<ul>{''.join(hpi_items)}</ul>"
+            "<h2>3. DATA REVIEWED &amp; ANALYZED</h2>"
+            "<ul>"
+            "<li>[x] Remote chemo tracker PRO data</li>"
+            "<li>[x] Symptom severity trend lines</li>"
+            "<li>[x] Daily temperature trend lines</li>"
+            "<li>[x] Medication tracking entries</li>"
+            f"<li>[x] Daily check-in summaries ({conversation_count} sessions)</li>"
+            "</ul>"
+            "<h2>4. ASSESSMENT &amp; PLAN</h2>"
+            f"<p>{patient_context}</p>"
+            f"<ol>{''.join(assessment_items)}</ol>"
+            "<h2>5. BILLING &amp; CODING SUMMARY</h2>"
+            "<ul>"
+            "<li>Target E&amp;M: Level 4 / 99214 (Moderate MDM) — Modifier 25 indicated.</li>"
+            "<li>Primary ICD-10: malignancy category per chart diagnosis.</li>"
+            "<li>Secondary ICD-10: supportive toxicity/symptom categories per active problems.</li>"
+            "</ul>"
+            "<h2>6. LEVEL 5 ELEVATION SUMMARY</h2>"
+            "<table>"
+            "<thead><tr><th>MDM Column</th><th>Level 5 (99215) threshold for this case</th></tr></thead>"
+            "<tbody>"
+            "<tr><td>Problem</td><td>New/worsening toxicity with threat to organ function or life</td></tr>"
+            "<tr><td>Data</td><td>Independent interpretation of unique test + external records review</td></tr>"
+            "<tr><td>Risk</td><td>High-risk drug therapy, decision re: hospitalization, or emergency surgery</td></tr>"
+            "</tbody></table>"
+            "<h3>Temperature highlights</h3>"
+            f"{temp_html}"
+            "<h3>Medication highlights</h3>"
+            f"{med_html}"
         )
