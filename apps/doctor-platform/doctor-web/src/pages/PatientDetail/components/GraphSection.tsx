@@ -3,7 +3,7 @@
  * Wrapper for the symptom graph with header, legend, and fullscreen functionality
  */
 
-import React, { useState, useMemo } from 'react';
+import React from 'react';
 import IconButton from '@mui/material/IconButton';
 import Tooltip from '@mui/material/Tooltip';
 import Dialog from '@mui/material/Dialog';
@@ -11,7 +11,7 @@ import DialogContent from '@mui/material/DialogContent';
 import DialogTitle from '@mui/material/DialogTitle';
 import Typography from '@mui/material/Typography';
 import CircularProgress from '@mui/material/CircularProgress';
-import { Maximize, Minimize, Calendar, Info, FileText } from 'lucide-react';
+import { Maximize, Minimize } from 'lucide-react';
 import SymptomGraph from './SymptomGraph';
 import { usePatientOverallSummary, usePatientEmDocumentation } from '../../../services/dashboard';
 
@@ -57,8 +57,6 @@ const GraphSection: React.FC<GraphSectionProps> = ({
   patientUuid,
   startDate,
   endDate,
-  onStartDateChange,
-  onEndDateChange,
   formatDateShort,
   chemoDates,
   isFaxMode = false,
@@ -71,7 +69,7 @@ const GraphSection: React.FC<GraphSectionProps> = ({
   );
 
   // Fetch EM documentation data
-  const { data: emDocData, isLoading: isEmDocLoading, isFetching: isEmDocFetching } = usePatientEmDocumentation(
+  const {}  = usePatientEmDocumentation(
     patientUuid || '',
     startDate,
     endDate
@@ -221,57 +219,6 @@ const GraphSection: React.FC<GraphSectionProps> = ({
           </div>
         )}
       </div>
-
-      {/* EM Documentation Card */}
-      {/* {!isFaxMode && ( */}
-        <div className={`mb-5 p-4 rounded-xl border transition-all duration-300 ${isDark
-          ? 'bg-gradient-to-br from-[#2D2A26] to-[#252320] border-slate-700/50 shadow-inner'
-          : 'bg-gradient-to-br from-indigo-50/50 to-purple-50/30 border-indigo-100/50 shadow-sm'
-          }`}>
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <FileText size={16} className={isDark ? 'text-indigo-400' : 'text-indigo-500'} />
-              <h4 className={`text-xs mb-0 font-bold uppercase tracking-wider ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                EM Documentation
-              </h4>
-            </div>
-            {isEmDocFetching && <CircularProgress size={12} thickness={5} sx={{ color: '#6366f1' }} />}
-          </div>
-
-          {isEmDocLoading ? (
-            <div className="flex flex-col gap-2">
-              <div className={`h-4 w-3/4 rounded animate-pulse ${isDark ? 'bg-slate-700' : 'bg-slate-200'}`} />
-              <div className={`h-4 w-1/2 rounded animate-pulse ${isDark ? 'bg-slate-700' : 'bg-slate-200'}`} />
-              <div className={`h-4 w-5/6 rounded animate-pulse ${isDark ? 'bg-slate-700' : 'bg-slate-200'}`} />
-            </div>
-          ) : emDocData ? (
-            <div className={`text-sm leading-relaxed ${isDark ? 'text-slate-200' : 'text-slate-700 whitespace-pre-wrap'}`}>
-              {typeof emDocData === 'string' ? (
-                emDocData
-              ) : emDocData.em_documentation ? (
-                emDocData.em_documentation
-              ) : emDocData.documentation ? (
-                emDocData.documentation
-              ) : emDocData.text ? (
-                emDocData.text
-              ) : (
-                <div className="flex flex-wrap gap-4">
-                  {Object.entries(emDocData).map(([key, value]) => (
-                    <div key={key} className="flex flex-col">
-                      <span className="text-[10px] font-semibold uppercase text-slate-400">{key.replace(/_/g, ' ')}</span>
-                      <span className="font-medium text-slate-800 dark:text-slate-100">{String(value)}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className={`text-sm italic ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
-              No EM Documentation available for the selected range.
-            </div>
-          )}
-        </div>
-      
 
       {/* Fullscreen Chart Dialog */}
       <Dialog
