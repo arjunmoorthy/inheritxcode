@@ -76,6 +76,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useStaffListDoctors } from '../../services/staff';
 import { AddPatientModal, type PatientFormValues } from './components/AddPatientModal';
 import { ChatSummariesModal } from './components/ChatSummariesModal';
+import { DocumentationAssistantModal } from './components/DocumentationAssistantModal';
 
 function computeAge(dateOfBirth: string | undefined): number | undefined {
   if (!dateOfBirth) return undefined;
@@ -127,6 +128,8 @@ const DashboardPage: React.FC = () => {
   const [isAddPatientModalOpen, setIsAddPatientModalOpen] = useState(false);
   const [isSummaryModalOpen, setIsSummaryModalOpen] = useState(false);
   const [selectedPatientForSummary, setSelectedPatientForSummary] = useState<{ uuid: string; name: string } | null>(null);
+  const [isNotesModalOpen, setIsNotesModalOpen] = useState(false);
+  const [selectedPatientForNotes, setSelectedPatientForNotes] = useState<{ uuid: string; name: string } | null>(null);
   const [filtersDrawerOpen, setFiltersDrawerOpen] = useState(false);
   const [selectedPhysicianIds, setSelectedPhysicianIds] = useState<(string | number)[]>(['all']);
   const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -189,6 +192,15 @@ const DashboardPage: React.FC = () => {
       name: patient.patientName
     });
     setIsSummaryModalOpen(true);
+  };
+
+  const handleOpenNotes = (e: React.MouseEvent, patient: PatientSummary) => {
+    e.stopPropagation();
+    setSelectedPatientForNotes({
+      uuid: patient.patientUuid || patient.id,
+      name: patient.patientName
+    });
+    setIsNotesModalOpen(true);
   };
 
   const handleOpenTreatments = (e: React.MouseEvent, patient: PatientSummary) => {
@@ -1087,6 +1099,16 @@ const mapSeverityToPriority = (severity: string | null | undefined): 'low' | 'me
                           <FileText size={16} />
                           <span>Summaries</span>
                         </button>
+                        <button
+                          onClick={(e) => handleOpenNotes(e, patient)}
+                          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-all duration-200 border ${isDark
+                            ? 'border-slate-700 text-slate-300 hover:bg-slate-800 hover:text-white'
+                            : 'border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                            }`}
+                        >
+                          <FileText size={16} />
+                          <span>Documentation Assistant</span>
+                        </button>
                         {user?.role === 'admin' && (
                           <button
                             onClick={(e) => handleOpenTreatments(e, patient)}
@@ -1133,6 +1155,19 @@ const mapSeverityToPriority = (severity: string | null | undefined): 'low' | 'me
           onClose={() => setIsSummaryModalOpen(false)}
           patientUuid={selectedPatientForSummary.uuid}
           patientName={selectedPatientForSummary.name}
+        />
+      )}
+
+      {/* Documentation Assistant Modal */}
+      {selectedPatientForNotes && (
+        <DocumentationAssistantModal
+          isOpen={isNotesModalOpen}
+          onClose={() => {
+            setIsNotesModalOpen(false);
+            setSelectedPatientForNotes(null);
+          }}
+          patientUuid={selectedPatientForNotes.uuid}
+          patientName={selectedPatientForNotes.name}
         />
       )}
 
