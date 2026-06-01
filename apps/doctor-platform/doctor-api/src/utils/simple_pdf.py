@@ -47,12 +47,13 @@ async def build_patient_dashboard_pdf_from_url(url: str) -> bytes:
             # 🖨️ Generate PDF
             pdf_bytes = await page.pdf(
                 format="A4",
+                scale=0.9,
                 print_background=True,
                 margin={
                     "top": "10mm",
                     "bottom": "10mm",
-                    "left": "10mm",
-                    "right": "10mm"
+                    "left": "5mm",
+                    "right": "5mm"
                 }
             )
 
