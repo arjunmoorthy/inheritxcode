@@ -19,12 +19,13 @@ Endpoints:
 - summaries: Conversation summaries
 """
 
-from . import auth, chat, chemo, diary, docs, education, health, onboarding, patients, profile, questions, summaries
+from . import auth, chat, chemo, dashboard, diary, docs, education, health, onboarding, patients, profile, questions, summaries
 
 __all__ = [
     "auth",
     "chat",
     "chemo",
+    "dashboard",
     "diary",
     "docs",
     "education",
