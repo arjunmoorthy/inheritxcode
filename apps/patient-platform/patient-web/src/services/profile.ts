@@ -58,3 +58,71 @@ export const useUpdateProfile = () => {
     },
   });
 };
+
+export interface SeverityPoint {
+  date: string;
+  value: string;
+}
+
+export interface SeveritySeries {
+  symptom_id: string;
+  symptom_name: string;
+  points: SeverityPoint[];
+}
+
+export interface TemperaturePoint {
+  date: string;
+  value: number;
+}
+
+export interface MedicationRow {
+  date: string;
+  symptom_id: string;
+  symptom_name: string;
+  severity: string;
+  medication_name: string | null;
+  medication_frequency: string | null;
+}
+
+export interface PatientTrendsResponse {
+  patient_uuid: string;
+  start_date: string;
+  end_date: string;
+  severity_series: SeveritySeries[];
+  temperature_series: TemperaturePoint[];
+  medications: MedicationRow[];
+  chemo_dates: string[];
+  last_chemo_date: string | null;
+}
+
+export const fetchPatientTrends = async (
+  startDate?: string,
+  endDate?: string
+): Promise<PatientTrendsResponse> => {
+  const patientUuid = getPatientUuid();
+  if (!patientUuid) {
+    throw new Error('Not authenticated. Please sign in.');
+  }
+
+  const params: Record<string, string> = {};
+  if (startDate) params.start_date = startDate;
+  if (endDate) params.end_date = endDate;
+
+  const response = await apiClient.get<PatientTrendsResponse>(
+    `/dashboard/patient/${encodeURIComponent(patientUuid)}/trends`,
+    { params }
+  );
+  return response.data;
+};
+
+export const usePatientTrends = (
+  startDate?: string,
+  endDate?: string,
+  options?: { enabled?: boolean }
+) => {
+  return useQuery({
+    queryKey: ['patientTrends', startDate, endDate],
+    queryFn: () => fetchPatientTrends(startDate, endDate),
+    enabled: options?.enabled ?? true,
+  });
+};
