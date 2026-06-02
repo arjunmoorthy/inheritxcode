@@ -39,7 +39,7 @@ from fastapi import APIRouter
 
 from .endpoints import (
     auth, chat, patients, profile, health, 
-    chemo, diary, summaries, onboarding, education, questions, docs
+    chemo, dashboard, diary, summaries, onboarding, education, questions, docs
 )
 
 # Create main v1 router
@@ -78,6 +78,12 @@ router.include_router(
     chemo.router,
     prefix="/chemo",
     tags=["Chemotherapy"]
+)
+
+router.include_router(
+    dashboard.router,
+    prefix="/dashboard",
+    tags=["Dashboard"]
 )
 
 router.include_router(
