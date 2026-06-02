@@ -50,6 +50,7 @@ import NotesPage from './pages/NotesPage';
 import EducationPage from './pages/EducationPage';
 import ProfilePage from './pages/ProfilePage';
 import QuestionsPage from './pages/QuestionsPage';
+import TrendsPage from './pages/TrendsPage';
 
 function RootRedirect() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -75,6 +76,7 @@ function App() {
                 <Route path="/chat" element={<ChatsPage />} />
                 <Route path="/summaries" element={<SummariesPage />} />
                 <Route path="/summaries/:id" element={<SummariesDetailsPage />} />
+                <Route path="/trends" element={<TrendsPage />} />
                 <Route path="/notes" element={<NotesPage />} />
                 <Route path="/questions" element={<QuestionsPage />} />
                 <Route path="/education" element={<EducationPage />} />

@@ -36,7 +36,8 @@ import {
   Menu as MenuIcon,
   LogOut,
   X,
-  MessageCircleQuestion
+  MessageCircleQuestion,
+  TrendingUp
 } from 'lucide-react';
 import { DarkModeToggle, useThemeMode } from '@oncolife/ui-components';
 import { useAuth } from '../contexts/AuthContext';
@@ -48,11 +49,13 @@ const DRAWER_WIDTH = 260;
 const navItems = [
   { id: 'chat', label: 'Symptom Check', icon: MessageCircle, path: '/chat' },
   { id: 'summaries', label: 'Summaries', icon: FileText, path: '/summaries' },
+  { id: 'trends', label: 'My Trends', icon: TrendingUp, path: '/trends' },
   { id: 'notes', label: 'Diary', icon: BookOpen, path: '/notes' },
   { id: 'questions', label: 'Questions', icon: MessageCircleQuestion, path: '/questions' },
   { id: 'education', label: 'Education', icon: GraduationCap, path: '/education' },
   { id: 'profile', label: 'Profile', icon: User, path: '/profile' },
 ];
+
 
 // Fallbacks so layout styles work on live when theme.palette is not applied (same as doctor-web fix)
 const PATIENT_LAYOUT_FALLBACK = {
@@ -346,7 +349,8 @@ const Layout: React.FC = () => {
           flexGrow: 1,
           display: 'flex',
           flexDirection: 'column',
-          minHeight: '100vh',
+          height: '100vh',
+          overflow: 'hidden',
           bgcolor: 'background.default',
           transition: 'background-color 0.3s ease',
           pb: isMobile ? '64px' : 0, // Space for bottom nav
@@ -413,7 +417,7 @@ const Layout: React.FC = () => {
         <Box 
           sx={{ 
             flex: 1, 
-            overflow: 'auto',
+            overflow: 'hidden',
             display: 'flex',
             flexDirection: 'column',
             minHeight: 0, /* Important: allows flex child to shrink below content size */
