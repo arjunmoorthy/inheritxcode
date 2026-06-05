@@ -20,6 +20,7 @@ import {
   usePatientTimeline,
   usePatientDetails,
   usePatientQuestions,
+  usePatientOverallSummary,
   useSendPatientFax,
 } from '../../services/dashboard';
 import { useCurrentStaffProfile } from '../../services/staff';
@@ -517,6 +518,8 @@ const PatientDetailPage: React.FC = () => {
     refetch: refetchQuestions,
   } = usePatientQuestions(uuid || '', 50);
 
+  const { data: overallSummaryData } = usePatientOverallSummary(uuid || '', startDate, endDate);
+
   const { mutateAsync: sendPatientFax, isPending: isSendingFax } = useSendPatientFax();
   const { data: currentStaffProfile } = useCurrentStaffProfile(true);
 
@@ -792,6 +795,16 @@ const PatientDetailPage: React.FC = () => {
         .join('')
       : '<span style="font-size:12px;color:#64748b;">No symptom labels available</span>';
 
+    const overallSummaryText = overallSummaryData
+      ? typeof overallSummaryData === 'string'
+        ? overallSummaryData
+        : overallSummaryData.summary
+          ? overallSummaryData.summary
+          : Object.entries(overallSummaryData)
+            .map(([key, value]) => `${key.replace(/_/g, ' ')}: ${String(value)}`)
+            .join('\n')
+      : 'No summary available for the selected range.';
+
     const html = `
       <!doctype html>
       <html>
@@ -845,6 +858,9 @@ const PatientDetailPage: React.FC = () => {
         ? `<div style="border:1px solid #cbd5e1; border-radius:8px; padding:10px; background:#f8fafc; overflow:visible;">${graphSvgForExport}</div>`
         : '<p class="small">Graph preview unavailable at export time.</p>'
       }
+
+          <h2>Overall Summary</h2>
+          <p style="font-size:13px;line-height:1.6;white-space:pre-wrap;">${escapeHtml(overallSummaryText)}</p>
 
           <h2>Medications Table</h2>
           <table>
