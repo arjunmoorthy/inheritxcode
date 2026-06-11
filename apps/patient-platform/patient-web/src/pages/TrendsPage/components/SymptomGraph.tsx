@@ -114,11 +114,20 @@ const SymptomGraph: React.FC<SymptomGraphProps> = ({
   const effectiveDark = isDark && !isPrintMode;
 
   const isMobileViewport = viewportWidth < 768;
+  const isTabletViewport = viewportWidth >= 768 && viewportWidth < 1024;
   const chartHeight = isPrintMode
     ? 520
     : (fullscreen ? Math.max(420, window.innerHeight - 220) : isMobileViewport ? 300 : 380);
   const printChartWidth = Math.max(980, viewportWidth - 40);
   const { dates, symptoms } = graphData;
+
+  // Calculate minimum width required to show data comfortably
+  const minChartWidth = isMobileViewport 
+    ? Math.max(600, dates.length * 45) 
+    : isTabletViewport 
+      ? Math.max(800, dates.length * 45) 
+      : '100%';
+
 
   const normalizedChemoDates = useMemo(() => (
     (chemoDates || [])
@@ -163,7 +172,14 @@ const SymptomGraph: React.FC<SymptomGraphProps> = ({
     });
   }, [chartDates, symptoms]);
 
-  const maxXAxisLabels = fullscreen ? 16 : isMobileViewport ? 5 : 8;
+  const maxXAxisLabels = fullscreen 
+    ? 16 
+    : isMobileViewport 
+      ? Math.max(5, Math.floor((typeof minChartWidth === 'number' ? minChartWidth : 600) / 80)) 
+      : isTabletViewport 
+        ? Math.max(8, Math.floor((typeof minChartWidth === 'number' ? minChartWidth : 800) / 80))
+        : 10;
+        
   const labelStep = Math.max(1, Math.ceil(chartDates.length / maxXAxisLabels));
   const visibleTicks = useMemo(
     () => chartDates.filter((_, idx) => idx === 0 || idx === chartDates.length - 1 || idx % labelStep === 0),
@@ -357,16 +373,25 @@ const SymptomGraph: React.FC<SymptomGraphProps> = ({
   );
 
   return (
-    <div data-export-chart="patient-symptom-graph" className="relative overflow-hidden w-full">
-      <div className={`relative ${effectiveDark ? 'bg-slate-900/50' : 'bg-slate-50'} rounded-lg`} style={{ height: chartHeight }}>
+    <div data-export-chart="patient-symptom-graph" className="relative w-full">
+      <div 
+        className={`relative ${effectiveDark ? 'bg-slate-900/50' : 'bg-slate-50'} rounded-lg overflow-x-auto overflow-y-hidden [&::-webkit-scrollbar]:h-2.5 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-thumb]:rounded-full ${effectiveDark ? '[&::-webkit-scrollbar-thumb]:bg-slate-600 [&::-webkit-scrollbar-track]:bg-slate-800' : '[&::-webkit-scrollbar-thumb]:bg-slate-300 [&::-webkit-scrollbar-track]:bg-slate-100'}`} 
+        style={{ 
+          height: chartHeight,
+          scrollbarWidth: 'thin',
+          scrollbarColor: effectiveDark ? '#475569 #1e293b' : '#cbd5e1 #f8fafc',
+        }}
+      >
         {isPrintMode ? (
           <div style={{ width: '100%', overflow: 'visible' }}>
             {chartContent}
           </div>
         ) : (
-          <ResponsiveContainer width="100%" height="100%">
-            {chartContent}
-          </ResponsiveContainer>
+          <div style={{ minWidth: minChartWidth, height: '100%' }}>
+            <ResponsiveContainer width="100%" height="100%">
+              {chartContent}
+            </ResponsiveContainer>
+          </div>
         )}
       </div>
     </div>
