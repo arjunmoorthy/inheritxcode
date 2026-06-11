@@ -2290,10 +2290,17 @@ SYMPTOMS['SKI-212'] = SymptomDef(
             ]
         ),
         Question(
+            id='rash_want_photo',
+            text='Do you want to upload a photo of the rash?',
+            input_type=InputType.YES_NO,
+            condition=lambda a: bool(a.get('loc'))  # show after location is selected
+        ),
+        Question(
             id='rash_photo',
             text='Please upload a photo of the rash',
             input_type=InputType.IMAGE,
-            condition=lambda a: bool(a.get('loc'))  # show after location is selected
+            # show only if location selected AND user opted in to upload a photo
+            condition=lambda a: bool(a.get('loc')) and a.get('rash_want_photo') is True
         ),
         Question(
             id='loc_other',

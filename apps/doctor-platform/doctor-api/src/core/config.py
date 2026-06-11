@@ -306,21 +306,21 @@ class Settings(BaseSettings):
         default="https://fax.api.sinch.com/v3",
         description="Sinch Fax API base URL. Env: SINCH_FAX_BASE_URL",
     )
-    sinch_fax_project_id: Optional[str] = Field(
+    sinch_project_id: Optional[str] = Field(
         default=None,
-        description="Sinch project ID for fax API. Env: SINCH_FAX_PROJECT_ID",
+        description="Sinch project ID for fax API. Env: SINCH_PROJECT_ID",
     )
-    sinch_fax_access_key: Optional[str] = Field(
+    sinch_key_id: Optional[str] = Field(
         default=None,
-        description="Sinch fax access key (username for basic auth). Env: SINCH_FAX_ACCESS_KEY",
+        description="Sinch fax access key (username for basic auth). Env: SINCH_KEY_ID",
     )
-    sinch_fax_access_secret: Optional[str] = Field(
+    sinch_key_secret: Optional[str] = Field(
         default=None,
-        description="Sinch fax access secret (password for basic auth). Env: SINCH_FAX_ACCESS_SECRET",
+        description="Sinch fax access secret (password for basic auth). Env: SINCH_KEY_SECRET",
     )
-    sinch_fax_from_number: Optional[str] = Field(
+    sinch_from_number: Optional[str] = Field(
         default=None,
-        description="Default outgoing fax sender number in E.164 format. Env: SINCH_FAX_FROM_NUMBER",
+        description="Default outgoing fax sender number in E.164 format. Env: SINCH_FROM_NUMBER",
     )
     
     # ==========================================================================
