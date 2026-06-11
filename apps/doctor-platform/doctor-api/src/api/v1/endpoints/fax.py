@@ -344,7 +344,7 @@ class OutgoingFaxRequest(BaseModel):
         alias="from",
         min_length=3,
         max_length=32,
-        description="Sender fax number in E.164 format. Defaults to SINCH_FAX_FROM_NUMBER",
+        description="Sender fax number in E.164 format. Defaults to SINCH_FROM_NUMBER",
     )
     contentUrl: HttpUrl = Field(..., description="Publicly accessible PDF URL")
     callbackUrl: Optional[HttpUrl] = Field(default=None, description="Optional status callback URL")
@@ -359,7 +359,7 @@ class OutgoingPatientSymptomsFaxRequest(BaseModel):
         alias="from",
         min_length=3,
         max_length=32,
-        description="Sender fax number in E.164 format. Defaults to SINCH_FAX_FROM_NUMBER",
+        description="Sender fax number in E.164 format. Defaults to SINCH_FROM_NUMBER",
     )
     callbackUrl: Optional[HttpUrl] = Field(default=None, description="Optional status callback URL")
     days: int = Field(default=30, ge=1, le=90, description="Number of past days to include in report")
@@ -373,22 +373,22 @@ async def _submit_sinch_fax(
     from_number_override: Optional[str] = None,
     callback_url: Optional[str] = None,
 ) -> Dict[str, Any]:
-    if not settings.sinch_fax_project_id:
+    if not settings.sinch_project_id:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Sinch fax project ID is not configured",
         )
-    if not settings.sinch_fax_access_key or not settings.sinch_fax_access_secret:
+    if not settings.sinch_key_id or not settings.sinch_key_secret:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Sinch fax credentials are not configured",
         )
 
-    from_number = from_number_override or settings.sinch_fax_from_number
+    from_number = from_number_override or settings.sinch_from_number
     if not from_number:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="'from' number is required (either in payload or SINCH_FAX_FROM_NUMBER)",
+            detail="'from' number is required (either in payload or SINCH_FROM_NUMBER)",
         )
 
     request_payload: Dict[str, Any] = {
@@ -401,7 +401,7 @@ async def _submit_sinch_fax(
 
     endpoint = (
         f"{settings.sinch_fax_base_url.rstrip('/')}/projects/"
-        f"{settings.sinch_fax_project_id}/faxes"
+        f"{settings.sinch_project_id}/faxes"
     )
     logger.info(
         "Submitting Sinch fax request | to=%s from=%s contentUrl=%s callback=%s endpoint=%s",
@@ -416,7 +416,7 @@ async def _submit_sinch_fax(
         async with httpx.AsyncClient(timeout=20.0) as client:
             response = await client.post(
                 endpoint,
-                auth=(settings.sinch_fax_access_key, settings.sinch_fax_access_secret),
+                auth=(settings.sinch_key_id, settings.sinch_key_secret),
                 json=request_payload,
                 headers={"Content-Type": "application/json"},
             )

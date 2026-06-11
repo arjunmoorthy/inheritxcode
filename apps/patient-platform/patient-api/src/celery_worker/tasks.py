@@ -2,8 +2,7 @@ from datetime import date
 from uuid import UUID
 import asyncio
 
-from celery import shared_task
-
+from celery_worker.app import celery_app
 from core.logging import get_logger
 from db.database import SessionFactories
 from db.patient_models import ChatPatient, PatientInfo
@@ -21,6 +20,7 @@ def _get_session(factory_key: str):
 
 
 def _resolve_patient_phone(fax_patient: DoctorPatient, patient_info: PatientInfo | None) -> tuple[str | None, str]:
+    """Prefer phone_number on fax_patients; fall back to patient_info."""
     fax_phone = (fax_patient.phone_number or "").strip() or None
     if fax_phone:
         return fax_phone, "fax_patients"
@@ -43,6 +43,7 @@ def _resolve_patient_name(
 
 
 def _try_send_email_reminder(*, patient_uuid, email: str, patient_name: str) -> str:
+    """Returns: sent | failed."""
     try:
         asyncio.run(
             send_email(
@@ -69,6 +70,7 @@ def _try_send_sms_reminder(
     patient_name: str,
     phone_number: str | None,
 ) -> str:
+    """Returns: skipped_no_phone | sent | failed."""
     if not phone_number:
         logger.warning(
             "SMS reminder: NOT sent (no phone on file) | uuid=%s",
@@ -94,7 +96,13 @@ def _try_send_sms_reminder(
         return "failed"
 
 
-@shared_task(bind=True, autoretry_for=(Exception,), retry_backoff=60, retry_kwargs={"max_retries": 3})
+@celery_app.task(
+    bind=True,
+    name="services.tasks.send_daily_patient_alerts",
+    autoretry_for=(Exception,),
+    retry_backoff=60,
+    retry_kwargs={"max_retries": 3},
+)
 def send_daily_patient_alerts(self):
     """Send email/SMS reminders for fax_patients active within start_date/end_date."""
     logger.info("Starting daily patient alerts task...")
@@ -171,7 +179,13 @@ def send_daily_patient_alerts(self):
         patient_db.close()
 
 
-@shared_task(bind=True, autoretry_for=(Exception,), retry_backoff=60, retry_kwargs={"max_retries": 3})
+@celery_app.task(
+    bind=True,
+    name="services.tasks.sync_patient_to_fax_patients",
+    autoretry_for=(Exception,),
+    retry_backoff=60,
+    retry_kwargs={"max_retries": 3},
+)
 def sync_patient_to_fax_patients(
     self,
     patient_uuid: str | None = None,

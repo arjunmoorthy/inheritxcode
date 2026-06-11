@@ -370,6 +370,28 @@ class Settings(BaseSettings):
         description="Secret for validating fax webhook requests"
     )
 
+    # Sinch SMS (patient reminders)
+    sinch_project_id: Optional[str] = Field(
+        default=None,
+        description="Sinch project ID for SMS API. Env: SINCH_PROJECT_ID",
+    )
+    sinch_key_id: Optional[str] = Field(
+        default=None,
+        description="Sinch access key ID for SMS API. Env: SINCH_KEY_ID",
+    )
+    sinch_key_secret: Optional[str] = Field(
+        default=None,
+        description="Sinch access key secret for SMS API. Env: SINCH_KEY_SECRET",
+    )
+    sinch_sms_region: Optional[str] = Field(
+        default=None,
+        description="Sinch SMS region (e.g. us, eu). Env: SINCH_SMS_REGION",
+    )
+    sinch_from_number: Optional[str] = Field(
+        default=None,
+        description="Outgoing SMS sender number in E.164 format. Env: SINCH_FROM_NUMBER",
+    )
+
     # Password reset URL (patient web)
     patient_forget_password_base_url: str = Field(
         ...,

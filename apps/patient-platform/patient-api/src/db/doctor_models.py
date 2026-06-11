@@ -61,6 +61,10 @@ class DoctorPatient(DoctorBase):
 
     id = Column(Integer, primary_key=True, autoincrement=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, unique=True, index=True)
+    first_name = Column(String(255), nullable=True)
+    last_name = Column(String(255), nullable=True)
+    phone_number = Column(String(50), nullable=True, index=True)
+    email = Column(String(255), nullable=True, index=True)
     start_date = Column(Date, nullable=True)
     end_date = Column(Date, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
