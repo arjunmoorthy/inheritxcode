@@ -381,14 +381,25 @@ def _generic_natural_clause(symptom: SymptomDef, q: Question, val: Any, answers:
             return f"You reported duration of {sl} as {lab.lower()}."
 
     if it == InputType.NUMBER:
+        num = _coerce_number(val)
         if "temp" in qid or qid == "cough_temp" or ("temperature" in ql and "oxygen" not in ql):
             return f"You reported a temperature of {val}."
         if "o2" in qid or "sat" in qid or "oxygen" in ql:
             return f"You reported oxygen saturation of {val}."
-        if qid in ("days_bm", "days_gas"):
+        if "pain" in ql and ("scale" in ql or "0 to 10" in ql or "0-10" in ql):
+            if num is not None:
+                shown = int(num) if num.is_integer() else num
+                return f"You rated pain as {shown}/10."
+            return f"You rated pain as {val}/10."
+        if qid in ("days_bm", "days_gas", "days_gas", "last_gas_days"):
             day_word = "day" if float(val) == 1 else "days"
-            if qid == "days_bm":
-                return f"You have had no bowel movement for {int(float(val))} {day_word}."
+            # if qid == "days_bm":
+            #     return f"You have had no bowel movement for {int(float(val))} {day_word}."
+            if qid in ("days_bm", "last_bm_days"):
+                return (
+                    f"You have had no bowel movement for "
+                    f"{int(float(val))} {day_word}."
+                )
             return f"You have had no gas passage for {int(float(val))} {day_word}."
         if qid in ("days", "preface"):
             day_word = "day" if float(val) == 1 else "days"
@@ -396,7 +407,8 @@ def _generic_natural_clause(symptom: SymptomDef, q: Question, val: Any, answers:
         lab = q.text.strip().rstrip("?").lower()
         if "how many" in lab and "last 24 hours" in lab:
             return f"You reported {val} in the last 24 hours."
-        return f"You reported a value of {val}."
+        topic = _question_topic(q.text)
+        return f"You reported {topic} as {val}."
 
     if it == InputType.CHOICE and qid == "mucus":
         lab = _choice_label(q, val)
@@ -435,7 +447,7 @@ def _generic_natural_clause(symptom: SymptomDef, q: Question, val: Any, answers:
         if lab:
             shortq = q.text.strip().rstrip("?").lower()
             if "when did" in shortq or "how long" in shortq:
-                return f"You reported this has been present for {lab.lower()}."
+                return f"You reported {sl} has been present for {lab.lower()}."
             if "where" in shortq and ("hurt" in shortq or "pain" in shortq):
                 return f"You reported pain location as {lab.lower()}."
             return f"You reported {lab.lower()}."
@@ -467,6 +479,20 @@ def _coerce_str(val: Any) -> Optional[str]:
         return None
     s = str(val).strip()
     return s if s else None
+
+
+def _coerce_number(val: Any) -> Optional[float]:
+    try:
+        return float(val)
+    except (TypeError, ValueError):
+        return None
+
+
+def _question_topic(text: str) -> str:
+    topic = (text or "").strip().rstrip("?")
+    if not topic:
+        return "that value"
+    return topic[0].lower() + topic[1:]
 
 
 def _iterate_questions(symptom: SymptomDef) -> List[Question]:
@@ -546,6 +572,26 @@ def _dedupe_preserve_order(lines: List[str]) -> List[str]:
     return out
 
 
+def _to_clinical_voice(sentence: str) -> str:
+    """Convert second-person fallback sentence into doctor-facing patient voice."""
+    text = (sentence or "").strip()
+    if not text:
+        return text
+    if text.startswith("You are "):
+        return "The patient is " + text[len("You are "):]
+    if text.startswith("You have "):
+        return "The patient has " + text[len("You have "):]
+    if text.startswith("You can "):
+        return "The patient can " + text[len("You can "):]
+    if text.startswith("You cannot "):
+        return "The patient cannot " + text[len("You cannot "):]
+    if text.startswith("You "):
+        return "The patient " + text[len("You "):]
+    if text.startswith("Your "):
+        return "The patient's " + text[len("Your "):]
+    return text
+
+
 def build_clinical_narrative_summary(
     engine_state: Dict[str, Any],
     get_symptom_name: Callable[[str], str],
@@ -588,6 +634,7 @@ def build_clinical_narrative_summary(
         t = (s or "").strip()
         if not t:
             continue
+        t = _to_clinical_voice(t)
         if not t.endswith("."):
             t += "."
         cleaned.append(t)

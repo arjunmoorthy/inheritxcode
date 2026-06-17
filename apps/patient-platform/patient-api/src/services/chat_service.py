@@ -35,6 +35,7 @@ Copyright:
 from typing import Dict, Any, List, Tuple, Optional, AsyncGenerator
 from uuid import UUID
 from datetime import datetime, time, date
+import asyncio
 import re
 from copy import deepcopy
 from sqlalchemy.orm import Session
@@ -407,14 +408,17 @@ class ChatService:
         # CLEAR OVERALL SUMMARY CACHE
         # ==========================================
 
-        for key in redis_client.scan_iter(
-            f"overall_summary:{patient_uuid}:*"
-        ):
-            redis_client.delete(key)
+        try:
+            for key in redis_client.scan_iter(
+                f"overall_summary:{patient_uuid}:*"
+            ):
+                redis_client.delete(key)
 
-        logger.info(
-            f"Cleared overall summary cache for patient {patient_uuid}"
-        )
+            logger.info(
+                f"Cleared overall summary cache for patient {patient_uuid}"
+            )
+        except Exception:
+            logger.exception("Failed to clear overall summary cache")
 
         logger.info(f"Updated feeling: chat={chat_uuid} feeling={feeling}")
     
@@ -1014,8 +1018,10 @@ class ChatService:
             self._get_symptom_name,
         )
         ai_service = AIClinicalSummaryService()
-        ai_clinical_summary = await ai_service.generate_clinical_summary(messages=messages)
-        ai_patient_summary = await ai_service.generate_patient_summary(messages=messages)
+        ai_clinical_summary, ai_patient_summary = await asyncio.gather(
+            ai_service.generate_clinical_summary(messages=messages),
+            ai_service.generate_patient_summary(messages=messages),
+        )
 
         if ai_clinical_summary:
             logger.info(f"Generated AI clinical summary for chat={chat_uuid}")
