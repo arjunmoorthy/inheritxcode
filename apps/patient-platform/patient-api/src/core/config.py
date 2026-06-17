@@ -424,6 +424,10 @@ class Settings(BaseSettings):
         default=120,
         description="Timeout (seconds) for Gemini summary generation requests"
     )
+    gemini_hard_timeout_seconds: int = Field(
+        default=120,
+        description="Hard cap timeout (seconds) applied to Gemini requests to avoid long waits"
+    )
     
     # Pinecone Settings (for vector search if needed)
     pinecone_api_key: Optional[str] = Field(

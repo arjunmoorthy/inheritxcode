@@ -8,6 +8,7 @@ caller when unavailable or on errors.
 
 import asyncio
 import re
+import time
 from typing import List, Optional
 
 from google import genai
@@ -77,6 +78,24 @@ PATIENT_SUMMARY_REFINEMENT_PROMPT = (
     "Return only the final paragraph."
 )
 
+# Max characters to send to Gemini in the prompt (includes instruction + transcript).
+# Keep conservative default; can be overridden with settings.gemini_max_prompt_chars
+DEFAULT_MAX_PROMPT_CHARS = 9000
+TRIM_PREFIX = "[...truncated older messages...]\n"
+TRANSIENT_GEMINI_ERROR_MARKERS = (
+    "503",
+    "unavailable",
+    "deadline exceeded",
+    "timed out",
+    "timeout",
+    "connection reset",
+    "temporarily",
+    "internal",
+    "500",
+    "429",
+    "resource exhausted",
+)
+
 
 class AIClinicalSummaryService:
     """Service for generating AI-powered clinical narrative summaries."""
@@ -85,7 +104,20 @@ class AIClinicalSummaryService:
         self._enabled = settings.ai_clinical_summary_enabled
         self._api_key = settings.gemini_api_key
         self._model_name = settings.gemini_model
-        self._timeout_seconds = settings.gemini_timeout_seconds
+        configured_timeout = int(settings.gemini_timeout_seconds)
+        hard_cap_timeout = int(getattr(settings, "gemini_hard_timeout_seconds", 60))
+        # Prevent very high runtime latency from blocking symptom-check completion.
+        self._timeout_seconds = max(5, min(configured_timeout, hard_cap_timeout))
+        # Retry only for transient provider/network failures.
+        self._max_retries = int(getattr(settings, "gemini_max_retries", 2))
+        self._retry_base_delay_seconds = float(
+            getattr(settings, "gemini_retry_base_delay_seconds", 1.5)
+        )
+        # Lazily create a reusable client for the lifetime of this service instance.
+        # Creating a new client per request can add noticeable overhead.
+        self._client = genai.Client(api_key=self._api_key) if self._api_key else None
+        # Allow configuration override from settings if present
+        self._max_prompt_chars = getattr(settings, "gemini_max_prompt_chars", DEFAULT_MAX_PROMPT_CHARS)
 
     @property
     def is_available(self) -> bool:
@@ -215,14 +247,34 @@ class AIClinicalSummaryService:
         transcript: str,
     ) -> Optional[str]:
         """Shared AI generation runner for doctor/patient prompts."""
-        final_prompt = (
-            f"{prompt_text}\n\n"
-            "Full chat sequence (chronological):\n"
-            f"{transcript}\n\n"
-            "Return only the final 3-5 sentence paragraph."
-        )
+        # If transcript + prompt is too large, trim oldest content first and add a
+        # visible prefix so the model understands older context was removed.
+        prompt_header = f"{prompt_text}\n\nFull chat sequence (chronological):\n"
+        footer = "\n\nReturn only the final 3-5 sentence paragraph."
+
+        # compute allowed transcript size
+        allowed = max(0, self._max_prompt_chars - len(prompt_header) - len(footer))
+        used_transcript = transcript
+        trimmed = False
+        if len(transcript) > allowed:
+            # Keep the most recent characters up to allowed, prefixed with TRIM_PREFIX
+            used_transcript = TRIM_PREFIX + transcript[-max(0, allowed - len(TRIM_PREFIX)):]
+            trimmed = True
+
+        final_prompt = f"{prompt_header}{used_transcript}{footer}"
+
+        if trimmed:
+            logger.info(
+                "Trimmed transcript for Gemini generation: original_chars=%d, allowed=%d, final_chars=%d",
+                len(transcript), allowed, len(used_transcript),
+            )
 
         try:
+            logger.info(
+                "Sending prompt to Gemini: model=%s prompt_chars=%d",
+                self._model_name, len(final_prompt),
+            )
+
             raw_text = await asyncio.wait_for(
                 asyncio.to_thread(self._generate_sync, final_prompt),
                 timeout=self._timeout_seconds,
@@ -243,27 +295,82 @@ class AIClinicalSummaryService:
 
     def _generate_sync(self, prompt: str) -> str:
         """Run Gemini call in a sync context."""
-        client = genai.Client(api_key=self._api_key)
-        response = client.models.generate_content(
-            model=self._model_name,
-            contents=prompt,
-            config=types.GenerateContentConfig(
-                temperature=0.2,
-                top_p=0.95,
-            ),
-        )
-        return getattr(response, "text", "") or ""
+        # Reuse client if available to avoid repeated client initialization overhead.
+        if not self._client:
+            self._client = genai.Client(api_key=self._api_key)
+        attempt = 0
+        max_attempts = max(1, self._max_retries + 1)
+        while attempt < max_attempts:
+            attempt += 1
+            start = time.monotonic()
+            try:
+                response = self._client.models.generate_content(
+                    model=self._model_name,
+                    contents=prompt,
+                    config=types.GenerateContentConfig(
+                        temperature=0.2,
+                        top_p=0.95,
+                    ),
+                )
+                duration = time.monotonic() - start
+                text = getattr(response, "text", "") or ""
+                logger.info(
+                    "Gemini call completed: model=%s attempt=%d duration=%.3fs response_chars=%d",
+                    self._model_name,
+                    attempt,
+                    duration,
+                    len(text),
+                )
+                return text
+            except Exception as exc:
+                if attempt >= max_attempts or not self._is_transient_error(exc):
+                    raise
+
+                delay = self._retry_base_delay_seconds * (2 ** (attempt - 1))
+                logger.warning(
+                    "Gemini transient failure; retrying: model=%s attempt=%d/%d delay=%.1fs error=%s",
+                    self._model_name,
+                    attempt,
+                    max_attempts,
+                    delay,
+                    exc,
+                )
+                time.sleep(delay)
+
+        return ""
+
+    @staticmethod
+    def _is_transient_error(exc: Exception) -> bool:
+        """Best-effort classifier for retryable Gemini/network failures."""
+        text = str(exc).lower()
+        return any(marker in text for marker in TRANSIENT_GEMINI_ERROR_MARKERS)
 
     @staticmethod
     def _format_transcript(messages: List[MessageModel]) -> str:
-        """Format full chat messages for prompt input."""
+        """
+        Format chat messages for prompt input.
+
+        Keep the transcript compact by prioritizing patient-provided content.
+        Including every assistant prompt (questions/options/instructions) makes
+        long symptom sessions much slower and increases timeout risk.
+        """
         lines: List[str] = []
         for msg in messages:
-            sender = (msg.sender or "unknown").strip().upper()
+            sender_raw = (msg.sender or "unknown").strip().lower()
+            # Only patient inputs are required for symptom summarization.
+            # Skip assistant/system messages to keep prompt size and latency low.
+            if sender_raw != "user":
+                continue
+
+            sender = sender_raw.upper()
             msg_type = (msg.message_type or "text").strip()
             content = (msg.content or "").strip()
             if not content:
                 continue
+            # Keep each user entry bounded so unusually verbose notes do not
+            # dominate the prompt and trigger model timeouts.
+            if len(content) > 500:
+                content = content[:500] + "..."
             lines.append(f"{sender} [{msg_type}]: {content}")
         return "\n".join(lines)
 
