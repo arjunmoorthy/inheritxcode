@@ -78,6 +78,14 @@ class Settings(BaseSettings):
         default=False,
         description="Enable local development mode (bypasses Cognito auth)"
     )
+    maintenance_mode: bool = Field(
+        default=True,
+        description="Enable maintenance mode to block patient login"
+    )
+    maintenance_message: str = Field(
+        default="Right now the system is under maintainence will be back soon",
+        description="Message to display when maintenance mode is active"
+    )
     
     # ==========================================================================
     # API SETTINGS
@@ -428,6 +436,14 @@ class Settings(BaseSettings):
         default=120,
         description="Hard cap timeout (seconds) applied to Gemini requests to avoid long waits"
     )
+    # gemini_request_timeout_seconds: int = Field(
+    #     default=45,
+    #     description="Provider-side Gemini HTTP timeout in seconds for short summary generation"
+    # )
+    # gemini_max_output_tokens: int = Field(
+    #     default=512,
+    #     description="Maximum Gemini output tokens for 3-5 sentence summary responses"
+    # )
     
     # Pinecone Settings (for vector search if needed)
     pinecone_api_key: Optional[str] = Field(

@@ -284,6 +284,20 @@ async def login(
     Request/response and error format match doctor-api POST /auth/login.
     """
     logger.info(f"Login request: email={body.email}")
+    logger.info(f"Maintenance mode status: {settings.maintenance_mode}")
+    
+    # Check for maintenance mode
+    if settings.maintenance_mode:
+        logger.warning(f"Login blocked by maintenance mode: email={body.email}")
+        return JSONResponse(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            content=ErrorResponse(
+                success=False,
+                message=settings.maintenance_message,
+                details={"maintenance": True},
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            ).model_dump(),
+        )
 
     user = doctor_db.query(DoctorUser).filter(DoctorUser.email == body.email).first()
 
