@@ -960,7 +960,7 @@ class ChatService:
         
         # Line 2: Assessment level with context
         if triage_level == 'call_911':
-            bulleted_lines.append("Assessment: Emergency - Immediate attention required")
+            bulleted_lines.append("Assessme_build_narrative_summariesnt: Emergency - Immediate attention required")
         elif triage_level in ['urgent', 'notify_care_team']:
             bulleted_lines.append(f"Assessment: {triage_display} - Please contact your care team")
         else:
@@ -1013,11 +1013,12 @@ class ChatService:
 
         Uses Gemini when enabled/configured, otherwise deterministic fallback.
         """
-        clinical_fallback = build_clinical_narrative_summary(
-            engine_state,
-            self._get_symptom_name,
-        )
+        # clinical_fallback = build_clinical_narrative_summary(
+        #     engine_state,
+        #     self._get_symptom_name,
+        # )
         ai_service = AIClinicalSummaryService()
+        print(engine_state,'1111111111111111111111111111111111111111111111111111')
         ai_clinical_summary, ai_patient_summary = await asyncio.gather(
             ai_service.generate_clinical_summary(messages=messages),
             ai_service.generate_patient_summary(messages=messages),
@@ -1025,22 +1026,37 @@ class ChatService:
 
         if ai_clinical_summary:
             logger.info(f"Generated AI clinical summary for chat={chat_uuid}")
+            clinical_summary = ai_clinical_summary
         else:
             logger.info(
                 f"Using deterministic clinical summary fallback for chat={chat_uuid}"
             )
-
-        if ai_patient_summary:
-            logger.info(f"Generated AI patient summary for chat={chat_uuid}")
-        else:
-            logger.info(
-                f"Using patient summary fallback from longer_summary for chat={chat_uuid}"
+            clinical_fallback = build_clinical_narrative_summary(
+                engine_state,
+                self._get_symptom_name,
             )
 
-        return (
-            ai_clinical_summary or clinical_fallback,
-            ai_patient_summary or patient_fallback,
-        )
+        # Fallback for patient summary
+        if ai_patient_summary:
+            logger.info(f"Generated AI patient summary for chat={chat_uuid}")
+            patient_summary = ai_patient_summary
+        else:
+            logger.info(f"Using patient summary fallback for chat={chat_uuid}")
+            # FALLBACK ONLY USED IF AI FAILS
+            patient_summary = patient_fallback
+        return (clinical_summary, patient_summary)
+
+        # if ai_patient_summary:
+        #     logger.info(f"Generated AI patient summary for chat={chat_uuid}")
+        # else:
+        #     logger.info(
+        #         f"Using patient summary fallback from longer_summary for chat={chat_uuid}"
+        #     )
+
+        # return (
+        #     ai_clinical_summary,
+        #     ai_patient_summary
+        # )
     
     # =========================================================================
     # Diary Integration

@@ -9,7 +9,7 @@ caller when unavailable or on errors.
 import asyncio
 import re
 import time
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
 from google import genai
 from google.genai import types
@@ -81,6 +81,8 @@ PATIENT_SUMMARY_REFINEMENT_PROMPT = (
 # Max characters to send to Gemini in the prompt (includes instruction + transcript).
 # Keep conservative default; can be overridden with settings.gemini_max_prompt_chars
 DEFAULT_MAX_PROMPT_CHARS = 9000
+DEFAULT_MAX_OUTPUT_TOKENS = 512
+DEFAULT_REQUEST_TIMEOUT_SECONDS = 45
 TRIM_PREFIX = "[...truncated older messages...]\n"
 TRANSIENT_GEMINI_ERROR_MARKERS = (
     "503",
@@ -112,6 +114,20 @@ class AIClinicalSummaryService:
         self._max_retries = int(getattr(settings, "gemini_max_retries", 2))
         self._retry_base_delay_seconds = float(
             getattr(settings, "gemini_retry_base_delay_seconds", 1.5)
+        )
+        self._request_timeout_seconds = max(
+            5,
+            int(
+                getattr(
+                    settings,
+                    "gemini_request_timeout_seconds",
+                    min(DEFAULT_REQUEST_TIMEOUT_SECONDS, self._timeout_seconds),
+                )
+            ),
+        )
+        self._max_output_tokens = max(
+            128,
+            int(getattr(settings, "gemini_max_output_tokens", DEFAULT_MAX_OUTPUT_TOKENS)),
         )
         # Lazily create a reusable client for the lifetime of this service instance.
         # Creating a new client per request can add noticeable overhead.
@@ -228,7 +244,12 @@ class AIClinicalSummaryService:
                 timeout=self._timeout_seconds,
             )
         except asyncio.TimeoutError:
-            logger.warning("Gemini patient summary refinement timed out")
+            logger.warning(
+                "Gemini patient summary refinement timed out: model=%s app_timeout_seconds=%s prompt_chars=%d",
+                self._model_name,
+                self._timeout_seconds,
+                len(refinement_input),
+            )
             return None
         except Exception as exc:
             logger.error(f"Gemini patient summary refinement failed: {exc}")
@@ -280,7 +301,12 @@ class AIClinicalSummaryService:
                 timeout=self._timeout_seconds,
             )
         except asyncio.TimeoutError:
-            logger.warning("Gemini summary generation timed out")
+            logger.warning(
+                "Gemini summary generation timed out: model=%s app_timeout_seconds=%s prompt_chars=%d",
+                self._model_name,
+                self._timeout_seconds,
+                len(final_prompt),
+            )
             return None
         except Exception as exc:
             logger.error(f"Gemini summary generation failed: {exc}")
@@ -298,6 +324,7 @@ class AIClinicalSummaryService:
         # Reuse client if available to avoid repeated client initialization overhead.
         if not self._client:
             self._client = genai.Client(api_key=self._api_key)
+        generation_config = self._build_generation_config()
         attempt = 0
         max_attempts = max(1, self._max_retries + 1)
         while attempt < max_attempts:
@@ -307,10 +334,7 @@ class AIClinicalSummaryService:
                 response = self._client.models.generate_content(
                     model=self._model_name,
                     contents=prompt,
-                    config=types.GenerateContentConfig(
-                        temperature=0.2,
-                        top_p=0.95,
-                    ),
+                    config=generation_config,
                 )
                 duration = time.monotonic() - start
                 text = getattr(response, "text", "") or ""
@@ -338,6 +362,61 @@ class AIClinicalSummaryService:
                 time.sleep(delay)
 
         return ""
+
+    def _build_generation_config(self) -> types.GenerateContentConfig:
+        """
+        Build a low-latency Gemini generation config for short summary text.
+
+        These prompts are plain text summarization requests and do not require
+        tools/function calling. Disabling automatic function calling avoids the
+        SDK's default "AFC is enabled with max remote calls: 10" path observed in
+        timeout logs. Output and thinking budgets are capped because callers ask
+        for only a 3-5 sentence paragraph.
+        """
+        config_kwargs: Dict[str, Any] = {
+            "temperature": 0.2,
+            "top_p": 0.95,
+            "max_output_tokens": self._max_output_tokens,
+            # SDK versions that use http_options honor this as a provider-side
+            # deadline; older versions ignore unsupported fields through the
+            # fallback constructor path below.
+            "http_options": types.HttpOptions(
+                timeout=int(self._request_timeout_seconds * 1000)
+            ),
+        }
+
+        automatic_function_calling_config = getattr(
+            types,
+            "AutomaticFunctionCallingConfig",
+            None,
+        )
+        if automatic_function_calling_config:
+            config_kwargs["automatic_function_calling"] = (
+                automatic_function_calling_config(disable=True)
+            )
+
+        thinking_config = getattr(types, "ThinkingConfig", None)
+        if thinking_config:
+            try:
+                config_kwargs["thinking_config"] = thinking_config(thinking_budget=0)
+            except TypeError:
+                # Some SDK/model combinations do not expose configurable
+                # thinking. The rest of the latency controls still apply.
+                logger.debug("Gemini ThinkingConfig does not support thinking_budget=0")
+
+        try:
+            return types.GenerateContentConfig(**config_kwargs)
+        except TypeError as exc:
+            logger.warning(
+                "Gemini SDK rejected one or more low-latency config fields; "
+                "falling back to portable generation config: %s",
+                exc,
+            )
+            return types.GenerateContentConfig(
+                temperature=0.2,
+                top_p=0.95,
+                max_output_tokens=self._max_output_tokens,
+            )
 
     @staticmethod
     def _is_transient_error(exc: Exception) -> bool:
