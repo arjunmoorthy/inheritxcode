@@ -277,6 +277,20 @@ const DashboardPage: React.FC = () => {
       return dateString;
     }
   };
+  const formatLocalDate = (dateString: string) => {
+    if (!dateString || dateString === 'None' || dateString === 'Invalid Date' || dateString === 'null') return 'N/A';
+    try {
+      const date = new Date(dateString);
+      if (Number.isNaN(date.getTime())) return 'N/A';
+      return date.toLocaleDateString('en-US', {
+        month: 'short',
+        day: '2-digit',
+        year: 'numeric',
+      });
+    } catch {
+      return dateString;
+    }
+  };
 
   const getLastChemo = (patient: PatientSummary): string => {
     const p = patient as PatientSummary & { last_chemo_date?: string | null };
@@ -1050,7 +1064,7 @@ const mapSeverityToPriority = (severity: string | null | undefined): 'low' | 'me
                             <MessageCircle size={14} className={`flex-shrink-0 ${isDark ? 'text-sky-400' : 'text-sky-600'}`} />
                             <div className="flex items-center gap-1">
                               <span className={`text-xs shrink-0 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Last Chatbot: </span>
-                              <span className={`text-sm ${isDark ? 'text-[#F5F3EE]' : 'text-slate-900'}`}>{lastChatbot ? formatDateShort(lastChatbot) : 'N/A'}</span>
+                              <span className={`text-sm ${isDark ? 'text-[#F5F3EE]' : 'text-slate-900'}`}>{lastChatbot ? formatLocalDate(lastChatbot) : 'N/A'}</span>
                             </div>
                           </div>
                           {lastChemo && lastChemo !== 'None' && lastChemo !== 'Invalid Date' && (

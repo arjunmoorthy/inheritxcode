@@ -24,11 +24,13 @@ export const ChatSummariesModal: React.FC<ChatSummariesModalProps> = ({
   const conversations = realConversations || [];
 
   const formatDate = (dateString: string) => {
+    if (!dateString || dateString === 'None' || dateString === 'Invalid Date' || dateString === 'null') return 'N/A';
     try {
       const date = new Date(dateString);
-      return date.toLocaleDateString('en-US', { 
-        month: 'short', 
-        day: '2-digit', 
+      if (Number.isNaN(date.getTime())) return 'N/A';
+      return date.toLocaleString('en-US', {
+        month: 'short',
+        day: '2-digit',
         year: 'numeric',
         hour: '2-digit',
         minute: '2-digit'
