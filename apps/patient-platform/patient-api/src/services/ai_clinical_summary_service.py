@@ -17,55 +17,56 @@ from google.genai import types
 from core.config import settings
 from core.logging import get_logger
 from db.patient_models import Messages as MessageModel
+from routers.chat.symptom_checker.constants import InputType
+from routers.chat.symptom_checker.symptom_definitions import (
+    Question,
+    SymptomDef,
+    get_symptom_by_id,
+)
 
 logger = get_logger(__name__)
 
 
 DOCTOR_SUMMARY_PROMPT = (
     "Summarize the patient's symptom report into a single physician-facing "
-    "paragraph. Include all symptoms the patient reported, regardless of "
-    "severity or duration (including fever, nausea, fatigue, mouth sores, "
-    "rash, abdominal pain, appetite changes, hydration changes, or any other "
-    "symptom). For each symptom, note severity, duration, interventions tried, "
-    "response, and any associated features. Include oral intake, hydration "
-    "status, functional status (ADLs), temperature, weight changes, and any "
-    "early concerning signs such as decreased urine output or pain with "
-    "swallowing. Do not infer or assign causality between symptoms unless "
-    "explicitly stated by the patient. Instead, describe symptoms as "
-    "co-occurring or associated when relevant. Write in neutral clinical "
-    "language, in 3-5 sentences, without including recommendations, triage "
-    "levels, or next steps. Ensure nothing reported is omitted. If there are "
-    "any emergent symptoms, that should be the first symptom reported."
+    "paragraph using ONLY the assessment data below. Include every symptom "
+    "the patient reported with severity, duration, interventions tried, "
+    "response, and associated features when those details are explicitly "
+    "present. Mention oral intake, hydration, ADLs, temperature, weight "
+    "changes, or other findings ONLY when explicitly answered. If a question "
+    "was answered No or denied, do not describe that finding as present. Do "
+    "not invent symptoms, temperatures, heart rates, dates, or associated "
+    "features that are not in the assessment data. Do not infer or assign "
+    "causality unless explicitly stated. Mention chemotherapy dates ONLY if "
+    "they appear in the Chemotherapy check-in section below; never attribute "
+    "symptom onset, timing, or severity to chemotherapy unless the patient "
+    "explicitly stated that relationship. Write in neutral clinical language "
+    "in 3-5 sentences without recommendations, triage levels, or next steps. "
+    "If emergent symptoms were reported, mention them first."
 
-    "Normalize and expand all abbreviations into proper clinical terminology "
-    "(e.g., 'hr' → 'heart rate'). If a heart rate value is available, you MUST "
-    "include the numeric value in beats per minute (e.g., 'heart rate of 110 bpm'). "
-    "If the heart rate is indicated as elevated but no exact number is available, "
-    "state it as 'heart rate >100 bpm'. Do not use vague phrases like "
-    "'elevated heart rate' without a number or threshold."
+    "Normalize abbreviations into proper clinical terminology (e.g., 'hr' to "
+    "'heart rate'). Include a numeric heart rate only when a number is "
+    "explicitly provided."
 )
 
 PATIENT_SUMMARY_PROMPT = (
     "Summarize the patient's symptom report into a single patient-facing "
-    "paragraph written in second-person voice. Include all symptoms the patient "
-    "reported, regardless of severity or duration (including fever, nausea, "
-    "fatigue, mouth sores, rash, abdominal pain, appetite changes, hydration "
-    "changes, or any other symptom). For each symptom, include severity, "
-    "duration, interventions tried, response, and associated features. Include "
-    "oral intake, hydration status, daily activity impact (ADLs), temperature, "
-    "weight changes, and early concerning signs such as decreased urine output "
-    "or pain with swallowing. Do not infer or assign causality between symptoms "
-    "unless explicitly stated by the patient. Instead, describe symptoms as "
-    "co-occurring or associated when relevant. Use clear and simple language in "
-    "3-5 sentences. Do not include recommendations, triage levels, or next "
-    "steps. Ensure nothing reported is omitted."
+    "paragraph in second-person voice using ONLY the assessment data below. "
+    "Include symptoms, severity, duration, interventions tried, response, and "
+    "associated features only when explicitly present. Mention oral intake, "
+    "hydration, daily activity impact, temperature, weight changes, or other "
+    "findings ONLY when explicitly answered. If a question was answered No or "
+    "denied, do not describe that finding as present. Do not invent symptoms, "
+    "temperatures, heart rates, dates, or associated features that are not in "
+    "the assessment data. Mention chemotherapy dates ONLY if they appear in "
+    "the Chemotherapy check-in section below; never attribute symptom onset, "
+    "timing, or severity to chemotherapy unless the patient explicitly stated "
+    "that relationship. Use clear and simple language in 3-5 sentences. Do "
+    "not include recommendations, triage levels, or next steps."
 
-    "Normalize and expand all abbreviations into proper clinical terminology "
-    "(e.g., 'hr' → 'heart rate'). If a heart rate value is available, you MUST "
-    "include the numeric value in beats per minute (e.g., 'heart rate of 110 bpm'). "
-    "If the heart rate is indicated as elevated but no exact number is available, "
-    "state it as 'heart rate >100 bpm'. Do not use vague phrases like "
-    "'elevated heart rate' without a number or threshold."
+    "Normalize abbreviations into proper clinical terminology (e.g., 'hr' to "
+    "'heart rate'). Include a numeric heart rate only when a number is "
+    "explicitly provided."
 )
 
 PATIENT_SUMMARY_REFINEMENT_PROMPT = (
@@ -143,6 +144,7 @@ class AIClinicalSummaryService:
     async def generate_clinical_summary(
         self,
         messages: List[MessageModel],
+        engine_state: Optional[Dict[str, Any]] = None,
     ) -> Optional[str]:
         """
         Generate a physician-facing summary from the full chat transcript.
@@ -156,7 +158,7 @@ class AIClinicalSummaryService:
             )
             return None
 
-        transcript = self._format_transcript(messages)
+        transcript = self._build_assessment_transcript(messages, engine_state)
         if not transcript:
             logger.warning(
                 "Skipping Gemini clinical summary due to empty transcript"
@@ -176,6 +178,7 @@ class AIClinicalSummaryService:
     async def generate_patient_summary(
         self,
         messages: List[MessageModel],
+        engine_state: Optional[Dict[str, Any]] = None,
     ) -> Optional[str]:
         """
         Generate a patient-facing summary from the full chat transcript.
@@ -189,7 +192,7 @@ class AIClinicalSummaryService:
             )
             return None
 
-        transcript = self._format_transcript(messages)
+        transcript = self._build_assessment_transcript(messages, engine_state)
         if not transcript:
             logger.warning(
                 "Skipping Gemini patient summary due to empty transcript"
@@ -270,7 +273,7 @@ class AIClinicalSummaryService:
         """Shared AI generation runner for doctor/patient prompts."""
         # If transcript + prompt is too large, trim oldest content first and add a
         # visible prefix so the model understands older context was removed.
-        prompt_header = f"{prompt_text}\n\nFull chat sequence (chronological):\n"
+        prompt_header = f"{prompt_text}\n\nAssessment data (authoritative):\n"
         footer = "\n\nReturn only the final 3-5 sentence paragraph."
 
         # compute allowed transcript size
@@ -283,6 +286,13 @@ class AIClinicalSummaryService:
             trimmed = True
 
         final_prompt = f"{prompt_header}{used_transcript}{footer}"
+        logger.info(
+            "Gemini request payload start (trimmed=%s, transcript_chars=%d, prompt_chars=%d)\n%s\nGemini request payload end",
+            trimmed,
+            len(used_transcript),
+            len(final_prompt),
+            final_prompt,
+        )
 
         if trimmed:
             logger.info(
@@ -425,33 +435,375 @@ class AIClinicalSummaryService:
         return any(marker in text for marker in TRANSIENT_GEMINI_ERROR_MARKERS)
 
     @staticmethod
-    def _format_transcript(messages: List[MessageModel]) -> str:
+    def _build_assessment_transcript(
+        messages: List[MessageModel],
+        engine_state: Optional[Dict[str, Any]] = None,
+    ) -> str:
         """
-        Format chat messages for prompt input.
+        Build labeled assessment data for Gemini.
 
-        Keep the transcript compact by prioritizing patient-provided content.
-        Including every assistant prompt (questions/options/instructions) makes
-        long symptom sessions much slower and increases timeout risk.
+        Combines question/answer pairs from the chat thread with structured
+        symptom answers from engine_state so yes/no responses keep context.
         """
+        sections: List[str] = []
+
+        context = AIClinicalSummaryService._format_session_context(engine_state)
+        if context:
+            sections.append("Session context:\n" + context)
+
+        chemo_qa, symptom_qa = AIClinicalSummaryService._split_question_answer_pairs(
+            messages
+        )
+        if chemo_qa:
+            sections.append("Chemotherapy check-in (this session):\n" + chemo_qa)
+        if symptom_qa:
+            sections.append("Symptom assessment:\n" + symptom_qa)
+
+        structured = AIClinicalSummaryService._format_structured_symptom_answers(
+            engine_state
+        )
+        if structured:
+            sections.append("Structured symptom answers:\n" + structured)
+
+        return "\n\n".join(sections).strip()
+
+    @staticmethod
+    def _format_session_context(engine_state: Optional[Dict[str, Any]]) -> str:
+        if not engine_state:
+            return ""
+
         lines: List[str] = []
+        # Chemotherapy dates are intentionally omitted here. They are only sent
+        # to Gemini when the chemo check-in questions were asked in this session
+        # (see Chemotherapy check-in section built from message Q&A pairs).
+
+        selected = engine_state.get("selected_symptoms") or []
+        if selected:
+            names = []
+            for symptom_id in selected:
+                symptom = get_symptom_by_id(symptom_id)
+                names.append(symptom.name if symptom else str(symptom_id))
+            lines.append(f"- Symptoms selected: {', '.join(names)}")
+
+        temperature = engine_state.get("session_temperature")
+        if temperature is not None:
+            lines.append(f"- Recorded temperature: {temperature}")
+
+        notes = engine_state.get("personal_notes")
+        if notes and str(notes).strip():
+            lines.append(f"- Personal notes: {str(notes).strip()}")
+
+        return "\n".join(lines)
+
+    @staticmethod
+    def _split_question_answer_pairs(
+        messages: List[MessageModel],
+    ) -> tuple[str, str]:
+        chemo_lines: List[str] = []
+        symptom_lines: List[str] = []
+        pending_question: Optional[str] = None
+        pending_is_chemo = False
+
         for msg in messages:
-            sender_raw = (msg.sender or "unknown").strip().lower()
-            # Only patient inputs are required for symptom summarization.
-            # Skip assistant/system messages to keep prompt size and latency low.
-            if sender_raw != "user":
+            sender = (msg.sender or "").strip().lower()
+            if AIClinicalSummaryService._should_use_as_question(msg):
+                pending_question = AIClinicalSummaryService._clean_question_text(
+                    msg.content or ""
+                )
+                pending_is_chemo = AIClinicalSummaryService._is_chemo_question(msg)
                 continue
 
-            sender = sender_raw.upper()
-            msg_type = (msg.message_type or "text").strip()
-            content = (msg.content or "").strip()
-            if not content:
+            if sender != "user":
                 continue
-            # Keep each user entry bounded so unusually verbose notes do not
-            # dominate the prompt and trigger model timeouts.
-            if len(content) > 500:
-                content = content[:500] + "..."
-            lines.append(f"{sender} [{msg_type}]: {content}")
-        return "\n".join(lines)
+
+            answer = AIClinicalSummaryService._format_user_answer(msg)
+            if not answer:
+                continue
+
+            if pending_question:
+                line = f"Q: {pending_question}\nA: {answer}"
+                if pending_is_chemo or AIClinicalSummaryService._is_chemo_answer(
+                    pending_question, answer
+                ):
+                    chemo_lines.append(line)
+                else:
+                    symptom_lines.append(line)
+                pending_question = None
+                pending_is_chemo = False
+            else:
+                symptom_lines.append(f"A: {answer}")
+
+        return "\n\n".join(chemo_lines), "\n\n".join(symptom_lines)
+
+    @staticmethod
+    def _is_chemo_question(msg: MessageModel) -> bool:
+        structured = msg.structured_data or {}
+        frontend_type = (
+            structured.get("frontend_type") or msg.message_type or ""
+        ).strip().lower()
+        if frontend_type in {"chemo_today_check", "next_chemo_date"}:
+            return True
+
+        content = (msg.content or "").lower()
+        return any(
+            phrase in content
+            for phrase in (
+                "chemotherapy today",
+                "last chemotherapy",
+                "next chemotherapy",
+                "chemo today",
+            )
+        )
+
+    @staticmethod
+    def _is_chemo_answer(question: str, answer: str) -> bool:
+        if AIClinicalSummaryService._looks_like_iso_date(answer):
+            question_lower = question.lower()
+            return "chemotherapy" in question_lower or "chemo" in question_lower
+        return False
+
+    @staticmethod
+    def _looks_like_iso_date(value: str) -> bool:
+        return bool(re.fullmatch(r"\d{4}-\d{2}-\d{2}", (value or "").strip()))
+
+    @staticmethod
+    def _format_question_answer_pairs(messages: List[MessageModel]) -> str:
+        chemo_qa, symptom_qa = AIClinicalSummaryService._split_question_answer_pairs(
+            messages
+        )
+        sections = [section for section in (chemo_qa, symptom_qa) if section]
+        return "\n\n".join(sections)
+
+    @staticmethod
+    def _should_use_as_question(msg: MessageModel) -> bool:
+        sender = (msg.sender or "").strip().lower()
+        if sender not in ("assistant", "ruby", "system"):
+            return False
+
+        structured = msg.structured_data or {}
+        frontend_type = (
+            structured.get("frontend_type") or msg.message_type or ""
+        ).strip().lower()
+        if frontend_type in {
+            "summary",
+            "education",
+            "download",
+            "image",
+            "text_input",
+        }:
+            return False
+
+        content = (msg.content or "").strip()
+        if not content:
+            return False
+
+        lowered = content.lower()
+        if any(
+            marker in lowered
+            for marker in (
+                "assessment complete",
+                "great to hear you're feeling fine",
+                "saved to your summaries",
+                "here is some helpful information",
+            )
+        ):
+            return False
+
+        if frontend_type in {
+            "disclaimer",
+            "chemo_today_check",
+            "next_chemo_date",
+            "emergency_check",
+            "emergency-check",
+            "symptom_select",
+            "symptom-select",
+            "yes_no",
+            "single-select",
+            "single_select",
+            "choice",
+            "multi-select",
+            "multi_select",
+            "multiselect",
+            "number",
+            "patient_context",
+        }:
+            return True
+
+        return "?" in content
+
+    @staticmethod
+    def _clean_question_text(text: str) -> str:
+        cleaned = re.sub(r"\*\*(.*?)\*\*", r"\1", text or "")
+        cleaned = re.sub(r"\s+", " ", cleaned).strip()
+        if len(cleaned) > 500:
+            cleaned = cleaned[:500] + "..."
+        return cleaned
+
+    @staticmethod
+    def _format_user_answer(msg: MessageModel) -> str:
+        content = (msg.content or "").strip()
+        if not content:
+            return ""
+
+        workflow_labels = {
+            "accept": "Accepted medical disclaimer",
+            "no_edit_summary": "No edits requested before summary generation",
+            "done": "Marked session complete",
+            "report_another": "Requested to report another symptom",
+            "save_diary": "Saved to diary",
+            "download": "Downloaded summary",
+        }
+        if content in workflow_labels:
+            return workflow_labels[content]
+
+        lowered = content.lower()
+        if lowered in {"yes", "true"}:
+            return "Yes"
+        if lowered in {"no", "false"}:
+            return "No"
+        if lowered == "none":
+            return "None of the above"
+
+        if len(content) > 500:
+            content = content[:500] + "..."
+        return content
+
+    @staticmethod
+    def _format_structured_symptom_answers(
+        engine_state: Optional[Dict[str, Any]],
+    ) -> str:
+        if not engine_state:
+            return ""
+
+        symptom_answers: Dict[str, Dict[str, Any]] = (
+            engine_state.get("symptom_answers") or {}
+        )
+        if not symptom_answers:
+            return ""
+
+        sections: List[str] = []
+        completed = engine_state.get("completed_symptoms") or []
+        selected = engine_state.get("selected_symptoms") or []
+        order = completed if completed else selected
+
+        for symptom_id in order:
+            answers = symptom_answers.get(symptom_id) or {}
+            if not answers:
+                continue
+
+            symptom = get_symptom_by_id(symptom_id)
+            symptom_name = symptom.name if symptom else str(symptom_id)
+            lines = AIClinicalSummaryService._format_symptom_answer_lines(
+                symptom, answers
+            )
+            if not lines:
+                continue
+            sections.append(f"{symptom_name}:\n" + "\n".join(lines))
+
+        return "\n\n".join(sections)
+
+    @staticmethod
+    def _format_symptom_answer_lines(
+        symptom: Optional[SymptomDef],
+        answers: Dict[str, Any],
+    ) -> List[str]:
+        if not answers:
+            return []
+
+        lines: List[str] = []
+        questions: List[Question] = []
+        if symptom:
+            seen: set[str] = set()
+            for question in symptom.screening_questions + symptom.follow_up_questions:
+                if question.id in seen:
+                    continue
+                seen.add(question.id)
+                questions.append(question)
+
+        question_by_id = {question.id: question for question in questions}
+        for question in questions:
+            if question.id not in answers:
+                continue
+            formatted = AIClinicalSummaryService._format_answer_value(
+                question, answers[question.id]
+            )
+            if formatted:
+                lines.append(f"- {question.text}: {formatted}")
+
+        for key, value in sorted(answers.items()):
+            if value is None or value == "" or value == []:
+                continue
+            if key in question_by_id:
+                continue
+            lines.append(
+                f"- {key.replace('_', ' ')}: "
+                f"{AIClinicalSummaryService._stringify_value(value)}"
+            )
+
+        return lines
+
+    @staticmethod
+    def _format_answer_value(question: Question, value: Any) -> Optional[str]:
+        input_type = question.input_type
+        if isinstance(input_type, str):
+            try:
+                input_type = InputType(input_type)
+            except ValueError:
+                pass
+
+        if input_type == InputType.YES_NO:
+            if isinstance(value, bool):
+                return "Yes" if value else "No"
+            lowered = str(value).strip().lower()
+            if lowered in {"yes", "true"}:
+                return "Yes"
+            if lowered in {"no", "false"}:
+                return "No"
+
+        if input_type in (InputType.CHOICE, InputType.MULTISELECT):
+            if isinstance(value, list):
+                labels = AIClinicalSummaryService._choice_labels(question, value)
+                return labels or AIClinicalSummaryService._stringify_value(value)
+            label = AIClinicalSummaryService._choice_label(question, value)
+            return label or AIClinicalSummaryService._stringify_value(value)
+
+        if input_type == InputType.NUMBER:
+            return AIClinicalSummaryService._stringify_value(value)
+
+        if input_type == InputType.TEXT:
+            text = AIClinicalSummaryService._stringify_value(value)
+            return text if text else None
+
+        return AIClinicalSummaryService._stringify_value(value)
+
+    @staticmethod
+    def _choice_label(question: Question, value: Any) -> Optional[str]:
+        for option in question.options:
+            if option.value == value or str(option.value) == str(value):
+                return (option.label or str(value)).strip()
+        return None
+
+    @staticmethod
+    def _choice_labels(question: Question, values: List[Any]) -> Optional[str]:
+        labels: List[str] = []
+        for raw in values:
+            if raw in (None, "", "none"):
+                if raw == "none":
+                    labels.append("None of the above")
+                continue
+            label = AIClinicalSummaryService._choice_label(question, raw)
+            labels.append(label or str(raw))
+        if not labels:
+            return None
+        return ", ".join(labels)
+
+    @staticmethod
+    def _stringify_value(value: Any) -> str:
+        if isinstance(value, bool):
+            return "Yes" if value else "No"
+        if isinstance(value, list):
+            return ", ".join(str(item) for item in value if item not in (None, ""))
+        return str(value).strip()
 
     @staticmethod
     def _normalize_output(text: str) -> str:
