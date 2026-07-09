@@ -1018,10 +1018,15 @@ class ChatService:
         #     self._get_symptom_name,
         # )
         ai_service = AIClinicalSummaryService()
-        print(engine_state,'1111111111111111111111111111111111111111111111111111')
         ai_clinical_summary, ai_patient_summary = await asyncio.gather(
-            ai_service.generate_clinical_summary(messages=messages),
-            ai_service.generate_patient_summary(messages=messages),
+            ai_service.generate_clinical_summary(
+                messages=messages,
+                engine_state=engine_state,
+            ),
+            ai_service.generate_patient_summary(
+                messages=messages,
+                engine_state=engine_state,
+            ),
         )
 
         if ai_clinical_summary:

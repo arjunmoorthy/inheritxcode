@@ -625,9 +625,10 @@ def patient_listing_dashboard(
             chatbot_rows = patient_db.execute(
                 text(
                     """
-                    SELECT c.patient_uuid::text AS patient_uuid, MAX(COALESCE(c.updated_at, c.created_at)) AS last_chatbot_date
+                    SELECT c.patient_uuid::text AS patient_uuid, MAX(c.created_at) AS last_chatbot_date
                     FROM conversations c
                     WHERE c.patient_uuid::text = ANY(:patient_uuids)
+                      AND c.bulleted_summary IS NOT NULL
                     GROUP BY c.patient_uuid::text
                     """
                 ),
