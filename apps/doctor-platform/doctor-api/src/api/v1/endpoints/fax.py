@@ -296,6 +296,63 @@ async def change_password(
         "message": "Password changed successfully.",
     }
 
+
+class ResetPatientPasswordRequest(BaseModel):
+    email: EmailStr
+    new_password: str = Field(..., min_length=8)
+    confirm_password: str = Field(..., min_length=8)
+
+    @model_validator(mode="after")
+    def passwords_match(self):
+        if self.new_password != self.confirm_password:
+            raise ValueError("New password and confirm password do not match.")
+        return self
+
+
+@router.post("/reset-patient-password")
+async def reset_patient_password(
+    request: ResetPatientPasswordRequest,
+    current_user: TokenData = Depends(
+        require_roles(
+            "physician",
+            "nurse",
+            "research_coordinator",
+            "navigator",
+            "medical_assistant",
+            "admin",
+        )
+    ),
+    db: Session = Depends(get_doctor_db_session),
+):
+    """
+    Reset a patient's password (doctor/staff initiated).
+    Looks up the patient user by email and sets the new password.
+    """
+    user = (
+        db.query(User)
+        .filter(User.email == request.email, User.role == "patient")
+        .first()
+    )
+
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Patient not found.",
+        )
+
+    user.password_hash = hash_password(request.new_password)
+    user.is_first_login = False
+    user.reset_token = None
+    user.reset_token_expires_at = None
+
+    db.commit()
+
+    return {
+        "status": "success",
+        "message": "Patient password has been reset successfully.",
+    }
+
+
 class Price(BaseModel):
     currency_code: str
     amount: str
