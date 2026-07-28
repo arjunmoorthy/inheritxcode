@@ -67,7 +67,8 @@ import {
   Pill,
   SlidersHorizontal,
   ChevronDown,
-  Trash2
+  Trash2,
+  Lock
 } from 'lucide-react';
 import { usePatientSummaries, type PatientSummary } from '../../services/dashboard';
 import { useAddManualPatient, useDeletePatient, type AddManualPatientPayload } from '../../services/patients';
@@ -77,6 +78,7 @@ import { useStaffListDoctors } from '../../services/staff';
 import { AddPatientModal, type PatientFormValues } from './components/AddPatientModal';
 import { ChatSummariesModal } from './components/ChatSummariesModal';
 import { DocumentationAssistantModal } from './components/DocumentationAssistantModal';
+import { ResetPasswordModal } from './components/ResetPasswordModal';
 
 function computeAge(dateOfBirth: string | undefined): number | undefined {
   if (!dateOfBirth) return undefined;
@@ -140,6 +142,8 @@ const DashboardPage: React.FC = () => {
   });
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [selectedPatientForDelete, setSelectedPatientForDelete] = useState<{ uuid: string; name: string } | null>(null);
+  const [isResetPasswordModalOpen, setIsResetPasswordModalOpen] = useState(false);
+  const [selectedPatientForResetPassword, setSelectedPatientForResetPassword] = useState<{ uuid: string; name: string; email: string } | null>(null);
   const [isDemoMode, setIsDemoMode] = useState<boolean>(() => {
     try {
       const saved = localStorage.getItem('demoMode');
@@ -1093,6 +1097,24 @@ const mapSeverityToPriority = (severity: string | null | undefined): 'low' | 'me
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
+                            setSelectedPatientForResetPassword({
+                              uuid: patient.patientUuid || patient.id,
+                              name: patient.patientName,
+                              email: (patient as any).email || ''
+                            });
+                            setIsResetPasswordModalOpen(true);
+                          }}
+                          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-all duration-200 border ${isDark
+                            ? 'border-slate-700 text-slate-300 hover:bg-slate-800 hover:text-white'
+                            : 'border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                            }`}
+                        >
+                          <Lock size={16} />
+                          <span>Reset Password</span>
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
                             navigate(`/patients/${patientRouteId}`);
                           }}
                           className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-all duration-200 ${isDark
@@ -1182,6 +1204,19 @@ const mapSeverityToPriority = (severity: string | null | undefined): 'low' | 'me
           }}
           patientUuid={selectedPatientForNotes.uuid}
           patientName={selectedPatientForNotes.name}
+        />
+      )}
+
+      {/* Reset Password Modal */}
+      {selectedPatientForResetPassword && (
+        <ResetPasswordModal
+          isOpen={isResetPasswordModalOpen}
+          onClose={() => {
+            setIsResetPasswordModalOpen(false);
+            setSelectedPatientForResetPassword(null);
+          }}
+          patientEmail={selectedPatientForResetPassword.email}
+          patientName={selectedPatientForResetPassword.name}
         />
       )}
 
