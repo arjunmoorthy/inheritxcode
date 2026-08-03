@@ -5,6 +5,8 @@ Authentication Endpoints - Patient API
 Complete authentication endpoints:
 - POST /signup: Register new user (AWS Cognito + local DB)
 - POST /login: Authenticate with email/password (local User + JWT, same as doctor-api)
+- POST /change-password: First-login / set password (email + current/new/confirm)
+- POST /update-password: Authenticated password change (current/new/confirm)
 - POST /complete-new-password: Complete password setup (Cognito)
 - POST /logout: Client-side logout acknowledgment
 - DELETE /delete-patient: Delete patient account
@@ -16,6 +18,7 @@ Rate Limiting:
 """
 
 from datetime import datetime, timezone, timedelta
+from uuid import UUID
 
 import bcrypt
 import secrets
@@ -26,7 +29,7 @@ from pydantic import BaseModel, EmailStr, Field, model_validator
 from sqlalchemy.orm import Session
 from typing import Any, Dict, List, Optional
 
-from api.deps import get_patient_db, get_doctor_db
+from api.deps import get_patient_db, get_doctor_db, get_token_payload
 from core.config import settings
 from core.exceptions import (
     ConflictError,
@@ -476,6 +479,155 @@ async def change_password(
         status_code=200,
         content={"status": "success", "message": "Password changed successfully."},
     )
+
+
+class UpdatePasswordRequest(BaseModel):
+    """Request body for authenticated password change (logged-in patient)."""
+    current_password: str = Field(..., min_length=1)
+    new_password: str = Field(..., min_length=8)
+    confirm_password: str = Field(..., min_length=8)
+
+    @model_validator(mode="after")
+    def passwords_match(self):
+        if self.new_password != self.confirm_password:
+            raise ValueError("New password and confirm password do not match.")
+        if self.current_password == self.new_password:
+            raise ValueError("New password must be different from the current password.")
+        return self
+
+
+@router.post(
+    "/update-password",
+    response_model=APIResponse[None],
+    summary="Update password (authenticated)",
+    description=(
+        "Change password for the currently authenticated patient. "
+        "Requires Bearer JWT. Body: current_password, new_password, confirm_password."
+    ),
+)
+@limiter.limit(PASSWORD_RESET_LIMIT)
+async def update_password(
+    request: Request,
+    body: UpdatePasswordRequest,
+    token_payload: Optional[dict] = Depends(get_token_payload),
+    doctor_db: Session = Depends(get_doctor_db),
+):
+    """
+    Authenticated password change for logged-in patients.
+    Identity comes from the JWT; email is not required in the body.
+    Resolves the user from the token directly so LOCAL_DEV_MODE's shared
+    test-UUID bypass does not affect this endpoint.
+    """
+    if not token_payload:
+        return JSONResponse(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            content=ErrorResponse(
+                success=False,
+                message="Authentication required.",
+                details=None,
+                status_code=status.HTTP_401_UNAUTHORIZED,
+            ).model_dump(),
+        )
+
+    user_id = token_payload.get("sub") or token_payload.get("user_id")
+    if not user_id:
+        return JSONResponse(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            content=ErrorResponse(
+                success=False,
+                message="Invalid token: missing user ID.",
+                details=None,
+                status_code=status.HTTP_401_UNAUTHORIZED,
+            ).model_dump(),
+        )
+
+    try:
+        current_patient_uuid = UUID(str(user_id))
+    except ValueError:
+        return JSONResponse(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            content=ErrorResponse(
+                success=False,
+                message="Invalid token: malformed user ID.",
+                details=None,
+                status_code=status.HTTP_401_UNAUTHORIZED,
+            ).model_dump(),
+        )
+
+    logger.info(f"Update password request: user_uuid={current_patient_uuid}")
+
+    user = (
+        doctor_db.query(DoctorUser)
+        .filter(DoctorUser.uuid == current_patient_uuid)
+        .first()
+    )
+
+    if not user:
+        return JSONResponse(
+            status_code=status.HTTP_404_NOT_FOUND,
+            content=ErrorResponse(
+                success=False,
+                message="User not found.",
+                details=None,
+                status_code=status.HTTP_404_NOT_FOUND,
+            ).model_dump(),
+        )
+
+    if (user.role or "").lower() != "patient":
+        return JSONResponse(
+            status_code=status.HTTP_403_FORBIDDEN,
+            content=ErrorResponse(
+                success=False,
+                message="Only patient users can change password via this endpoint.",
+                details=None,
+                status_code=status.HTTP_403_FORBIDDEN,
+            ).model_dump(),
+        )
+
+    if not user.is_active:
+        return JSONResponse(
+            status_code=status.HTTP_403_FORBIDDEN,
+            content=ErrorResponse(
+                success=False,
+                message="User account is inactive. Please contact support.",
+                details=None,
+                status_code=status.HTTP_403_FORBIDDEN,
+            ).model_dump(),
+        )
+
+    current_password = (body.current_password or "").strip()
+    if not current_password:
+        return JSONResponse(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content=ErrorResponse(
+                success=False,
+                message="Current password is required.",
+                details=None,
+                status_code=status.HTTP_400_BAD_REQUEST,
+            ).model_dump(),
+        )
+
+    if not user.password_hash or not verify_password(current_password, user.password_hash):
+        return JSONResponse(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content=ErrorResponse(
+                success=False,
+                message="Current password is incorrect.",
+                details=None,
+                status_code=status.HTTP_400_BAD_REQUEST,
+            ).model_dump(),
+        )
+
+    user.password_hash = hash_password(body.new_password)
+    user.is_first_login = False
+    doctor_db.commit()
+
+    payload = APIResponse(
+        success=True,
+        message="Password updated successfully.",
+        data=None,
+    )
+    return JSONResponse(status_code=200, content=payload.model_dump())
 
 
 @router.post(
