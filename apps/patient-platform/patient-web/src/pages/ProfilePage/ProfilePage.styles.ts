@@ -36,6 +36,9 @@ export const ProfileHeader = styled.div<{ $isDark?: boolean }>`
   background: linear-gradient(135deg, ${colors.primary} 0%, ${colors.primaryDark} 100%);
   color: white;
   transition: all 0.3s ease;
+  position: sticky;
+  top: 0;
+  z-index: 10;
   
   @media (max-width: 576px) {
     padding: 16px;
@@ -285,6 +288,12 @@ export const InputLabel = styled.label<{ $isDark?: boolean }>`
   letter-spacing: 0.03em;
 `;
 
+export const ErrorText = styled.span<{ $isDark?: boolean }>`
+  color: ${props => props.$isDark ? '#FCA5A5' : colors.error};
+  font-size: 1rem;
+  margin-top: 4px;
+`;
+
 export const InputField = styled.input<{ isEditing?: boolean }>`
   padding: 12px 16px;
   border: 2px solid ${props => props.isEditing ? colors.primary : colors.border};
@@ -417,5 +426,84 @@ export const CancelButton = styled.button`
   @media (max-width: 576px) {
     width: 100%;
     justify-content: center;
+  }
+`;
+
+export const PasswordSection = styled.div<{ $isDark?: boolean }>`
+  grid-column: 1 / -1;
+  background: ${props => props.$isDark ? 'linear-gradient(135deg, #0f766e 0%, #14b8a6 100%)' : 'linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%)'};
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-top: 1rem;
+  border: 1px solid ${props => props.$isDark ? '#059669' : '#7dd3fc'};
+`;
+
+export const PasswordTitle = styled.h3<{ $isDark?: boolean }>`
+  color: ${props => props.$isDark ? '#93c5fd' : '#0369a1'};
+  font-size: 1.1rem;
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  
+  &::before {
+    content: '🔒';
+  }
+`;
+
+export const PasswordInputContainer = styled.div`
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+
+  input {
+    width: 100%;
+    padding-right: 40px;
+  }
+`;
+
+export const IconButton = styled.button<{ $isDark?: boolean }>`
+  position: absolute;
+  right: 12px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: ${props => props.$isDark ? '#94A3B8' : '#64748B'};
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition: color 0.2s ease;
+  
+  &:hover {
+    color: ${props => props.$isDark ? '#1E293B' : '#1E293B'};
+  }
+`;
+
+export const ChangePasswordButton = styled.button`
+  background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+  color: white;
+  border: none;
+  border-radius: 10px;
+  padding: 12px 28px;
+  font-weight: 600;
+  font-size: 0.9375rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  box-shadow: 0 2px 8px rgba(2, 132, 199, 0.4);
+  margin-top: 1rem;
+  
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(2, 132, 199, 0.5);
+  }
+  
+  &:active {
+    transform: translateY(0);
   }
 `;

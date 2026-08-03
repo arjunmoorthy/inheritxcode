@@ -222,7 +222,7 @@ const ProfilePage: React.FC = () => {
   }
 
   return (
-    <div className={`min-h-screen transition-colors duration-300 ${isDark ? 'bg-[#1A1917]' : 'bg-[#F8FAFC]'}`}>
+    <div className={`min-h-screen overflow-y-auto transition-colors duration-300 ${isDark ? 'bg-[#1A1917]' : 'bg-[#F8FAFC]'}`}>
       <DarkModeToggle />
       <ProfileContainer $isDark={isDark}>
         <ProfileHeaderStyled $isDark={isDark}>
