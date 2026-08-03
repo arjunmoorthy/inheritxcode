@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff, CheckCircle, XCircle } from "lucide-react";
 import styled from "styled-components";
 import dayjs from "dayjs";
 import { DatePicker } from "@oncolife/ui-components";
@@ -20,6 +20,7 @@ import {
   ErrorText,
 } from "../ProfilePage.styles";
 import type { ProfileFormData } from "../types";
+import { apiClient } from "../../../utils/apiClient";
 
 interface PersonalInformationProps {
   formData: ProfileFormData;
@@ -104,6 +105,53 @@ const EmergencyTitle = styled.h3`
   }
 `;
 
+const SuccessMessage = styled.div`
+  position: fixed;
+  top: 1.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #2E7D32;
+  color: white;
+  padding: 0.75rem 1.5rem;
+  border-radius: 12px;
+  font-weight: 600;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  z-index: 2000;
+  animation: slideDownFade 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  
+  @keyframes slideDownFade {
+    from { 
+      transform: translate(-50%, -20px); 
+      opacity: 0; 
+    }
+    to { 
+      transform: translate(-50%, 0); 
+      opacity: 1; 
+    }
+  }
+`;
+
+const ErrorMessage = styled.div`
+  position: fixed;
+  top: 1.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #D32F2F;
+  color: white;
+  padding: 0.75rem 1.5rem;
+  border-radius: 12px;
+  font-weight: 600;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  z-index: 2000;
+  animation: slideDownFade 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+`;
+
 const PersonalInformation: React.FC<PersonalInformationProps> = ({
   formData,
   isEditing,
@@ -122,6 +170,10 @@ const PersonalInformation: React.FC<PersonalInformationProps> = ({
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [passwordSubmitError, setPasswordSubmitError] = useState("");
+  const [passwordSubmitSuccess, setPasswordSubmitSuccess] = useState(false);
+  
   const [passwordForm, setPasswordForm] = useState({
     currentPassword: "",
     password: "",
@@ -141,7 +193,7 @@ const PersonalInformation: React.FC<PersonalInformationProps> = ({
     }
   };
 
-  const handlePasswordSubmit = () => {
+  const handlePasswordSubmit = async () => {
     let isValid = true;
     const errors = {
       currentPassword: "",
@@ -174,14 +226,32 @@ const PersonalInformation: React.FC<PersonalInformationProps> = ({
     setPasswordErrors(errors);
 
     if (isValid) {
-      // Handle password change submission logic here
-      console.log("Password submitted", passwordForm);
-      // Optional: Clear form on success
-      setPasswordForm({
-        currentPassword: "",
-        password: "",
-        confirmPassword: "",
-      });
+      setIsChangingPassword(true);
+      setPasswordSubmitError("");
+      setPasswordSubmitSuccess(false);
+
+      try {
+        await apiClient.post("/auth/update-password", {
+          current_password: passwordForm.currentPassword,
+          new_password: passwordForm.password,
+          confirm_password: passwordForm.confirmPassword,
+        });
+
+        setPasswordSubmitSuccess(true);
+        setPasswordForm({
+          currentPassword: "",
+          password: "",
+          confirmPassword: "",
+        });
+        setTimeout(() => setPasswordSubmitSuccess(false), 3000);
+      } catch (error: any) {
+        console.error("Password change failed:", error);
+        setPasswordSubmitError(
+          error.response?.data?.message || "Failed to update password. Please try again."
+        );
+      } finally {
+        setIsChangingPassword(false);
+      }
     }
   };
 
@@ -207,6 +277,18 @@ const PersonalInformation: React.FC<PersonalInformationProps> = ({
 
   return (
     <div>
+      {passwordSubmitSuccess && (
+        <SuccessMessage>
+          <CheckCircle size={18} />
+          Password updated successfully!
+        </SuccessMessage>
+      )}
+      {passwordSubmitError && (
+        <ErrorMessage>
+          <XCircle size={18} />
+          {passwordSubmitError}
+        </ErrorMessage>
+      )}
       <SectionTitle $isDark={isDark}>Personal Information</SectionTitle>
       <GridContainer>
         <InputGroup>
@@ -432,6 +514,17 @@ const PersonalInformation: React.FC<PersonalInformationProps> = ({
         </TreatmentGrid>
       </TreatmentSection>
 
+      {isEditing && (
+        <ButtonGroup>
+          <SaveButton onClick={onSave} disabled={isSaving}>
+            {isSaving ? "⏳ Saving..." : "💾 Save Changes"}
+          </SaveButton>
+          <CancelButton onClick={onCancel} disabled={isSaving}>
+            Cancel
+          </CancelButton>
+        </ButtonGroup>
+      )}
+
       {/* Change Password Section */}
       <PasswordSection $isDark={isDark}>
         <PasswordTitle $isDark={isDark}>Change Password</PasswordTitle>
@@ -512,9 +605,9 @@ const PersonalInformation: React.FC<PersonalInformationProps> = ({
             )}
           </InputGroup>
         </TreatmentGrid>
-        <div style={{ display: "flex", justifyContent: "flex-start" }}>
-          <ChangePasswordButton onClick={handlePasswordSubmit}>
-            Update Password
+        <div style={{ display: "flex", flexDirection: "column", gap: "10px", alignItems: "flex-start", marginTop: "1rem" }}>
+          <ChangePasswordButton onClick={handlePasswordSubmit} disabled={isChangingPassword}>
+            {isChangingPassword ? "Updating Password..." : "Update Password"}
           </ChangePasswordButton>
         </div>
       </PasswordSection>
@@ -623,16 +716,6 @@ const PersonalInformation: React.FC<PersonalInformationProps> = ({
         </EmergencySection> */}
       {/* </GridContainer> */}
 
-      {isEditing && (
-        <ButtonGroup>
-          <SaveButton onClick={onSave} disabled={isSaving}>
-            {isSaving ? "⏳ Saving..." : "💾 Save Changes"}
-          </SaveButton>
-          <CancelButton onClick={onCancel} disabled={isSaving}>
-            Cancel
-          </CancelButton>
-        </ButtonGroup>
-      )}
     </div>
   );
 };
