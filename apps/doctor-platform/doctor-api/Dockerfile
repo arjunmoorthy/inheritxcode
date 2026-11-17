@@ -28,9 +28,12 @@ FROM python:3.11-slim as production
 
 WORKDIR /app
 
-# Install runtime dependencies only
+# Install runtime dependencies only.
+# libatomic1 is required by Playwright's bundled Node driver on slim images;
+# without it, `playwright install` exits 127 before --with-deps can run.
 RUN apt-get update && apt-get install -y \
     libpq5 \
+    libatomic1 \
     curl \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get clean
