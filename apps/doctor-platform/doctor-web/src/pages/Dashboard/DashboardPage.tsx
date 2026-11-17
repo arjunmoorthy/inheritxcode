@@ -74,6 +74,7 @@ import { usePatientSummaries, type PatientSummary } from '../../services/dashboa
 import { useAddManualPatient, useDeletePatient, type AddManualPatientPayload } from '../../services/patients';
 import { useThemeMode } from '@oncolife/ui-components';
 import { useAuth } from '../../contexts/AuthContext';
+import { isDemoModeDefaultUser } from '../../utils/demoModeUser';
 import { useStaffListDoctors } from '../../services/staff';
 import { AddPatientModal, type PatientFormValues } from './components/AddPatientModal';
 import { ChatSummariesModal } from './components/ChatSummariesModal';
@@ -144,8 +145,11 @@ const DashboardPage: React.FC = () => {
   const [selectedPatientForDelete, setSelectedPatientForDelete] = useState<{ uuid: string; name: string } | null>(null);
   const [isResetPasswordModalOpen, setIsResetPasswordModalOpen] = useState(false);
   const [selectedPatientForResetPassword, setSelectedPatientForResetPassword] = useState<{ uuid: string; name: string; email: string } | null>(null);
+  const demoModeLocked = isDemoModeDefaultUser(user?.email);
   const [isDemoMode, setIsDemoMode] = useState<boolean>(() => {
     try {
+      const profileEmail = JSON.parse(localStorage.getItem('userProfile') || 'null')?.email;
+      if (isDemoModeDefaultUser(profileEmail)) return true;
       const saved = localStorage.getItem('demoMode');
       return saved ? JSON.parse(saved) : false;
     } catch {
@@ -154,8 +158,13 @@ const DashboardPage: React.FC = () => {
   });
 
   useEffect(() => {
+    if (demoModeLocked) {
+      setIsDemoMode(true);
+      localStorage.setItem('demoMode', 'true');
+      return;
+    }
     localStorage.setItem('demoMode', JSON.stringify(isDemoMode));
-  }, [isDemoMode]);
+  }, [isDemoMode, demoModeLocked]);
 
   // Debounce search: wait 400ms after typing stops; clear triggers API immediately
   // Set default physician from user profile if not admin
@@ -476,8 +485,12 @@ const mapSeverityToPriority = (severity: string | null | undefined): 'low' | 'me
                 <FormControlLabel
                   control={
                     <Switch
-                      checked={isDemoMode}
-                      onChange={(e) => setIsDemoMode(e.target.checked)}
+                      checked={demoModeLocked || isDemoMode}
+                      disabled={demoModeLocked}
+                      onChange={(e) => {
+                        if (demoModeLocked) return;
+                        setIsDemoMode(e.target.checked);
+                      }}
                       color="primary"
                     />
                   }
