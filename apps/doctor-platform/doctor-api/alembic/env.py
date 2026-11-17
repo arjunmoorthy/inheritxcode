@@ -72,7 +72,7 @@ def get_url():
     password = os.getenv("DOCTOR_DB_PASSWORD", os.getenv("POSTGRES_PASSWORD", "your_password"))
     database = os.getenv("DOCTOR_DB_NAME", os.getenv("POSTGRES_DOCTOR_DB", "oncolife-doctor-dev"))
     
-    return f"postgresql://{user}:{password}@{host}:{port}/{database}"
+    return f"postgresql+psycopg2://{user}:{password}@{host}:{port}/{database}"
 
 
 def run_migrations_offline() -> None:
