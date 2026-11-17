@@ -1,4 +1,4 @@
-/** Admin whose dashboard Demo Mode switch is turned on at every login. */
+/** Admin whose dashboard Demo Mode switch stays on and cannot be turned off. */
 export const DEMO_MODE_DEFAULT_EMAIL = (
   import.meta.env.VITE_DEMO_MODE_DEFAULT_EMAIL || ''
 ).trim().toLowerCase();
