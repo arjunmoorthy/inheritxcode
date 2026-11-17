@@ -1,6 +1,7 @@
 import { useMutation } from '@tanstack/react-query';
 import { apiClient } from '../utils/apiClient';
 import { API_CONFIG } from '../config/api';
+import { isDemoModeDefaultUser } from '../utils/demoModeUser';
 
 interface LoginData {
   email: string;
@@ -92,6 +93,19 @@ export const useLogin = () => {
   return useMutation({
     mutationFn: loginUser,
     onSuccess: (data) => {
+      let previousEmail: string | undefined;
+      try {
+        previousEmail = JSON.parse(localStorage.getItem('userProfile') || 'null')?.email;
+      } catch {
+        previousEmail = undefined;
+      }
+      const nextEmail = data.data?.user?.email as string | undefined;
+      if (isDemoModeDefaultUser(nextEmail)) {
+        localStorage.setItem('demoMode', 'true');
+      } else if (isDemoModeDefaultUser(previousEmail)) {
+        localStorage.removeItem('demoMode');
+      }
+
       // Handle session token (legacy)
       if (data.data?.session) {
         localStorage.setItem('authToken', data.data.session);

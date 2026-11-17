@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import { useLogin, useCompleteNewPassword, fetchStaffProfile } from '../services/login';
 import type { CompleteNewPasswordResponse, LoginResponse, StaffProfile } from '../services/login';
 import { SESSION_START_KEY } from '@oncolife/ui-components';
+import { isDemoModeDefaultUser } from '../utils/demoModeUser';
 
 interface User extends StaffProfile { }
 
@@ -167,6 +168,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
 
   const logout = () => {
+    let signedInEmail = user?.email;
+    if (!signedInEmail) {
+      try {
+        signedInEmail = JSON.parse(localStorage.getItem('userProfile') || 'null')?.email;
+      } catch {
+        signedInEmail = undefined;
+      }
+    }
+    if (isDemoModeDefaultUser(signedInEmail)) {
+      localStorage.removeItem('demoMode');
+    }
+
     // Clear all auth-related localStorage keys
     localStorage.removeItem('authToken');
     localStorage.removeItem('refreshToken');
