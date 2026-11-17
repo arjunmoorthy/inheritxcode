@@ -353,7 +353,7 @@ class Settings(BaseSettings):
                 ssl_query = ""
 
             return (
-                f"postgresql://{self.doctor_db_user}:{self.doctor_db_password}@"
+                f"postgresql+psycopg2://{self.doctor_db_user}:{self.doctor_db_password}@"
                 f"{self.doctor_db_host}:{self.doctor_db_port}/{self.doctor_db_name}{ssl_query}"
             )
         return None
@@ -378,7 +378,7 @@ class Settings(BaseSettings):
                 ssl_query = ""
 
             return (
-                f"postgresql://{self.patient_db_user}:{self.patient_db_password}@"
+                f"postgresql+psycopg2://{self.patient_db_user}:{self.patient_db_password}@"
                 f"{self.patient_db_host}:{self.patient_db_port}/{self.patient_db_name}{ssl_query}"
             )
         return None
