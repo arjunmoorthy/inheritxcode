@@ -45,7 +45,7 @@ for db_name, config in DATABASE_CONFIG.items():
         encoded_password = urllib.parse.quote_plus(config['password'])
 
         conn_url = (
-            f"postgresql://{config['user']}:{encoded_password}@"
+            f"postgresql+psycopg2://{config['user']}:{encoded_password}@"
             f"{config['host']}:{config['port']}/{config['name']}"
         )
         logger.info(f"-----------------------------------Connecting to {db_name}: {config['user']}@{config['host']}:{config['port']}/{config['name']}")
